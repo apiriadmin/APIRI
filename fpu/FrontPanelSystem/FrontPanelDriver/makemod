@@ -1,0 +1,6 @@
+#!/bin/csh -fx
+
+set KERNELSRC = "/home/ghuber/Projects/ITE/kernel/linux-2.6.12"
+
+#make -C $KERNELSRC M=$PWD
+make -C /lib/modules/`uname -r`/build M=$PWD

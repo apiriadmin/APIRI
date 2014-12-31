@@ -1,0 +1,5 @@
+#!/bin/csh -f
+
+foreach i (*.3ite)
+	groff -man -T ps $i | ps2pdf - $i:r.pdf
+end

@@ -1,0 +1,67 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_compose_special_char" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_compose_special_char\fR \- Define a special bit mapped character.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_compose_special_char( int\fR \fIfd\fR, \fBint\fR \fIindex\fR, \fBunsigned char *\fR \fIbuf\fR )
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_compose_special_char\fR(3ite) library call will allow the
+application to define a special bit mapped character which can be
+referenced by \fIindex\fR. Each special character is 8 pixels by 8 pixels
+and encoded in the referenced 8 byte array \fIbuf\fR.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR 		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIindex\fR 	is the index of the character to be composed
+.br 
+\fIbuf\fR		is the reference to an 8 byte array containing the pixels.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>P\fIP1\fR[\fIPn\fR;\fIPn\fR .. f"   (0x1b 0x50 \fIP1\fR 0x5b \fIPn\fR 3b \fIPn\fR .. 0x66) 
+.br 
+Where \fIP1\fR is the \fIindex\fR and \fIPn\fR are the 8 ASCII encoded decimal bytes that form the character bit map.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+Only 8 special characters can be defined.
+.SH "SEE ALSO"
+\fBfpui_display_special_char\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp

@@ -1,0 +1,68 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_auto_repeat" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_auto_repeat\fR \- Get the auto repeat state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_auto_repeat( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_auto_repeat\fR(3ite) library call will return the boolean 
+state of auto repeat mode.
+
+When auto repeat is enabled, all key strokes from the front panel will
+repeat as long as the key is help depressed. When this mode is not
+enables there will be only one key code sent per key press.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+
+.SH "RETURN VALUE"
+\fBfpui_get_auto_repeat\fR(3ite) will return \fBFALSE\fR if auto 
+repeat mode is off, \fBTRUE\fR if the mode is on, and \-1 if
+an error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+.TP 
+refer to \fBfpui_write_string(3ite)\fR for additional errors.
+.SH "NOTE"
+This routine actually wraps an \fBfpui_get_attributes(3ite)\fR call. 
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.SH "SEE ALSO"
+\fBfpui_get_attributes\fR(3ite),
+\fBfpui_set_auto_scroll\fR(3ite),
+\fBfpui_set_auto_wrap\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp

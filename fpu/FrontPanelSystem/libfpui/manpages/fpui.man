@@ -1,0 +1,3345 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_clear" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_clear\fR \- Clear Screen
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_clear( int\fR  \fIfd\fR  \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_clear\fR(3ite) library call clears
+the screen without moving the cursor.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.  
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+.TP 
+refer to \fBfpui_write_string\fR(3ite) for additional errors
+.SH "NOTE"
+This routine actually wraps an \fBfpui_write_string\fR(3ite) call. 
+
+It sends the string "<ESC>[2J"   (0x1b 0x5b 0x32 0x4a).
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+If the window is not in focus, the virtual terminal display
+will still be cleared.
+.SH "SEE ALSO"
+\fBfpui_write_string(3ite)\fR
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_clear_tab" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_clear_tab\fR \- Clear tab stop.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_clear_tab( int\fR  \fIfd\fR , \fBint\fR  \fItype\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_clear_tab\fR(3ite) library call will clear the stop tab
+at the cursor position when \fItype\fR is 0,1 or 2, or it will clear
+all stop tabs when \fItype\fR is 3.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.  
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+.TP 
+\fBEINVAL\fR \fItype\fR is invalid
+
+.TP 
+refer to \fBfpui_write_string(3ite)\fR for additional errors
+.SH "NOTE"
+This routine actually wraps an \fBfpui_write_string\fR(3ite) call.
+It sends the string "<ESC>[\fIPn\fRg" (0x1b 0x5b \fIPn\fR 0x67) 
+where \fIPn\fR is the \fItype\fR of tab to clear.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+.BR 
+None
+.SH "SEE ALSO"
+\fBfpui_set_tab\fR (3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_close" "3ite" "2006-08-02" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_close\fR \- close a terminal interface
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_close( int\fR  \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The
+\fBfpui_close\fR() closes a terminal interface and its file descriptor. 
+Any resources allocated to the terminal are returned to the system for reuse.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.  
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+
+.SH "ERRORS"
+.TP 
+\fBEBADF\fR \fIfd\fR isn't a valid open file descriptor.
+
+.TP 
+\fBEINTR\fR The \fBclose\fR() call was interrupted by a signal.
+
+.TP 
+\fBEIO\fR An I/O error occurred.
+
+See \fBclose\fR(2) for additional details.
+.SH "NOTE"
+This function actually wraps the \fBclose\fR(2) routine.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBopen\fR(2),
+\fBclose\fR(2),
+\fBfpui_open\fR(3ite),
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_compose_special_char" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_compose_special_char\fR \- Define a special bit mapped character.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_compose_special_char( int\fR \fIfd\fR, \fBint\fR \fIindex\fR, \fBunsigned char *\fR \fIbuf\fR )
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_compose_special_char\fR(3ite) library call will allow the
+application to define a special bit mapped character which can be
+referenced by \fIindex\fR. Each special character is 8 pixels by 8 pixels
+and encoded in the referenced 8 byte array \fIbuf\fR.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR 		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIindex\fR 	is the index of the character to be composed
+.br 
+\fIbuf\fR		is the reference to an 8 byte array containing the pixels.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>P\fIP1\fR[\fIPn\fR;\fIPn\fR .. f"   (0x1b 0x50 \fIP1\fR 0x5b \fIPn\fR 3b \fIPn\fR .. 0x66) 
+.br 
+Where \fIP1\fR is the \fIindex\fR and \fIPn\fR are the 8 ASCII encoded decimal bytes that form the character bit map.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+Only 8 special characters can be defined.
+.SH "SEE ALSO"
+\fBfpui_display_special_char\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_del_keymap" "3ite" "2006-08-02" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_del_keymap\fR \- Delete keymap entry.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_del_keymap( int\fR \fIfd\fR, \fBchar\fR \fIkey\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_del_keymap\fR(3ite) library call is used to delete the first
+keymap entry in which the key value matches the specified key value. If no
+matching entry is found, no action is taken.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open(3ite)\fR.
+.br 
+\fIkey\fR	is the single byte code used to locate the keymap entry.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string(3ite)\fR
+.SH "NOTE"
+There are no checks for duplicate \fIkey\fR values or duplicate escape sequences.
+Escape sequences are compared in the order they appear in the list.
+New \fIkey\fR mappings are inserted in the first available slot in the list,
+which may be a slot vacated by an earlier delete operation. This means
+that the list may not be in the order mappings were added.
+\fBfpui_del_keymap\fR()
+will remove the first occurence of the specified \fIkey\fR from the list. A second,
+duplicate entry would require another \fBfpui_del_keymap\fR() operation.
+
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+.BR fpui_set_keymap (3ite),
+.BR fpui_get_keymap (3ite),
+.BR fpui_reset_keymap (3ite),
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_display_special_char" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_display_special_char\fR \- Define a special bit mapped character.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_display_special_char( int\fR \fIfd\fR, \fBint\fR \fIindex\fR, \fBunsigned char *\fR \fIbuf\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_display_special_char\fR(3ite) library call will display
+a previously composed character at the current cursor location.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR 		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIindex\fR 	is the index of the character to be displayed.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[<\fIPn\fRV"   (0x1b 0x5b 0x3c \fIPn\fR 0x56) 
+.br 
+Where \fIPn\fR is the index of the composed character.
+
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+Only 8 special characters can be defined.
+.SH "SEE ALSO"
+\fBfpui_compose_special_char\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_auto_repeat" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_auto_repeat\fR \- Get the auto repeat state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_auto_repeat( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_auto_repeat\fR(3ite) library call will return the boolean 
+state of auto repeat mode.
+
+When auto repeat is enabled, all key strokes from the front panel will
+repeat as long as the key is help depressed. When this mode is not
+enables there will be only one key code sent per key press.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+
+.SH "RETURN VALUE"
+\fBfpui_get_auto_repeat\fR(3ite) will return \fBFALSE\fR if auto 
+repeat mode is off, \fBTRUE\fR if the mode is on, and \-1 if
+an error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+.TP 
+refer to \fBfpui_write_string(3ite)\fR for additional errors.
+.SH "NOTE"
+This routine actually wraps an \fBfpui_get_attributes(3ite)\fR call. 
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.SH "SEE ALSO"
+\fBfpui_get_attributes\fR(3ite),
+\fBfpui_set_auto_scroll\fR(3ite),
+\fBfpui_set_auto_wrap\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_auto_scroll" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_auto_scroll\fR \- Get the auto scroll state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_auto_scroll( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_auto_scroll\fR(3ite) library call will return the
+boolean state of auto scroll mode.
+
+Auto scroll mode controls the display response when the cursor is
+on the bottom most line of the display and a new line is sent. If
+auto scroll is \fBTRUE\fR, the display will scroll all lines on the
+display up one line, overwriting the top most line. If auto scroll
+is \fBFALSE\fR the display remains intact but the cursor will move to
+the top most line. In either case the column position of the cursor
+is not effected by the new line.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+
+.SH "RETURN VALUE"
+\fBfpui_get_auto_scroll(3ite)\fR will return \fBFALSE\fR if auto
+scroll mode is off, \fBTRUE\fR if the mode is on and \-1 if an
+error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+.TP 
+refer to \fBfpui_write_string(3ite)\fR for additional errors.
+.SH "NOTE"
+This routine actually wraps an
+\fBfpui_get_attributes(3ite)\fR 
+call. 
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.SH "SEE ALSO"
+\fBfpui_get_attributes\fR(3ite),
+\fBfpui_set_auto_repeat\fR(3ite),
+\fBfpui_auto_wrap\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_auto_wrap" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_auto_wrap\fR \- Get the auto wrap state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_auto_wrap( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_auto_wrap\fR(3ite) library call will return the
+boolean state of auto wrap mode.
+
+Auto wrap mode controls the displays response when the cursor is
+in the right most column and a character is sent. If auto wrap mode
+is \fBTRUE\fR the character is displayed at the current cursor position
+and the cursor is wrapped back to the beginning of the line. If auto
+wrap mode is \fBFALSE\fR the character is displayed at the current cursor
+position and the cursor will remain in the right most column. Any
+subsequent characters will overwrite the previous ones.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+\fBfpui_get_auto_wrap\fR(3ite) will return \fBFALSE\fR if
+auto wrap mode is off, \fBTRUE\fR if the mode is on and \-1 if an
+error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This routine actually wraps an \fBfpui_get_attributes\fR(3ite) call. 
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.SH "SEE ALSO"
+\fBfpui_get_attributes\fR(3ite),
+\fBfpui_set_auto_repeat\fR(3ite),
+\fBfpui_set_auto_scroll\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_backlight" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_backlight\fR \- Get the current state of the Backlight.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_backlight( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_backlight\fR(3ite) library call will return the 
+boolean state of the backlight.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+\fBfpui_get_backlight\fR() will return \fBFALSE\fR if the backlight
+is off, \fBTRUE\fR if the backlight is on and \-1 if an error occurred,
+with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This routine actually wraps an \fBfpui_get_attributes\fR(3ite) call. 
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+
+.SH "SEE ALSO"
+\fBfpui_set_backlight\fR(3ite)
+\fBfpui_get_attributes\fR(3ite)
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_character_blink" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_character_blink\fR \- Get the current character blink state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_character_blink( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_character_blink\fR(3ite) library call will return the boolean
+state of character blink mode of the character at the current cursor position.
+
+Since the display cannot return this information directly, the query is processed
+by the virtual terminal only.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+\fBfpui_get_character_blink\fR() will return \fBFALSE\fR if character
+blink mode is off, \fBTRUE\fR if the mode is on, and \-1 if an error
+occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBioctl\fR(2) for additional errors.
+.SH "NOTE"
+This routine uses an \fBioctl\fR(2) interface to gather its information.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.SH "SEE ALSO"
+\fBioctl\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_cursor" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+fpui_get_cursor \- Get the cursor state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_cursor( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_cursor\fR(3ite) library call will return the boolean state on the cursor.
+
+Since the display cannot return this information directly, the query is processed
+by the virtual terminal only.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+\fBfpui_get_cursor\fR(3ite) will return \fBFALSE\fR if cursor
+is off, \fBTRUE\fR if the cursor is on, and \-1 if an error
+occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+.TP 
+refer to \fBioctl(2)\fR for additional errors.
+.SH "NOTE"
+This routine uses an ioctl interface to gather its information.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.SH "SEE ALSO"
+\fBfpui_set_cursor\fR(2ite),
+\fBioctl\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_cursor_blink" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+fpui_get_cursor_blink \- Get the cursor blink state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_cursor_blink( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_cursor_blink\fR() library call will return the boolean state on the cursor blink.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+\fBfpui_get_cursor_blink\fR(3ite) will return \fBFALSE\fR if cursor
+is not set to blink, \fBTRUE\fR if the cursor is set to blink,
+and \-1 if an error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBioctl(2)\fR for additional errors.
+.SH "NOTE"
+This routine uses an \fBioctl\fR(2) interface to gather its information.
+
+The Front Panel hardware does not support this operation directly.
+The inquiry is actually serviced by the virtual terminal which maintains
+this information.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.SH "SEE ALSO"
+\fBioctl\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_cursor_pos" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_cursor_pos\fR \- Get the current Cursor Position
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_get_cursor_pos( int\fR \fIfd\fR, \fBint *\fR \fIrow\fR, \fBint *\fR \fIcolumn\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_cursor_pos\fR(3ite) library call returns the current 
+position of the cursor in the \fIrow\fR and \fIcolumn\fR arguements.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	 	is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIrow\fR		is the reference of an integer storage location.
+.br 
+\fIcolumn\fR	is the reference of an integer storage location.
+.SH "RETURN VALUE"
+On success, the current cursor position is loaded into the
+locations referenced by \fIrow\fR and \fIcolumn\fR and 0 (zero) is returned.
+On error, the \fIrow\fR and \fIcolumn\fR variables remain unchanged and \-1 is returned,
+with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[6n"   
+(0x1b 0x5b 0x36 0x60).
+.br 
+It expects a response of the form "<ESC>[\fIPy\fR;\fIPx\fRR"  
+(0x1b 0x5b \fIPy\fR 0x3b \fIPx\fR 0x52)
+where \fIPy\fR and \fIPx\fR are the \fIrow\fR and \fIcolumn\fR indexes.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_set_cursor_pos\fR(3ite)
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_focus" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_focus\fR \- Get the current focus state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_focus( int\fR fd \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_focus\fR(3ite) library call will return \fBTRUE\fR if
+the calling application currently has focus and \fBFALSE\fR if it does not.
+
+Since the display cannot return this information directly, the query is processed
+by the virtual terminal only.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+On success, \fBTRUE\fR will be returned if the calling application currently has focus 
+and \fBFALSE\fR if it does not. On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBioctl\fR(2) for additional errors.
+.SH "NOTE"
+This routine uses an \fBioctl\fR(2) interface to gather its information.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.br 
+Applications are restricted from granting themselves focus.
+.SH "SEE ALSO"
+\fBioctl\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_keymap" "3ite" "2006-08-02" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_keymap\fR \- Get a keymap entry.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_del_keymap( int\fR \fIfd\fR, \fBint\fR \fIkey\fR, \fBchar *\fR \fIstr\fR, \fBint\fR \fIsize\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_keymap\fR(3ite) operation will return, in the arguement \fIstr\fR,
+the escape sequence associated with the value of \fIkey\fR. If an entry corresponding
+to the value of \fIkey\fR is not found, the first character in the \fIstr\fR array will be \fBNULL\fR.
+The arguement \fIstr\fR will be \fBNULL\fR terminated if the size of \fIstr\fR is greater
+than the size of the escape sequence plus 1 (for the \fBNULL\fR character). Otherwise the
+escape sequence will be packed to the size of the \fIstr\fR array and left unterminated.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open(3ite)\fR.
+.br 
+\fIkey\fR	is the single byte code used to locate the keymap entry.
+.br 
+\fIstr\fR	a character array to return the escape sequence in.
+.br 
+\fIsize\fR	the size, in characters, of the string array \fIstr\fR.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string(3ite)\fR
+.SH "NOTE"
+There are no checks for duplicate \fIkey\fR values or escape sequences.
+\fIKey\fR values are compared in the order they appear in the list.
+New \fIkey\fR mappings are inserted in the first available slot in the list,
+which may be a slot vacated by an earlier delete operation. This means
+that the list may not be in the order mappings were added.
+\fBfpui_get_keymap\fR(3ite)
+will return the first occurence of the specified \fIkey\fR from the list. A second,
+duplicate entry would not be accessable until the previous entry has been deleted.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+.BR fpui_set_keymap (3ite),
+.BR fpui_del_keymap (3ite),
+.BR fpui_reset_keymap (3ite),
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_led" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_led\fR \- Get the current state of the status LED.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_led( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_led\fR(3ite) library call will return the boolean state
+of the status LED. This status is maintained by the virtual terminal and is
+exclusive for each application window. The underlying virtual terminal
+handles updateing and controlling the actual Front Panel LED when the application
+gains focus so this call will always return the state of the virtual terminals
+virtual LED.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+
+.SH "RETURN VALUE"
+\fBfpui_get_led\fR(3ite) will return \fBFALSE\fR if the LED is off, 
+\fBTRUE\fR if the LED is on and \-1 if an error occurred, with \fIerrno\fR
+set appropriately.
+.SH "ERRORS"
+refer to \fBioctl\fR(2) for additional errors.
+.SH "NOTE"
+This routine uses an \fBioctl\fR(2) interface to gather its information.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.SH "SEE ALSO"
+\fBioctl\fR(2)
+
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_reverse_video" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_reverse_video\fR \- Get the state of reverse video mode.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_reverse_video( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_reverse_video\fR(3ite) library call will return the
+boolean state of reverse video mode for the character at the current cursor
+position.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+\fBfpui_get_reverse_video\fR(3ite) will return \fBTRUE\fR if reverse video mode
+is currently active on the character at the current cursor position,
+and \fBFALSE\fR if reverse video mode is not active. On error, \-1 will be
+returned, with \fIerrno\fR set appropriatly.
+.SH "ERRORS"
+refer to \fBioctl(2)\fR for additional errors.
+.SH "NOTE"
+This routine uses \fBioctl\fR(2) interface to gather its information. 
+
+The Front Panel hardware does not support this operation directly.
+The inquiry is actually serviced by the virtual terminal which maintains
+this information for every character on the screen.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.SH "SEE ALSO"
+\fBioctl\fR(2),
+\fBfpui_set_reverse_video\fR(3ite),
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_underline" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_underline\fR \- Get the state of underline mode.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_underline( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_underline\fR(3ite) library call will return the
+boolean state of underline mode for the character at the current cursor
+position.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+\fBfpui_get_underline\fR(3ite) will return \fBTRUE\fR if underline mode
+is currently active on the character at the current cursor position,
+and \fBFALSE\fR if underline mode is not active. On error, \-1 will be
+returned with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBioctl(2)\fR for additional errors.
+.SH "NOTE"
+This routine uses \fBioctl\fR(2) interface to gather its information. 
+
+The Front Panel hardware does not support this operation directly.
+The inquiry is actually serviced by the virtual terminal which maintains
+this information for every character on the screen.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.SH "SEE ALSO"
+\fBioctl\fR(2),
+\fBfpui_set_underline\fR(3ite),
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_window_attr" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+fpui_get_window_attr \- Get the current Window attributes.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_get_window_attr( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_window_attr\fR(3ite) library call will return a bit field encoding of the current
+window attributes. The bitfields are encoded as follows:
+
+.br 
+	union {
+.br 
+		int			errcode;
+.br 
+		unsigned int	auto_wrap:1,
+.br 
+					auto_scroll:1,
+.br 
+					auto_repeat:1,
+.br 
+					backlight:1,
+.br 
+					:4,
+.br 
+					backlight_timeout:8,
+.br 
+					:16;
+.br 
+	}
+.br 
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+On success, \fBfpui_get_window_attr\fR(3ite) will return the current window attributes encoded as
+discussed above. On error the field \fIerrcode\fR will be \-1 with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+\fBEINVAL\fR	The file descriptor, \fIfd\fR, is invalid.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[Bn"   
+(0x1b 0x5b 0x42 0x60).
+.br 
+It expects a response of the form "<ESC>[\fIP1\fR;\fIP2\fR .. \fIP6\fRR"  
+(0x1b 0x5b \fIP1\fR 0x3b \fIP2\fR .. \fIP6\fR 0x52)
+where \fIP1\fR thru \fIP6\fR are the the attrubute states.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_write_string\fR(3ite),
+\fBfpui_read_string\fR(3ite),
+\fBfpui_get_auto_wrap\fR(3ite),
+\fBfpui_get_auto_scroll\fR(3ite),
+\fBfpui_get_auto_repeat\fR(3ite),
+\fBfpui_get_backlight\fR(3ite),
+\fBfpui_get_backlight_timeout\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_window_size" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_window_size\fR \- Get the current window size.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_get_window_size( int\fR \fIfd\fR, \fBint *\fR \fIrow\fR, \fBint *\fR \fIcolumn\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_window_size\fR(3ite) library call will return the current size of the actual
+Front panel Display module to the application.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIrow\fR		a reference of an integer where the number of rows will be stored.
+.br 
+\fIcolumn\fR	a reference of an integer where the number of columns will be stored.
+.SH "RETURN VALUE"
+\fBfpui_get_window_size\fR(3ite) will return 0 (zero) upon success 
+and \-1 upon error, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBioctl(2)\fR for additional errors.
+.SH "NOTE"
+Should the actual Front Panel Display be removed, \fBfpui_get_window_size\fR(3ite)
+will return( 0, 0 ) as the current window size.
+
+The Front Panel hardware does not support this operation directly.
+The inquiry is actually serviced by the virtual terminal which maintains
+this information.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBioctl\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_home" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+fpui_home \- Home cursor.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_home( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_home\fR(3ite) library call will move the cursor to the
+upper left cormer of the display, the home position, without
+effecting any other part of the display.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open(3ite)\fR.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR is set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string(3ite)\fR
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string <ESC>[H   (0x1b 0x5b 0x48)
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_write_string\fR(3ite),
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_open" "3ite" "2006-07-25" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_open\fR \- open a terminal interface
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_open( const char *\fR \fIpathname\fR, \fBint\fR \fIflags\fR, \fBconst char *\fR \fIregname\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The
+.B fpui_open()
+library call is used to convert a \fIpathname\fR into a file descriptor
+(a small, non\-negative integer for use in subsequent I/O as with
+\fBread\fR(2), \fBwrite\fR(2), etc.).
+When the call is successful, the file descriptor returned will be
+the lowest file descriptor not currently open for the process.
+The new file descriptor is set to remain open across exec functions
+(see \fBfcntl\fR(2)).
+The file offset is unused. 
+
+The parameter
+\fIflags\fR
+is one of
+\fBO_RDONLY\fR, \fBO_WRONLY\fR or \fBO_RDWR\fR
+which request opening the file read\-only, write\-only or read/write,
+respectively,
+.RI bitwise\- or 'd
+with zero or more of the following:
+
+In addition to opening the device, the identifier \fIregname\fR is used
+to register the terminal with the Front Panel Manager. The name given
+in \fIregname\fR will appear in the Front Panel Managers selection screen.
+.SH "RETURN VALUE"
+\fBfpui_open\fR
+returns the new file descriptor, or \-1 if an error occurred (in which case,
+\fIerrno\fR is set appropriately).
+
+Note that \fBfpui_open\fR can open device special files
+
+.SH "ERRORS"
+.TP 
+\fBENXIO\fR
+\fIpathname\fR
+refers to a device special file and no corresponding device exists.
+
+.TP 
+\fBENOMEM\fR
+Insufficient kernel memory was available.
+
+See \fBopen\fR(2) for additional error codes.
+.SH "NOTE"
+This routine actually wraps an \fBopen\fR(2) 
+call, and an \fBioctl\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBopen\fR(2),
+\fBioctl\fR(2),
+\fBfpui_close\fR(3ite),
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_read" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_read\fR \- Read from the Front Panel device.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBssize_t fpui_read( int\fR \fIfd\fR, \fBchar *\fR \fIbuf\fR, \fBint\fR \fIsize\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_read\fR(3ite) library call attempts to read at most \fIsize\fR bytes of
+information from the file referenced by \fIfd\fR into the buffer referenced by \fIbuf\fR.
+.SH "RETURN VALUE"
+\fBfpui_read\fR(3ite) will return the number of bytes actually transfered to the buffer \fIbuf\fR,
+or \-1 if an error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBread\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps a \fBread\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_read_char\fR(3ite),
+\fBfpui_read_string\fR(3ite),
+\fBread\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_read_char" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_read_char\fR \- Read one character from the Front Panel device.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBchar fpui_read_char( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_read_char\fR(3ite) library call attempts to read at most one character of
+information from the file referenced by \fIfd\fR.
+.SH "RETURN VALUE"
+\fBfpui_read_char\fR(3ite) will return either the character read,
+or \-1 if an error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBread\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps a \fBread\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_read\fR(3ite),
+\fBfpui_read_string\fR(3ite),
+\fBread\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_read_string" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_read_string\fR \- Read from the Front Panel device and NULL terminate the string
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBssize_t fpui_read( int\fR \fIfd\fR, \fBchar *\fR \fIbuf\fR, \fBint\fR \fIsize\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_read_string\fR(3ite) library call attempts to read at most \fIsize\fR minus 1 bytes of
+information from the file referenced by \fIfd\fR into the buffer referenced by \fIbuf\fR.
+The string is then \fBNULL\fR terminated before returning.
+.SH "RETURN VALUE"
+\fBfpui_read_string\fR(3ite) will return the number of bytes actually transfered to the buffer \fIbuf\fR,
+(not including the termination character) or \-1 if an error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer tp \fBread\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps a \fBread\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_read\fR(3ite),
+\fBfpui_read_char\fR(3ite),
+\fBread\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_refresh" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_refresh\fR \- Refresh the Front Panel Display.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_refresh( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_refresh\fR(3ite) library call will clear the actual Front Panel Display
+and redraw it according to the contents of the virtual terminal. This operation
+has no effect if the calling applications window is not in focus.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open(3ite)\fR.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBioctl(2)\fR for additional errors.
+.SH "NOTE"
+This routine uses \fBioctl\fR(2) interface to perform this operation. 
+
+The Front Panel hardware does not support this operation directly.
+The inquiry is actually serviced by the virtual terminal which then
+carries out the request.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBioctl\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_reset_all_attributes" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_reset_all_attributes\fR \- Reset all attributes to their off state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_reset_all_attributes( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_reset_all_attributes\fR(3ite) library call will turn off or disable the following attributes;
+.br 
+	Character Blink
+.br 
+	Cursor Blink
+.br 
+	Reverse Video
+.br 
+	Underline
+.br 
+
+.br 
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open(3ite)\fR.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string(3ite)\fR
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[0m"   (0x1b 0x5b 0x30 0x6d)
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_write_string\fR(3ite),
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_reset_keymap" "3ite" "2006-08-02" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_reset_keymap\fR \- Reset and clear the entire keymap list.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_del_keymap( int\fR \fIfd\fR, \fBint\fR \fItype\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_reset_keymap\fR(3ite) library call is used to clear the entire keymap
+or to reset it to a default mapping.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open\fR(3ite)
+.br 
+\fItype\fR	when 0 removes all mappings
+.br 
+	when 1 removes all mappings and preloads default mappings.
+.SH "RETURN VALUE"
+On success, zero (0) is returned.  
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string(3ite)\fR
+.SH "NOTE"
+None.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+.BR fpui_set_keymap (3ite),
+.BR fpui_get_keymap (3ite),
+.BR fpui_del_keymap (3ite),
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_auto_repeat" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_auto_repeat\fR \- Set the auto repeat state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_auto_repeat( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_auto_repeat\fR(3ite) library call will set auto repeat mode
+according to the value of \fIstate\fR.
+
+When auto repeat is enabled, all key strokes from the front panel will
+repeat as long as the key is help depressed. When this mode is not
+enables there will be only one key code sent per key press.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set auto repeat mode to.
+
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+
+.SH "ERRORS"
+refer to \fBfpui_write_string(3ite)\fR for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[08h"   (0x1b 0x5b 0x30 0x38 0x68) to assert
+the mode 
+.br 
+and  "<ESC>[08l"   (0x1b 0x5b 0x30 0x38 0x6c) to negate the mode.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_attributes\fR(3ite),
+\fBfpui_set_auto_scroll\fR(3ite),
+\fBfpui_set_auto_wrap\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_auto_scroll" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_auto_scroll\fR \- Get the auto scroll state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_auto_scroll( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_auto_scroll\fR(3ite) library call will set auto repeat mode
+according to the value of \fIstate\fR.
+
+Auto scroll mode controls the display response when the cursor is
+on the bottom most line of the display and a new line is sent. If
+auto scroll is \fBTRUE\fR, the display will scroll all lines on the
+display up one line, overwriting the top most line. If auto scroll
+is \fBFALSE\fR the display remains intact but the cursor will move to
+the top most line. In either case the column position of the cursor
+is not effected by the new line.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set auto repeat mode to.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string(3ite)\fR for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string <ESC>[<47h   (0x1b 0x5b 0x3c 0x34 0x37 0x68) to assert
+the mode 
+.br 
+and  <ESC>[<47l   (0x1b 0x5b 0x3c 0x34 0x37 0x6c) to negate the mode.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_attributes\fR(3ite),
+\fBfpui_set_auto_repeat\fR(3ite),
+\fBfpui_set_auto_wrap\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_auto_wrap" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_auto_wrap\fR \- Set the auto wrap state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_auto_wrap( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_auto_wrap\fR(3ite) library call will set auto wrap mode
+according to the value of \fIstate\fR.
+
+Auto wrap mode controls the displays response when the cursor is
+in the right most column and a character is sent. If auto wrap mode
+is \fBTRUE\fR the character is displayed at the current cursor position
+and the cursor is wrapped back to the beginning of the line. If auto
+wrap mode is \fBFALSE\fR the character is displayed at the current cursor
+position and the cursor will remain in the right most column. Any
+subsequent characters will overwrite the previous ones.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set auto wrap mode to.
+
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[07h"   (0x1b 0x5b 0x30 0x37 0x68) to assert
+the mode 
+.br 
+and  "<ESC>[07l"   (0x1b 0x5b 0x30 0x37 0x6c) to negate the mode.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_attributes\fR(3ite),
+\fBfpui_set_auto_repeat\fR(3ite),
+\fBfpui_set_auto_scroll\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_backlight" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_backlight\fR \- Set the current state of the Backlight.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_backlight( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_backlight\fR() library call will turn the backlight on or off
+as specified by the arguement \fIstate\fR.
+
+When turning the backlight on, it will remain on as long as the time between 
+key strokes does not exceed the timeout value. When turning the backlight off,
+it will go off immediately, if the window associated with the request is in focus.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR 		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set the backlight to.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, and \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[<5h"   (0x1b 0x5b 0x3c 0x35 0x68) to illuminate
+the backlight 
+.br 
+and  "<ESC>[<5l"   (0x1b 0x5b 0x3c 0x35 0x6c) to extinguish the backlight.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_backlight\fR(3ite)
+\fBfpui_get_attributes\fR(3ite)
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_backlight_timeout" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_backlight_timeout\fR \- Set the timeout value of the Backlight.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_backlight( int\fR \fIfd\fR, \fBint\fR \fItimeout\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_backlight_timeout\fR() library call will set the backlight timeout value
+for the window associated with the calling application. This value is used only when
+the window remains in focus for a period longer than the timeout value. If this applications
+window is not in focus (or looses focus), this value is stored but has no other effect.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR 		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fItimeout\fR	number of seconds to keep the backlight illuminated.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[<\fIPn\fRS"   (0x1b 0x5b 0x3c \fIPn\fR 0x53).
+.br 
+Where \fIPn\fR is the number of seconds to keep the backlight illuminated.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_backlight\fR(3ite)
+\fBfpui_set_backlight\fR(3ite)
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_character_blink" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_character_blink\fR \- Set the current character blink mode state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_character_blink( int\fR \fIfd\fR \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_character_blink\fR(3ite) library call will assert or negate
+character blink mode. The current character blink attribute is applied to all characters
+written to the display after the attribute has been set.
+.br 
+To blink a single word one would assert character blink mode, write the entire work and
+finally negate character blink mode.
+
+
+.br 
+Parameters:
+.br 
+\fIfd\fR 		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set the character blink mode to.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[25h"   (0x1b 0x5b 0x32 0x35 0x68) to assert character blink mode
+.br 
+and  "<ESC>[25l"   (0x1b 0x5b 0x32 0x35 0x6c) to negate character blink mode.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_character_blink\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_cursor" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_cursor\fR \- Set the cursor state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_cursor( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_cursor\fR() library call will set the state of the cursor as specified by
+the \fIstate\fR parameter. When \fIstate\fR is \fBTRUE\fR the cursor will be visible, 
+when \fIstate\fR is \fBFALSE\fR the cursor will not be visible. Even though the cursor is not visible,
+it still exists logically.
+
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set the cursor mode to.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[025h"   (0x1b 0x5b 0x30 0x32 0x35 0x68) to make the cursor visible,
+.br 
+and  "<ESC>[025l"   (0x1b 0x5b 0x30 0x32 0x35 0x6c) to make the cursor invisible.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_cursor\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_cursor_blink" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_cursor_blink\fR \- Set the cursor blink mode state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_cursor_blink( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fB fpui_set_cursor_blink\fR(3ite) library call will set the blink mode for the cursor.
+When state is \fBTRUE\fR the cursor will be set to blink, when \fBFALSE\fR the cursor will be on
+solid. This mode does not override or effect the mode set by fpui_set_cursor(3ite).
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set the cursor mode to.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, and \fIerrno\fR is set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[33h"   (0x1b 0x5b 0x33 0x33 0x68) to make the cursor visible,
+.br 
+and  "<ESC>[33l"   (0x1b 0x5b 0x33 0x33 0x6c) to make the cursor invisible.
+
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_cursor_blink\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_cursor_pos" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_cursor_pos\fR \- Set the current Cursor Position
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_set_cursor_pos( int\fR \fIfd\fR, \fBint\fR \fIrow\fR, \fBint\fR \fIcolumn\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_cursor_pos\fR(3ite) library call will set the cursors position
+to the location specified by \fIrow\fR and \fIcolumn\fR. If either \fIrow\fR or \fIcolumn\fR
+extend beyond the bounds of the physical display, the cursor will be set to the last valid location
+in the specified direction.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR 		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIrow\fR 		is the row index the cursor should move to.
+.br 
+\fIcolumn\fR	is the column index the cursor should move to.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, and \fIerrno\fR is set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[\fIPy\fR;\fIPx\fRf"   (0x1b 0x5b \fIPy\fR 0x3b \fIPx\fR 0x66)
+.br  
+where \fIPy\fR and \fIPx\fR are the \fIrow\fR and \fIcolumn\fR parameters.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+\fIRow\fR and \fIcolumn\fR values are truncated to the limits of the physical display.
+.SH "SEE ALSO"
+\fBfpui_get_cursor_pos\fR(3ite)
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_keymap" "3ite" "2006-08-02" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_keymap\fR \- define an escape sequence mapping
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_set_keymap( int\fR \fIfd\fR, \fBchar\fR \fIkey\fR, \fBchar *\fR \fIeseq\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_keymap\fR(3ite) library call is used to add an escape
+sequence mapping to the calling processes virtual terminal.
+When an escape sequence is received by the virtual terminal,
+typically from the keypad, it is compared to the list of key mappings.
+If a match is found, the entire escape sequence is replaced with the single \fIkey\fR character and
+returned to the caller. Mappings only effect character strings moving
+from the front panel hardware to the application in focus.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIkey\fR		is the single byte code to be returned when the character sequence is found in the received character string.
+.br 
+\fIeseg\fR	is the escape sequence to be replaced.
+.SH "RETURN VALUE"
+On success, zero (0) is returned.  
+On error, \-1 is returned, and errno is set appropriately.
+.SH "ERRORS"
+\fBENOMEM\fR	More then 16 mappings are defined.
+
+.SH "NOTE"
+There are no checks for duplicate \fIkey\fR values or duplicate escape sequences.
+Escape sequences are compared in the order they appear in the list.
+New \fIkey\fR mappings are inserted in the first available slot in the list,
+which may be a slot vacated by an earlier delete operation. This means
+that the list may not be in the order mappings were added.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+.BR fpui_get_keymap (3ite),
+.BR fpui_del_keymap (3ite),
+.BR fpui_reset_keymap (3ite),
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_led" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_led\fR \- Set the state of the status LED
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_set_led( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_led\fR(3ite) library call will set the state
+of the status LED to the value specified by \fIstate\fR. This state
+is maintained by the virtual terminal and will be reflected in the
+actual Front Panel LED when the application window gains focus.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, and \fIerrno\fR is set appropriately.
+.SH "ERRORS"
+refer to \fBioctl\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps an ioctl(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_led\fR(3ite),
+\fBioctl\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_reverse_video" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_reverse_video\fR \- Set the state of reverse video mode.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_reverse_video( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_reverse_video\fR(3ite) library call will assert or negate
+reverse video mode. The current reverse video attribute is applied to all characters
+written to the display after the attribute has been set.
+.br 
+To reverse video a single word one would assert reverse video mode, write the entire work and
+finally negate reverse video mode.
+
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set the reverse video mode to.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, and \fIerrno\fR is set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[27h"   (0x1b 0x5b 0x32 0x37 0x68) to assert reverse video mode
+.br 
+and  "<ESC>[27l"   (0x1b 0x5b 0x32 0x37 0x6c) to negate reverse video mode.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_reverse_video\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_tab" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_tab\fR \- Set a Stop Tab at the current cursor position.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_set_tab( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_tab\fR(3ite) library call will define a stop tab in the column the cursor currently occupies.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>H"   (0x1b 0x48).
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_clear_tab\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_underline" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_underline\fR \- Set the state of underline mode.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_underline( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_underline\fR(3ite) library call will assert or negate
+underline mode. The current underline attribute is applied to all characters
+written to the display after the attribute has been set.
+.br 
+To underline a single word one would assert underline mode, write the entire work and
+finally negate underline mode.
+
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set the underline mode to.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[24h"   (0x1b 0x5b 0x32 0x34 0x68) to assert underline mode
+.br 
+and  "<ESC>[24l"   (0x1b 0x5b 0x32 0x34 0x6c) to negate underline mode.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_underline\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_window_attr" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+fpui_set_window_attr \- Set the current Window attributes.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_get_window_attr( int\fR \fIfd\fR, \fBunsigned int\fR \fIarg\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_window_attr\fR() library call will set the window attributes according
+to the values passed by parameter \fIarg\fR. The bitfields of \fIarg\fR are encoded as follows:
+.br 
+	union {
+.br 
+		int			errcode;
+.br 
+		unsigned int	auto_wrap:1,
+.br 
+					auto_scroll:1,
+.br 
+					auto_repeat:1,
+.br 
+					backlight:1,
+.br 
+					:4,
+.br 
+					backlight_timeout:8,
+.br 
+					:16;
+.br 
+	}
+.br 
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIarg\fR	the integer representation of the union descriped above.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This call actually decodes the encoded bit fields and maked individual
+call to set attributes as needed.
+.br 
+The \fIerrcode\fR field is unused in this operation.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_write_string\fR(3ite),
+\fBfpui_set_auto_wrap\fR(3ite),
+\fBfpui_set_auto_scroll\fR(3ite),
+\fBfpui_set_auto_repeat\fR(3ite),
+\fBfpui_set_backlight\fR(3ite),
+\fBfpui_set_backlight_timeout\fR(3ite)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_write" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_write\fR \- Write to the Front Panel device.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBssize_t fpui_write( int\fR \fIfd\fR, \fBchar *\fR \fIbuf\fR, \fBint\fR \fIsize\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_write\fR(3ite) library call attempts to write \fIsize\fR bytes of
+information from the buffer referenced by \fIbuf\fR to the file referenced by \fIfd\fR.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIbuf\fR	the reference to the data to be written.
+.br 
+\fIsize\fR	the number of bytes to write.
+.SH "RETURN VALUE"
+\fBfpui_write\fR(3ite) will return the number of bytes actually transfered to the device at \fIfd\fR,
+or \-1 if an error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBwrite\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps a \fBwrite\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_write_char\fR(3ite),
+\fBfpui_write_string\fR(3ite),
+\fBwrite\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_write_at" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_write_at\fR \- Write to the Front Panel device at a specified location.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBssize_t fpui_write_at( int\fR \fIfd\fR, \fBchar *\fR \fIbuf\fR, \fBint\fR \fIsize\fR, \fBint\fR \fIrow\fR, \fBint\fR \fIcolumn\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_write\fR(3ite) library call first moves the cursor to the location specified
+by \fIrow\fR and \fIcolumn\fR and then attempts to write \fIsize\fR bytes of information
+from the buffer referenced by \fIbuf\fR to the device referenced by \fIfd\fR.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIbuf\fR		the reference to the data to be written.
+.br 
+\fIsize\fR		the number of bytes to write.
+.br 
+\fIrow\fR		the cursor row index
+.br 
+\fIcolumn\fR	the cursor column index.
+.SH "RETURN VALUE"
+\fBfpui_write_at\fR(3ite) will return the number of bytes actually transfered to the device at \fIfd\fR,
+or \-1 if an error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBwrite\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps a \fBwrite\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+\fIRow\fR and \fIcolumn\fR values are truncated to the limits of the physical display.
+.SH "SEE ALSO"
+\fBfpui_write\fR(3ite),
+\fBfpui_set_cursor_pos\fR(3ite),
+\fR\fBwrite\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_write_char" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_write_char\fR \- Write a single character to the Front Panel device.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBssize_t fpui_write( int\fR \fIfd\fR, \fBchar\fR \fIch\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_write_char\fR(3ite) library call attempts to write 
+a single character \fIch\fR to the file referenced by \fIfd\fR.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIch\fR	the character to be written.
+.SH "RETURN VALUE"
+\fBfpui_write_char\fR(3ite) will return the number of bytes actually transfered to the device at \fIfd\fR,
+or \-1 if an error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBwrite\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps a \fBwrite\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_write\fR(3ite),
+\fBfpui_write_string\fR(3ite),
+\fBwrite\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_write_char_at" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_write_char_at\fR \- Write a single character to the Front Panel device at a specified location.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBssize_t fpui_write_at( int\fR \fIfd\fR, \fBchar\fR \fIch\fR, \fBint\fR \fIrow\fR, \fBint\fR \fIcolumn\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_write_char_at\fR(3ite) library call first moves the cursor
+to the location specified by \fIrow\fR and \fIcolumn\fR and then
+attempts to write a single character \fIch\fR to the device referenced
+by \fIfd\fR.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIch\fR		the character to be written.
+.br 
+\fIrow\fR		the cursor row index
+.br 
+\fIcolumn\fR    the cursor column index.
+.SH "RETURN VALUE"
+\fBfpui_write_char_at\fR(3ite) will return the number of bytes actually
+transfered to the device at \fIfd\fR, (in this case, 1) or \-1 if an error
+occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBwrite\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps a \fBwrite\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+\fIRow\fR and \fIcolumn\fR values are truncated to the limits of the physical display.
+.SH "SEE ALSO"
+\fBfpui_write_char\fR(3ite),
+\fBfpui_set_cursor_pos\fR(3ite),
+\fBwrite\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_write_string" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_write_string\fR \- Write a NULL terminated string to the Front Panel device.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBssize_t fpui_write_string( int\fR \fIfd\fR, \fBchar *\fR \fIstr\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_write_string\fR(3ite) library call attempts to write the string 
+referenced by \fIstr\fR to the file referenced by \fIfd\fR.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstr\fR	the reference to the NULL terminated string to be written
+.SH "RETURN VALUE"
+\fBfpui_write_string\fR(3ite) will return the number of bytes actually transfered to the device at \fIfd\fR,
+or \-1 if an error occurred, with \fIerrno\fR set appropriately.
+.br 
+The terminating NULL character is not written to the device.
+.SH "ERRORS"
+refer to \fBwrite\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps a \fBwrite\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_write\fR(3ite),
+\fBfpui_write_char\fR(3ite),
+\fBwrite\fR(2)
+.bp
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_write_string_at" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_write_string_at\fR \- Write a NULL terminated string to the Front Panel device at a specified location.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBssize_t fpui_write_string_at( int\fR \fIfd\fR, \fBchar *\fR \fIstr\fR, \fBint\fR \fIrow\fR, \fBint\fR \fIcolumn\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_write_string_at\fR(3ite) library call first moves the cursor to the
+location specified by \fIrow\fR and \fIcolumn\fR and then attempts to write
+the string referenced by \fIstr\fR to the file referenced by \fIfd\fR.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstr\fR		the reference to the NULL terminated string to be written
+.br 
+\fIrow\fR       the cursor row index
+.br 
+\fIcolumn\fR    the cursor column index.
+.SH "RETURN VALUE"
+\fBfpui_write_string_at\fR(3ite) will return the number of bytes
+actually transfered to the device at \fIfd\fR, or \-1 if an error
+occurred, with \fIerrno\fR set appropriately.
+
+The terminating NULL character is not written to the device.
+.SH "ERRORS"
+refer to \fBwrite\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps a \fBwrite\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+\fIRow\fR and \fIcolumn\fR values are truncated to the limits of the physical display.
+.SH "SEE ALSO"
+\fBfpui_write_string\fR(3ite),
+\fBfpui_set_cursor_pos\fR(3ite),
+\fBwrite\fR(2)
+.bp

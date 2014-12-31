@@ -1,0 +1,66 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_backlight_timeout" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_backlight_timeout\fR \- Set the timeout value of the Backlight.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_backlight( int\fR \fIfd\fR, \fBint\fR \fItimeout\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_backlight_timeout\fR() library call will set the backlight timeout value
+for the window associated with the calling application. This value is used only when
+the window remains in focus for a period longer than the timeout value. If this applications
+window is not in focus (or looses focus), this value is stored but has no other effect.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR 		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fItimeout\fR	number of seconds to keep the backlight illuminated.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[<\fIPn\fRS"   (0x1b 0x5b 0x3c \fIPn\fR 0x53).
+.br 
+Where \fIPn\fR is the number of seconds to keep the backlight illuminated.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_backlight\fR(3ite)
+\fBfpui_set_backlight\fR(3ite)
+\fBfpui_write_string\fR(3ite)
+.bp

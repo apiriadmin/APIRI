@@ -1,0 +1,8 @@
+#!/bin/csh -f
+
+foreach i ( fpui_apiver.3ite fpui_open.3ite fpui_close_aux_switch.3ite fpui_open_aux_switch.3ite fpui_read_aux_switch.3ite )
+	echo $i
+	rman -f RTF $i > $i:r.rtf
+end
+
+

@@ -1,0 +1,10 @@
+#!/bin/csh -f
+
+rm -f fpui.ps
+
+foreach i (*.3ite)
+	groff -man -T ps $i >> fpui.ps
+end
+
+lp fpui.ps
+

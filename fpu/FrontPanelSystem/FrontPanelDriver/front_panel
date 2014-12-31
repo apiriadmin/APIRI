@@ -1,0 +1,91 @@
+#!/bin/sh
+# Sample init script for the a driver module <rubini@linux.it>
+
+DEVICE="front_panel"
+
+# kernel version, used to look for modules
+KERNEL=`uname -r`
+
+#FIXME: it looks like there is no misc section. Where should it be?
+MODDIR="/lib/modules/${KERNEL}/kernel/drivers/${SECTION}"
+
+# Unload and remove files
+unload_device ()
+{
+    MODULE=`cat /proc/devices | grep fpi | cut -f 2 -d ' '`
+    if [ $MODULE ] && [ $MODULE == "fpi" ]; then
+    	/sbin/rmmod front_panel.ko
+	# under DEVFS, the driver will delete these nodes, otherwise ...
+	if [ -e /dev/fpi ]; then /bin/rm -f /dev/fpi; fi
+	if [ -e /dev/msi ]; then /bin/rm -f /dev/msi; fi
+	if [ -e /dev/sci ]; then /bin/rm -f /dev/sci; fi
+	if [ -e /dev/aux ]; then /bin/rm -f /dev/aux; fi
+	if [ -e /dev/fpm ]; then /bin/rm -f /dev/fpm; fi
+	echo "Done"
+    else
+	echo "Module not installed"
+    fi
+}
+
+
+# Load and create files
+load_device ()
+{
+    # determine if device is already loaded
+    MODULE=`cat /proc/devices | grep fpi | cut -f 2 -d ' '`
+    if [ $MODULE ] && [ $MODULE == "fpi" ]; then
+        # unload it
+    	unload_device
+    fi
+
+    # determine the relative path to the driver
+    for i in `find / -name front_panel.ko` ; do
+        echo $i
+        break
+    done
+    # load the device
+    if /sbin/insmod $i ; then
+        # determine the devices major number of the module we just loaded
+    	MAJOR=`cat /proc/devices | grep fpi | cut -f 1 -d ' '`
+	# under DEVFS, the driver will create these nodes, otherwise ...
+	if [ ! -e /dev/fpi ]; then /bin/mknod -m 0666 /dev/fpi c $MAJOR 0; fi
+	if [ ! -e /dev/msi ]; then /bin/mknod -m 0666 /dev/msi c $MAJOR 1; fi
+	if [ ! -e /dev/sci ]; then /bin/mknod -m 0666 /dev/sci c $MAJOR 2; fi
+	if [ ! -e /dev/aux ]; then /bin/mknod -m 0666 /dev/aux c $MAJOR 3; fi
+	if [ ! -e /dev/fpm ]; then /bin/mknod -m 0666 /dev/fpm c $MAJOR 8; fi
+	echo "Done"
+    else
+	echo "LOAD FAILED!"
+    fi
+}
+
+
+
+# Root or die
+if [ "$(id -u)" != "0" ]
+then
+  echo "You must be root to load or unload kernel modules"
+  exit 1
+fi
+
+
+case "$1" in
+  start)
+     echo -n "Loading $DEVICE ... "
+     load_device
+     ;;
+  stop)
+     echo -n "Unloading $DEVICE ... "
+     unload_device
+     ;;
+  force-reload|restart)
+     echo -n "Reloading $DEVICE ... "
+     unload_device
+     load_device
+     ;;
+  *)
+     echo "Usage: $0 {start|stop|restart|force-reload}"
+     exit 1
+esac
+
+exit 0

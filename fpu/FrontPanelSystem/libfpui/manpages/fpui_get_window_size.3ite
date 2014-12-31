@@ -1,0 +1,66 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_window_size" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_window_size\fR \- Get the current window size.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_get_window_size( int\fR \fIfd\fR, \fBint *\fR \fIrow\fR, \fBint *\fR \fIcolumn\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_window_size\fR(3ite) library call will return the current size of the actual
+Front panel Display module to the application.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIrow\fR		a reference of an integer where the number of rows will be stored.
+.br 
+\fIcolumn\fR	a reference of an integer where the number of columns will be stored.
+.SH "RETURN VALUE"
+\fBfpui_get_window_size\fR(3ite) will return 0 (zero) upon success 
+and \-1 upon error, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBioctl(2)\fR for additional errors.
+.SH "NOTE"
+Should the actual Front Panel Display be removed, \fBfpui_get_window_size\fR(3ite)
+will return( 0, 0 ) as the current window size.
+
+The Front Panel hardware does not support this operation directly.
+The inquiry is actually serviced by the virtual terminal which maintains
+this information.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBioctl\fR(2)
+.bp

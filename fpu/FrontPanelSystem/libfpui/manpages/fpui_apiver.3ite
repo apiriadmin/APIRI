@@ -1,0 +1,69 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_apiver" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_apiver\fR \- Get the version ID of the API and driver
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBchar * fpui_apiver( int\fR \fIfd\fR, \fBint\fR \fItype\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_apiver\fR(3ite) library call will return a string
+containing the version number of either the API itself or the
+underlying driver as requested.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fItype\fR	is  1 for the API version ID and 2 for the driver version ID
+.SH "RETURN VALUE"
+\fBfpui_apiver\fR(3ite) will return a valid char * containing the
+requested version ID. 
+On error, NULL will be returned with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+\fBEINVAL\fR	\fItype\fR is invalid.
+.br 
+
+refer to \fBioctl(2)\fR for additional errors.
+.SH "NOTE"
+When requesting the API version ID, the \fIfd\fR parameter is not used.
+When requesting the driver version ID, and ioctl call is used, requiring 
+the \fIfd\fR parameter.
+
+
+
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBioctl\fR(2)
+.bp

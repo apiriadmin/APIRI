@@ -1,0 +1,73 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_keymap" "3ite" "2006-08-02" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_keymap\fR \- define an escape sequence mapping
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_set_keymap( int\fR \fIfd\fR, \fBchar\fR \fIkey\fR, \fBchar *\fR \fIeseq\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_keymap\fR(3ite) library call is used to add an escape
+sequence mapping to the calling processes virtual terminal.
+When an escape sequence is received by the virtual terminal,
+typically from the keypad, it is compared to the list of key mappings.
+If a match is found, the entire escape sequence is replaced with the single \fIkey\fR character and
+returned to the caller. Mappings only effect character strings moving
+from the front panel hardware to the application in focus.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIkey\fR		is the single byte code to be returned when the character sequence is found in the received character string.
+.br 
+\fIeseg\fR	is the escape sequence to be replaced.
+.SH "RETURN VALUE"
+On success, zero (0) is returned.  
+On error, \-1 is returned, and errno is set appropriately.
+.SH "ERRORS"
+\fBENOMEM\fR	More then 16 mappings are defined.
+
+.SH "NOTE"
+There are no checks for duplicate \fIkey\fR values or duplicate escape sequences.
+Escape sequences are compared in the order they appear in the list.
+New \fIkey\fR mappings are inserted in the first available slot in the list,
+which may be a slot vacated by an earlier delete operation. This means
+that the list may not be in the order mappings were added.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+.BR fpui_get_keymap (3ite),
+.BR fpui_del_keymap (3ite),
+.BR fpui_reset_keymap (3ite),
+.bp

@@ -1,0 +1,76 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_keymap" "3ite" "2006-08-02" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_keymap\fR \- Get a keymap entry.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_del_keymap( int\fR \fIfd\fR, \fBint\fR \fIkey\fR, \fBchar *\fR \fIstr\fR, \fBint\fR \fIsize\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_keymap\fR(3ite) operation will return, in the arguement \fIstr\fR,
+the escape sequence associated with the value of \fIkey\fR. If an entry corresponding
+to the value of \fIkey\fR is not found, the first character in the \fIstr\fR array will be \fBNULL\fR.
+The arguement \fIstr\fR will be \fBNULL\fR terminated if the size of \fIstr\fR is greater
+than the size of the escape sequence plus 1 (for the \fBNULL\fR character). Otherwise the
+escape sequence will be packed to the size of the \fIstr\fR array and left unterminated.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	is the file descriptor returned by \fBfpui_open(3ite)\fR.
+.br 
+\fIkey\fR	is the single byte code used to locate the keymap entry.
+.br 
+\fIstr\fR	a character array to return the escape sequence in.
+.br 
+\fIsize\fR	the size, in characters, of the string array \fIstr\fR.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string(3ite)\fR
+.SH "NOTE"
+There are no checks for duplicate \fIkey\fR values or escape sequences.
+\fIKey\fR values are compared in the order they appear in the list.
+New \fIkey\fR mappings are inserted in the first available slot in the list,
+which may be a slot vacated by an earlier delete operation. This means
+that the list may not be in the order mappings were added.
+\fBfpui_get_keymap\fR(3ite)
+will return the first occurence of the specified \fIkey\fR from the list. A second,
+duplicate entry would not be accessable until the previous entry has been deleted.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+.BR fpui_set_keymap (3ite),
+.BR fpui_del_keymap (3ite),
+.BR fpui_reset_keymap (3ite),
+.bp
