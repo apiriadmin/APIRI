@@ -1,0 +1,68 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_reverse_video" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_reverse_video\fR \- Set the state of reverse video mode.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_reverse_video( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_reverse_video\fR(3ite) library call will assert or negate
+reverse video mode. The current reverse video attribute is applied to all characters
+written to the display after the attribute has been set.
+.br 
+To reverse video a single word one would assert reverse video mode, write the entire work and
+finally negate reverse video mode.
+
+
+.br 
+Parameters:
+.br 
+\fIfd\fR		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set the reverse video mode to.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, and \fIerrno\fR is set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[27h"   (0x1b 0x5b 0x32 0x37 0x68) to assert reverse video mode
+.br 
+and  "<ESC>[27l"   (0x1b 0x5b 0x32 0x37 0x6c) to negate reverse video mode.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_reverse_video\fR(3ite),
+\fBfpui_write_string\fR(3ite)
+.bp

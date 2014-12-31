@@ -1,0 +1,69 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_emergency" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_emergency\fR \- Set or Reset emergency mode for this application
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_set_emergency( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_emergency\fR(3ite) library call will assert or negate
+emergency mode for this applications window (when \fIstate\fR is \fBTRUE\fR). 
+Emergency mode is indicated by having the backlight flash and the registered 
+name of the application be displayed with both reverse video and character 
+blink asserted. This mode is automatically cleared when the application 
+achieves focus.  The application can also clear the mode by passing 
+a \fBFALSE\fR \fIstate\fR to the call.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR 		is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIstate\fR	the value to set emergency mode to.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBioctl\fR(2) for additional errors.
+.SH "NOTE"
+This routine uses \fBioctl\fR(2) to access the emergency mode logic in the driver.
+.br 
+While each application can assert and negate its own emergency mode, the display will
+continue to flash as long as any application has emergency mode asserted, The
+registered name, however, will track the individual applications assertion or negation of 
+emergency mode.
+.SH "CONFORMING TO"
+ATC API SRS v02.06, September 5, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBioctl\fR(2)
+.bp

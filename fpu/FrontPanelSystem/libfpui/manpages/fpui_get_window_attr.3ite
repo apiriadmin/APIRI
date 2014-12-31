@@ -1,0 +1,91 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_window_attr" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+fpui_get_window_attr \- Get the current Window attributes.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_get_window_attr( int\fR \fIfd\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_window_attr\fR(3ite) library call will return a bit field encoding of the current
+window attributes. The bitfields are encoded as follows:
+
+.br 
+	union {
+.br 
+		int			errcode;
+.br 
+		unsigned int	auto_wrap:1,
+.br 
+					auto_scroll:1,
+.br 
+					auto_repeat:1,
+.br 
+					backlight:1,
+.br 
+					:4,
+.br 
+					backlight_timeout:8,
+.br 
+					:16;
+.br 
+	}
+.br 
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+On success, \fBfpui_get_window_attr\fR(3ite) will return the current window attributes encoded as
+discussed above. On error the field \fIerrcode\fR will be \-1 with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+\fBEINVAL\fR	The file descriptor, \fIfd\fR, is invalid.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[Bn"   
+(0x1b 0x5b 0x42 0x60).
+.br 
+It expects a response of the form "<ESC>[\fIP1\fR;\fIP2\fR .. \fIP6\fRR"  
+(0x1b 0x5b \fIP1\fR 0x3b \fIP2\fR .. \fIP6\fR 0x52)
+where \fIP1\fR thru \fIP6\fR are the the attrubute states.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_write_string\fR(3ite),
+\fBfpui_read_string\fR(3ite),
+\fBfpui_get_auto_wrap\fR(3ite),
+\fBfpui_get_auto_scroll\fR(3ite),
+\fBfpui_get_auto_repeat\fR(3ite),
+\fBfpui_get_backlight\fR(3ite),
+\fBfpui_get_backlight_timeout\fR(3ite)
+.bp

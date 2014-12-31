@@ -1,0 +1,55 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_set_led" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_set_led\fR \- Set the state of the status LED
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_set_led( int\fR \fIfd\fR, \fBboolean\fR \fIstate\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_set_led\fR(3ite) library call will set the state
+of the status LED to the value specified by \fIstate\fR. This state
+is maintained by the virtual terminal and will be reflected in the
+actual Front Panel LED when the application window gains focus.
+.SH "RETURN VALUE"
+On success, 0 (zero) is returned.
+On error, \-1 is returned, and \fIerrno\fR is set appropriately.
+.SH "ERRORS"
+refer to \fBioctl\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps an ioctl(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_get_led\fR(3ite),
+\fBioctl\fR(3ite)
+.bp

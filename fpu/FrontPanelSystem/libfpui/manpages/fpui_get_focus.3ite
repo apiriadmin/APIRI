@@ -1,0 +1,63 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_focus" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_focus\fR \- Get the current focus state.
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBboolean fpui_get_focus( int\fR fd \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_focus\fR(3ite) library call will return \fBTRUE\fR if
+the calling application currently has focus and \fBFALSE\fR if it does not.
+
+Since the display cannot return this information directly, the query is processed
+by the virtual terminal only.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR is the file descriptor returned by \fBfpui_open\fR(3ite).
+.SH "RETURN VALUE"
+On success, \fBTRUE\fR will be returned if the calling application currently has focus 
+and \fBFALSE\fR if it does not. On error, \-1 is returned, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBioctl\fR(2) for additional errors.
+.SH "NOTE"
+This routine uses an \fBioctl\fR(2) interface to gather its information.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+On some system it may not be possible to distinguish between
+the \-1 returned on error and the \fBTRUE\fR state.
+.br 
+Applications are restricted from granting themselves focus.
+.SH "SEE ALSO"
+\fBioctl\fR(2)
+.bp

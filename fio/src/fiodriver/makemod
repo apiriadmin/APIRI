@@ -1,0 +1,5 @@
+#!/bin/csh -f
+
+make -C /lib/modules/`uname -r`/build SUBDIRS=`pwd` modules
+
+make incs

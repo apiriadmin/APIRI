@@ -1,0 +1,92 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_open" "3ite" "2006-07-25" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_open\fR \- open a terminal interface
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_open( const char *\fR \fIpathname\fR, \fBint\fR \fIflags\fR, \fBconst char *\fR \fIregname\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The
+.B fpui_open()
+library call is used to convert a \fIpathname\fR into a file descriptor
+(a small, non\-negative integer for use in subsequent I/O as with
+\fBread\fR(2), \fBwrite\fR(2), etc.).
+When the call is successful, the file descriptor returned will be
+the lowest file descriptor not currently open for the process.
+The new file descriptor is set to remain open across exec functions
+(see \fBfcntl\fR(2)).
+The file offset is unused. 
+
+The parameter
+\fIflags\fR
+is one of
+\fBO_RDONLY\fR, \fBO_WRONLY\fR or \fBO_RDWR\fR
+which request opening the file read\-only, write\-only or read/write,
+respectively,
+.RI bitwise\- or 'd
+with zero or more of the following:
+.br 
+\fBO_DIRECT\fR \- Open in direct mode, bypassing the virtual terminal. 
+Dtat is sent to the display only when the associated window is in focus.
+
+In addition to opening the device, the identifier \fIregname\fR is used
+to register the terminal with the Front Panel Manager. The name given
+in \fIregname\fR will appear in the Front Panel Managers selection screen.
+.SH "RETURN VALUE"
+\fBfpui_open\fR
+returns the new file descriptor, or \-1 if an error occurred (in which case,
+\fIerrno\fR is set appropriately).
+
+Note that \fBfpui_open\fR can open device special files
+
+.SH "ERRORS"
+.TP 
+\fBENXIO\fR
+\fIpathname\fR
+refers to a device special file and no corresponding device exists.
+
+.TP 
+\fBENOMEM\fR
+Insufficient kernel memory was available.
+
+See \fBopen\fR(2) for additional error codes.
+.SH "NOTE"
+This routine actually wraps an \fBopen\fR(2) 
+call, and an \fBioctl\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBopen\fR(2),
+\fBioctl\fR(2),
+\fBfpui_close\fR(3ite),
+.bp

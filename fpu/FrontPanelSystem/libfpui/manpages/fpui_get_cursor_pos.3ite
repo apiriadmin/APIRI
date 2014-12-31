@@ -1,0 +1,70 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_get_cursor_pos" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_get_cursor_pos\fR \- Get the current Cursor Position
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBint fpui_get_cursor_pos( int\fR \fIfd\fR, \fBint *\fR \fIrow\fR, \fBint *\fR \fIcolumn\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_get_cursor_pos\fR(3ite) library call returns the current 
+position of the cursor in the \fIrow\fR and \fIcolumn\fR arguements.
+
+.br 
+Parameters:
+.br 
+\fIfd\fR	 	is the file descriptor returned by \fBfpui_open\fR(3ite).
+.br 
+\fIrow\fR		is the reference of an integer storage location.
+.br 
+\fIcolumn\fR	is the reference of an integer storage location.
+.SH "RETURN VALUE"
+On success, the current cursor position is loaded into the
+locations referenced by \fIrow\fR and \fIcolumn\fR and 0 (zero) is returned.
+On error, the \fIrow\fR and \fIcolumn\fR variables remain unchanged and \-1 is returned,
+with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer to \fBfpui_write_string\fR(3ite) for additional errors.
+.SH "NOTE"
+This operation actually calls \fBfpui_write_string\fR(3ite) with the
+constant string "<ESC>[6n"   
+(0x1b 0x5b 0x36 0x60).
+.br 
+It expects a response of the form "<ESC>[\fIPy\fR;\fIPx\fRR"  
+(0x1b 0x5b \fIPy\fR 0x3b \fIPx\fR 0x52)
+where \fIPy\fR and \fIPx\fR are the \fIrow\fR and \fIcolumn\fR indexes.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_set_cursor_pos\fR(3ite)
+\fBfpui_write_string\fR(3ite)
+.bp

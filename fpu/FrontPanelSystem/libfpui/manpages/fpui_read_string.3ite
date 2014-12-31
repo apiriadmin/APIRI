@@ -1,0 +1,55 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" 
+.\" This manpage is Copyright (C) 2006 by The Institute of Transportation Engineers;
+.\" 
+.\" 
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\" 
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.\" 
+.TH "fpui_read_string" "3ite" "2006-09-06" "Vanteon" "Library Calls"
+.SH "NAME"
+\fBfpui_read_string\fR \- Read from the Front Panel device and NULL terminate the string
+.SH "SYNOPSIS"
+.nf 
+.B #include <fpui.h>
+
+.sp
+\fBssize_t fpui_read( int\fR \fIfd\fR, \fBchar *\fR \fIbuf\fR, \fBint\fR \fIsize\fR \fB)\fR
+.fi 
+.SH "DESCRIPTION"
+The \fBfpui_read_string\fR(3ite) library call attempts to read at most \fIsize\fR minus 1 bytes of
+information from the file referenced by \fIfd\fR into the buffer referenced by \fIbuf\fR.
+The string is then \fBNULL\fR terminated before returning.
+.SH "RETURN VALUE"
+\fBfpui_read_string\fR(3ite) will return the number of bytes actually transfered to the buffer \fIbuf\fR,
+(not including the termination character) or \-1 if an error occurred, with \fIerrno\fR set appropriately.
+.SH "ERRORS"
+refer tp \fBread\fR(2) for error codes.
+.SH "NOTE"
+This routine actually wraps a \fBread\fR(2) call.
+.SH "CONFORMING TO"
+ATC API SRS v02.05, August 11, 2006
+.SH "RESTRICTIONS"
+None.
+.SH "SEE ALSO"
+\fBfpui_read\fR(3ite),
+\fBfpui_read_char\fR(3ite),
+\fBread\fR(2)
+.bp
