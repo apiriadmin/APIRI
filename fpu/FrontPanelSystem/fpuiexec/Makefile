@@ -13,4 +13,4 @@ fpuiexec.o: fpuiexec.c ../libfpui/fpui.h
 all: fpuiexec
 
 clean:
-	rm -f *.o
+	rm -f *.o fpuiexec
