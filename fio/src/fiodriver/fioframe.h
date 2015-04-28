@@ -72,9 +72,9 @@ This file contains all definitions for the FIOMAN.
 #define	FIOMAN_FRAME_NO_179			( 179 )
 #define FIOMAN_FRAME_NO_179_SIZE	( 4 )	/* addr + ctrl + frame 179 def */
 #define	FIOMAN_FRAME_NO_180			( 180 )
-#define	FIOMAN_FRAME_NO_180_SIZE	( 15 )	/* addr + ctrl + frame 180 def */
+#define	FIOMAN_FRAME_NO_180_SIZE	( 22 )	/* addr + ctrl + frame 180 def */
 #define	FIOMAN_FRAME_NO_181			( 181 )
-#define	FIOMAN_FRAME_NO_181_SIZE	( 15 )	/* addr + ctrl + frame 181 def */
+#define	FIOMAN_FRAME_NO_181_SIZE	( 22 )	/* addr + ctrl + frame 181 def */
 #define	FIOMAN_FRAME_NO_182			( 182 )
 #define	FIOMAN_FRAME_NO_182_SIZE	( 775 )	/* addr + ctrl + frame 182 def */
 #define FIOMAN_FRAME_NO_183			( 183 )
@@ -142,7 +142,7 @@ void *fioman_ready_frame_53( FIOMAN_SYS_FIOD* );
 void *fioman_ready_frame_54( FIOMAN_SYS_FIOD* );
 void *fioman_ready_frame_55( FIOMAN_SYS_FIOD* );
 void *fioman_ready_frame_62( FIOMAN_SYS_FIOD* );
-void *fioman_ready_frame_66( void );
+void *fioman_ready_frame_66( FIOMAN_SYS_FIOD* );
 void *fioman_ready_frame_67( FIOMAN_SYS_FIOD* );
 void *fioman_ready_frame_9( FIOMAN_SYS_FIOD* );
 void *fioman_ready_frame_0( FIOMAN_SYS_FIOD* );
@@ -164,6 +164,8 @@ void *fioman_ready_frame_195( FIOMAN_SYS_FIOD* );
 void *fioman_ready_frame_128( FIOMAN_SYS_FIOD* );
 void *fioman_ready_frame_129( FIOMAN_SYS_FIOD* );
 void *fioman_ready_frame_131( FIOMAN_SYS_FIOD* );
+void *fioman_ready_frame_190( FIOMAN_SYS_FIOD* );
+
 
 /* FIOMAN TX update functions */
 void fioman_tx_frame_49( FIOMSG_TX_FRAME* );

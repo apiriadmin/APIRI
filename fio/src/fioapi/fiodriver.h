@@ -658,6 +658,7 @@ typedef	struct fio_ioc_fiod_frame_schd_get FIO_IOC_FIOD_FRAME_SCHD_GET;
 					FIO_IOC_FIOD_FRAME_SCHD_GET )
 
 /* Filtered inputs */
+#define FIO_FILTER_DEFAULT      5
 struct fio_input_filter
 {
 	unsigned int	input_point;	/* input # */

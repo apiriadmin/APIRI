@@ -91,6 +91,16 @@ static FIOMSG_TX_FRAME frame_53_init =
 	.len		= FIOMAN_FRAME_NO_53_SIZE
 };
 
+/* Frame 54: Poll Filtered Input Data */
+static FIOMSG_TX_FRAME frame_54_init =
+{
+	.def_freq	= FIO_HZ_10,
+	.cur_freq	= FIO_HZ_10,
+	.tx_func	= fioman_tx_frame_54,
+	.resp		= true,
+	.len		= FIOMAN_FRAME_NO_54_SIZE
+};
+
 /* Frame 55: Set Outputs Command */
 static FIOMSG_TX_FRAME frame_55_init =
 {
@@ -263,7 +273,8 @@ fioman_ready_generic_tx_frame
 			+ count + 3, GFP_KERNEL ) ) )
 	{
 		/* kmalloc succeeded, therefore init buffer */
-		p_tx->cur_freq = p_tx->def_freq	= FIO_HZ_ONCE;
+		p_sys_fiod->frame_frequency_table[frame_no] = p_tx->cur_freq
+			= p_tx->def_freq = FIO_HZ_ONCE;
 		p_tx->resp = true;
 		p_tx->len = count + 3;
 		FIOMSG_PAYLOAD( p_tx )->frame_addr = device_to_addr(p_sys_fiod->fiod.fiod);
@@ -314,6 +325,8 @@ fioman_ready_frame_49
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
 		p_sys_fiod->status_reset = 0xff;	/* initially clear status bits */
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_49] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_49] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -340,7 +353,7 @@ fioman_tx_frame_49
 {
 	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* For access to System info */
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 49\n" );*/
+/*pr_debug( "UPDATING Frame 49\n" );*/
 /* TEG DEL */
 	/* Copy status reset bits */
 	/* Get access to system info */
@@ -378,7 +391,7 @@ fioman_ready_frame_51
 		GFP_KERNEL ) ) )
 	{
 		/* kmalloc succeeded, therefore init buffer */
-		memcpy( p_tx, &frame_55_init, sizeof( frame_51_init ) );
+		memcpy( p_tx, &frame_51_init, sizeof( frame_51_init ) );
 		FIOMSG_PAYLOAD( p_tx )->frame_addr = device_to_addr(p_sys_fiod->fiod.fiod);
 		FIOMSG_PAYLOAD( p_tx )->frame_ctrl = 0x83;
 		FIOMSG_PAYLOAD( p_tx )->frame_no = FIOMAN_FRAME_NO_51;
@@ -388,6 +401,10 @@ fioman_ready_frame_51
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
 		p_tx->len = tx_len;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_51] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_51] = p_tx->cur_freq;
+		pr_debug("frame %d ready(%llu), when=%llu, freq=%d\n", FIOMAN_FRAME_NO_51, FIOMSG_CURRENT_TIME.tv64,
+				p_tx->when.tv64, p_tx->cur_freq);
 	}
 	else
 	{
@@ -413,14 +430,15 @@ fioman_tx_frame_51
 )
 {
 	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* For access to System info */
-	int i, count, flags;
+	int i, count;
+	unsigned long flags;
 /* TEG DEL */
 /*printk( KERN_ALERT "UPDATING Frame 51\n" );*/
 /* TEG DEL */
 
 	/* Copy input filter values */
 	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_tx_frame->fioman_context;
-	spin_lock_irqsave((spinlock_t *)&p_sys_fiod->lock, flags);
+	spin_lock_irqsave(&p_sys_fiod->lock, flags);
 	/* Copy data from FIOD System buffers */
 	count = (p_tx_frame->len - 4) / 3;
 	FIOMSG_PAYLOAD(p_tx_frame)->frame_info[0] = count;
@@ -433,6 +451,13 @@ fioman_tx_frame_51
 		FIOMSG_PAYLOAD(p_tx_frame)->frame_info[(3*i)+3] = p_sys_fiod->input_filters_leading[i];
 	}
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
+	pr_debug( "UPDATING Frame 51: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
+		p_tx_frame->frame[3], p_tx_frame->frame[4], p_tx_frame->frame[5],
+		p_tx_frame->frame[6], p_tx_frame->frame[7], p_tx_frame->frame[8],
+		p_tx_frame->frame[9], p_tx_frame->frame[10], p_tx_frame->frame[11],
+		p_tx_frame->frame[12], p_tx_frame->frame[13], p_tx_frame->frame[14],
+		p_tx_frame->frame[15], p_tx_frame->frame[16], p_tx_frame->frame[17],
+		p_tx_frame->frame[18] );
 }
 
 /*****************************************************************************/
@@ -466,6 +491,8 @@ fioman_ready_frame_52
 		p_tx->when = FIOMSG_CURRENT_TIME;		/* Set when to send frame */
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_52] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_52] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -492,7 +519,7 @@ fioman_tx_frame_52
 )
 {
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 52\n" );*/
+/*pr_debug( "UPDATING Frame 52\n" );*/
 /* TEG DEL */
 }
 
@@ -527,6 +554,8 @@ fioman_ready_frame_53
 		p_tx->when = FIOMSG_CURRENT_TIME;		/* Set when to send frame */
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_53] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_53] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -553,12 +582,76 @@ fioman_tx_frame_53
 )
 {
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 53\n" );*/
+/*pr_debug( "UPDATING Frame 53\n" );*/
 /* TEG DEL */
 }
 
 /*****************************************************************************/
 
+/*****************************************************************************/
+/*
+This function is used to ready request frame 54 to be placed into the
+request frame queue for transmission, for one port
+*/
+/*****************************************************************************/
+void *
+fioman_ready_frame_54
+(
+	FIOMAN_SYS_FIOD	*p_sys_fiod		/* FIOD of destined frame */
+)
+{
+	FIOMSG_TX_FRAME	*p_tx;		/* Ptr of frame buffer */
+
+	/* kalloc the actual frame 54 for this port */
+	/* -1 is for the one byte of frame payload defined in FIOMSG_TX_FRAME */
+	if ( ( p_tx = (FIOMSG_TX_FRAME *)kmalloc( sizeof( FIOMSG_TX_FRAME ) - 1
+			+ FIOMAN_FRAME_NO_54_SIZE, GFP_KERNEL ) ) )
+	{
+		/* kmalloc succeeded, therefore init buffer */
+		memcpy( p_tx, &frame_54_init, sizeof( frame_54_init ) );
+		FIOMSG_PAYLOAD( p_tx )->frame_addr = device_to_addr(p_sys_fiod->fiod.fiod);
+		FIOMSG_PAYLOAD( p_tx )->frame_ctrl = 0x83;
+		FIOMSG_PAYLOAD( p_tx )->frame_no = FIOMAN_FRAME_NO_54;
+
+		INIT_LIST_HEAD( &p_tx->elem );
+		p_tx->when = FIOMSG_CURRENT_TIME;		/* Set when to send frame */
+		p_tx->fioman_context = (void *)p_sys_fiod;
+		p_tx->fiod = p_sys_fiod->fiod;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_54] == -1)
+                        p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_54] = p_tx->cur_freq;
+	}
+	else
+	{
+		/* Could not kalloc */
+		return ( ERR_PTR( -ENOMEM ) );
+	}
+
+	/* Return what we prepared */
+	return ( (void *)p_tx );
+}
+
+/*****************************************************************************/
+
+/*****************************************************************************/
+/*
+This function is called when a frame 53 is to be TX'ed.
+*/
+/*****************************************************************************/
+
+void
+fioman_tx_frame_54
+(
+	FIOMSG_TX_FRAME		*p_tx_frame		/* Frame about to be sent */
+)
+{
+/* TEG DEL */
+pr_debug( "UPDATING Frame 54\n" );
+/* TEG DEL */
+        FIOMSG_PAYLOAD(p_tx_frame)->frame_info[0]++;
+        
+}
+
+/*****************************************************************************/
 /*****************************************************************************/
 /*
 This function is used to ready request frame 55 to be placed into the
@@ -597,6 +690,8 @@ fioman_ready_frame_55
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
 		p_tx->len = tx_len;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_55] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_55] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -627,7 +722,7 @@ fioman_tx_frame_55
 	bool print_flag = false;
 	unsigned long	flags;
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 55:\n" );*/
+/*pr_debug( "UPDATING Frame 55:\n" );*/
 /* copy output data and ctrl bitmaps to outgoing frame, translate mapping */
 
 	/* Get access to system info */
@@ -719,6 +814,8 @@ fioman_ready_frame_62
 		p_tx->when = FIOMSG_CURRENT_TIME;		/* Set when to send frame */
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_62] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_62] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -767,7 +864,7 @@ request frame queue for transmission, for one port
 void *
 fioman_ready_frame_66
 (
-	void
+	FIOMAN_SYS_FIOD	*p_sys_fiod		/* FIOD of destined frame */
 )
 {
 	FIOMSG_TX_FRAME	*p_tx;		/* Ptr of frame buffer */
@@ -786,6 +883,9 @@ fioman_ready_frame_66
 
 		INIT_LIST_HEAD( &p_tx->elem );
 		p_tx->when = FIOMSG_CURRENT_TIME;		/* Set when to send frame */
+		p_tx->fiod = p_sys_fiod->fiod;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_66] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_66] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -813,7 +913,7 @@ fioman_tx_frame_66
 	struct tm tm = {0};
 	int offset = 0; /* this is time adjust from fio_set_local_time_offset() */
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 66\n" );*/
+/*pr_debug( "UPDATING Frame 66\n" );*/
 /* TEG DEL */
 	/* fill in payload with date/time */
 	do_gettimeofday(&tv);
@@ -851,11 +951,12 @@ fioman_ready_frame_67
 		FIOMSG_PAYLOAD( p_tx )->frame_addr = 15;
 		FIOMSG_PAYLOAD( p_tx )->frame_ctrl = 0x83;
 		FIOMSG_PAYLOAD( p_tx )->frame_no = FIOMAN_FRAME_NO_67;
-		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_67][1] = p_tx->cur_freq;
 		INIT_LIST_HEAD( &p_tx->elem );
 		p_tx->when = FIOMSG_CURRENT_TIME;		/* Set when to send frame */
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_67] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_67] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -886,7 +987,7 @@ fioman_tx_frame_67
 	int ii, output;
 	unsigned long flags;
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 67\n" );*/
+/*pr_debug( "UPDATING Frame 67\n" );*/
 /* TEG DEL */
 	/* Fill in payload with channel status */
 	memset(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, 0, (FIOMAN_FRAME_NO_0_SIZE-3));
@@ -896,11 +997,11 @@ fioman_tx_frame_67
 		p_sys_fiod = list_entry( p_sys_elem, FIOMAN_SYS_FIOD, elem );
 		for (fiod=FIOOUT6SIU1;fiod<=FIOOUT14SIU2;fiod++) {
 			if (p_sys_fiod->fiod.fiod == fiod) {
-/*				printk( KERN_ALERT "Frame 0: out+: %x %x %x\n",	p_sys_fiod->outputs_plus[0],
+/*				pr_debug( "Frame 0: out+: %x %x %x\n",	p_sys_fiod->outputs_plus[0],
 					p_sys_fiod->outputs_plus[1], p_sys_fiod->outputs_plus[2] );
-				printk( KERN_ALERT "Frame 0: out-: %x %x %x\n",	p_sys_fiod->outputs_minus[0],
+				pr_debug( "Frame 0: out-: %x %x %x\n",	p_sys_fiod->outputs_minus[0],
 					p_sys_fiod->outputs_minus[1], p_sys_fiod->outputs_minus[2] );
-				printk( KERN_ALERT "Frame 0: grn: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
+				pr_debug( "Frame 0: grn: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
 					p_sys_fiod->channel_map_green[0], p_sys_fiod->channel_map_green[1],
 					p_sys_fiod->channel_map_green[2], p_sys_fiod->channel_map_green[3],
 					p_sys_fiod->channel_map_green[4], p_sys_fiod->channel_map_green[5],
@@ -909,7 +1010,7 @@ fioman_tx_frame_67
 					p_sys_fiod->channel_map_green[10], p_sys_fiod->channel_map_green[11],
 					p_sys_fiod->channel_map_green[12], p_sys_fiod->channel_map_green[13],
 					p_sys_fiod->channel_map_green[14], p_sys_fiod->channel_map_green[15]);
-				printk( KERN_ALERT "Frame 0: yel: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
+				pr_debug( "Frame 0: yel: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
 					p_sys_fiod->channel_map_yellow[0], p_sys_fiod->channel_map_yellow[1],
 					p_sys_fiod->channel_map_yellow[2], p_sys_fiod->channel_map_yellow[3],
 					p_sys_fiod->channel_map_yellow[4], p_sys_fiod->channel_map_yellow[5],
@@ -918,7 +1019,7 @@ fioman_tx_frame_67
 					p_sys_fiod->channel_map_yellow[10], p_sys_fiod->channel_map_yellow[11],
 					p_sys_fiod->channel_map_yellow[12], p_sys_fiod->channel_map_yellow[13],
 					p_sys_fiod->channel_map_yellow[14], p_sys_fiod->channel_map_yellow[15]);
-				printk( KERN_ALERT "Frame 0: red: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
+				pr_debug( "Frame 0: red: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
 					p_sys_fiod->channel_map_red[0], p_sys_fiod->channel_map_red[1],
 					p_sys_fiod->channel_map_red[2], p_sys_fiod->channel_map_red[3],
 					p_sys_fiod->channel_map_red[4], p_sys_fiod->channel_map_red[5],
@@ -995,6 +1096,9 @@ fioman_ready_frame_9
 				((unsigned long)(ktime_to_ns(p_tx->when)) % (FIOMSG_CLOCKS_PER_SEC / fiomsg_get_hertz(p_tx->cur_freq))) );
 		pr_debug("frame %d ready(%llu), when=%llu\n", FIOMAN_FRAME_NO_9, FIOMSG_CURRENT_TIME.tv64,
 				p_tx->when.tv64);
+		p_tx->fiod = p_sys_fiod->fiod;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_9] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_9] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -1028,7 +1132,7 @@ fioman_tx_frame_9
 	FIO_DEVICE_TYPE		fiod;
 
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 9\n" );*/
+/*pr_debug( "UPDATING Frame 9\n" );*/
 /* TEG DEL */
 	/* fill in payload date/time fields */
 	do_gettimeofday(&tv);
@@ -1096,6 +1200,8 @@ fioman_ready_frame_0
 		p_tx->fiod = p_sys_fiod->fiod;
 		pr_debug("frame %d ready(%llu), when=%llu\n", FIOMAN_FRAME_NO_0, FIOMSG_CURRENT_TIME.tv64,
 				p_tx->when.tv64);
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_0] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_0] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -1126,7 +1232,7 @@ fioman_tx_frame_0
 	int ii, output;
 	unsigned long flags;
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 0\n" );*/
+/*pr_debug( "UPDATING Frame 0\n" );*/
 /* TEG DEL */
 	/* Fill in payload with channel status */
 	memset(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, 0, (FIOMAN_FRAME_NO_0_SIZE-3));
@@ -1240,6 +1346,8 @@ fioman_ready_frame_1
 		p_tx->fiod = p_sys_fiod->fiod;
 		pr_debug("frame %d ready(%llu), when=%llu\n", FIOMAN_FRAME_NO_1, FIOMSG_CURRENT_TIME.tv64,
 				p_tx->when.tv64);
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_1] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_1] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -1289,6 +1397,8 @@ fioman_ready_frame_3
 		p_tx->fiod = p_sys_fiod->fiod;
 		pr_debug("frame %d ready(%llu), when=%llu\n", FIOMAN_FRAME_NO_3, FIOMSG_CURRENT_TIME.tv64,
 				p_tx->when.tv64);
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_3] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_3] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -1337,6 +1447,8 @@ fioman_ready_frame_10_11
 		p_tx->fiod = p_sys_fiod->fiod;
 		pr_debug("frame %d ready(%llu), when=%llu\n", frame_no, FIOMSG_CURRENT_TIME.tv64,
 				p_tx->when.tv64);
+                if (p_sys_fiod->frame_frequency_table[frame_no] == -1)
+		p_sys_fiod->frame_frequency_table[frame_no] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -1391,7 +1503,7 @@ fioman_tx_frame_10_11
 	}
 	/* TEG DEL */
 	/*if ((p_sys_fiod->outputs_plus[0]|p_sys_fiod->outputs_plus[1]|p_sys_fiod->outputs_plus[2]) != 0xff)
-		printk( KERN_ALERT "UPDATING Frame 10/11: %x %x %x %x %x %x\n",
+		pr_debug( "UPDATING Frame 10/11: %x %x %x %x %x %x\n",
 			p_tx_frame->frame[3], p_tx_frame->frame[4], p_tx_frame->frame[5],
 			p_tx_frame->frame[6], p_tx_frame->frame[7], p_tx_frame->frame[8] );*/
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
@@ -1435,6 +1547,8 @@ fioman_ready_frame_12_13
 		p_tx->fiod = p_sys_fiod->fiod;
 		pr_debug("frame %d ready(%llu), when=%llu\n", frame_no, FIOMSG_CURRENT_TIME.tv64,
 				p_tx->when.tv64);
+                if (p_sys_fiod->frame_frequency_table[frame_no] == -1)
+		p_sys_fiod->frame_frequency_table[frame_no] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -1515,6 +1629,8 @@ fioman_ready_frame_18
 			((unsigned long)(ktime_to_ns(p_tx->when)) % (FIOMSG_CLOCKS_PER_SEC / fiomsg_get_hertz(p_tx->cur_freq))) );
 		pr_debug("frame %d ready(%llu), when=%llu\n", FIOMAN_FRAME_NO_18, FIOMSG_CURRENT_TIME.tv64,
 				p_tx->when.tv64);
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_18] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_18] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -1562,6 +1678,8 @@ fioman_ready_frame_20_23
 		p_tx->fiod = p_sys_fiod->fiod;
 		pr_debug("frame %d ready(%llu), when=%llu\n", frame_no, FIOMSG_CURRENT_TIME.tv64,
 				p_tx->when.tv64);
+                if (p_sys_fiod->frame_frequency_table[frame_no] == -1)
+		p_sys_fiod->frame_frequency_table[frame_no] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -1581,6 +1699,7 @@ void fioman_rx_frame_init(FIOMAN_SYS_FIOD *p_sys_fiod, FIOMSG_RX_FRAME *p_rx_fra
 {
 	INIT_LIST_HEAD( &p_rx_frame->elem );
 	p_rx_frame->rx_func = NULL;
+	memset(&p_rx_frame->info, 0, sizeof(FIO_FRAME_INFO));
 	p_rx_frame->info.frequency = FIO_HZ_10;
 	p_rx_frame->resp = false;
 	p_rx_frame->fioman_context = (void *)p_sys_fiod;
@@ -1862,6 +1981,43 @@ fioman_ready_frame_181
 
 /*****************************************************************************/
 /*
+This function is used to ready response frame 182 to be placed into the
+response frame list for this fiod for this port.
+*/
+/*****************************************************************************/
+
+void *
+fioman_ready_frame_182
+(
+	FIOMAN_SYS_FIOD	*p_sys_fiod		/* FIOD of destined frame */
+)
+{
+	FIOMSG_RX_FRAME	*p_rx;		/* Ptr of frame buffer */
+
+	/* kalloc the actual frame 181 for this port */
+	/* -1 is for the one byte of frame payload defined in FIOMSG_RX_FRAME */
+	if ( ( p_rx = (FIOMSG_RX_FRAME *)kzalloc( sizeof( FIOMSG_RX_FRAME ) - 1 + FIOMAN_FRAME_NO_182_SIZE, GFP_KERNEL ) ) )
+	{
+		/* kmalloc succeeded, therefore init buffer */
+		fioman_rx_frame_init(p_sys_fiod, p_rx);
+		FIOMSG_PAYLOAD( p_rx )->frame_no = FIOMAN_FRAME_NO_182;
+		p_rx->rx_func = &fioman_rx_frame_182;
+		p_rx->len = FIOMAN_FRAME_NO_182_SIZE;
+	}
+	else
+	{
+		/* Could not kalloc */
+		return ( ERR_PTR( -ENOMEM ) );
+	}
+
+	/* Return what we prepared */
+	return ( (void *)p_rx );
+}
+
+/*****************************************************************************/
+
+/*****************************************************************************/
+/*
 This function is used to ready response frame 183 to be placed into the
 response frame list for this fiod for this port.
 */
@@ -2029,6 +2185,7 @@ fioman_ready_frame_129
 		+ FIOMAN_FRAME_NO_129_SIZE, GFP_KERNEL ) ) )
 	{
 		/* kmalloc succeeded, therefore init buffer */
+		fioman_rx_frame_init(p_sys_fiod, p_rx);
 		FIOMSG_PAYLOAD( p_rx )->frame_no = FIOMAN_FRAME_NO_129;
 		p_rx->rx_func = &fioman_rx_frame_129;
 		p_rx->len = FIOMAN_FRAME_NO_129_SIZE;
@@ -2066,6 +2223,7 @@ fioman_ready_frame_131
 		+ FIOMAN_FRAME_NO_131_SIZE, GFP_KERNEL ) ) )
 	{
 		/* kmalloc succeeded, therefore init buffer */
+		fioman_rx_frame_init(p_sys_fiod, p_rx);
 		FIOMSG_PAYLOAD( p_rx )->frame_no = FIOMAN_FRAME_NO_131;
 		p_rx->rx_func = &fioman_rx_frame_131;
 		p_rx->len = FIOMAN_FRAME_NO_131_SIZE;
@@ -2100,7 +2258,7 @@ fioman_rx_frame_129
 	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;
 
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 129\n" );*/
+/*pr_debug( "UPDATING Frame 129\n" );*/
 /* TEG DEL */
 }
 
@@ -2123,7 +2281,7 @@ fioman_rx_frame_131
 	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;
 
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 131\n" );*/
+/*pr_debug( "UPDATING Frame 131\n" );*/
 /* TEG DEL */
 }
 
@@ -2148,7 +2306,7 @@ fioman_rx_frame_138_141
 	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;
 
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 138/139/140/141\n" );*/
+/*pr_debug( "UPDATING Frame 138/139/140/141\n" );*/
 /* TEG DEL */
 
 	/* Save data into FIOD System buffers */
@@ -2225,7 +2383,7 @@ fioman_rx_frame_177
 	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;
 
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 177\n" );*/
+/*pr_debug( "UPDATING Frame 177\n" );*/
 /* TEG DEL */
 
 	/* Save data into FIOD System buffers */
@@ -2268,6 +2426,7 @@ fioman_rx_frame_179
 /* TEG DEL */
 	status = FIOMSG_PAYLOAD(p_rx_frame)->frame_info[0]; /* status bits */
 	/* If status indicates error, maybe reset all filters to default? */
+	pr_debug("fioman_rx_frame_179: status=%x\n", status);
 
 }
 
@@ -2292,7 +2451,7 @@ fioman_rx_frame_180
 	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;
 
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 180\n" );*/
+/*pr_debug( "UPDATING Frame 180\n" );*/
 /* TEG DEL */
 	pr_debug("fioman_rx_frame_180: reading %d input bytes\n",p_rx_frame->len-7);
 
@@ -2332,7 +2491,7 @@ fioman_rx_frame_181
 	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;
 
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 181\n" );*/
+/*pr_debug( "UPDATING Frame 181\n" );*/
 /* TEG DEL */
 
 	/* Save data into FIOD System buffers */
@@ -2350,6 +2509,82 @@ FIO_BIT_SET( p_sys_fiod->inputs_raw, 100 );*/
 }
 
 /*****************************************************************************/
+
+/*****************************************************************************/
+/*
+This function is called when a frame 182 is RX'ed.
+*/
+/*****************************************************************************/
+
+void
+fioman_rx_frame_182
+(
+	FIOMSG_RX_FRAME		*p_rx_frame		/* Frame received */
+)
+{
+	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* For access to System info */
+	FIOMAN_APP_FIOD		*p_app_fiod;	/* Ptr to app fiod structure */
+	int i;
+	unsigned long flags;
+        unsigned char block, count;
+	FIO_TRANS_BUFFER entry;
+	struct list_head *p_app_elem;           /* Ptr to app element being examined */
+
+	/* Get access to system info */
+	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;
+
+        /* Update transition buffers */
+        spin_lock_irqsave(&p_sys_fiod->lock, flags);
+        /* Check block number */
+        block = FIOMSG_PAYLOAD(p_rx_frame)->frame_info[0];
+        /* Get number of entries in this frame */
+        count = FIOMSG_PAYLOAD(p_rx_frame)->frame_info[1];
+        /* Check status byte */
+        if( FIOMSG_PAYLOAD(p_rx_frame)->frame_info[2+(count*3)] & 0xc ) {
+                // Overflow condition
+                list_for_each( p_app_elem, &p_sys_fiod->app_fiod_list ) {
+                        /* Get a ptr to this list entry */
+                        p_app_fiod = list_entry( p_app_elem, FIOMAN_APP_FIOD, sys_elem );
+                        if (p_app_fiod->input_transition_map != 0)
+                                p_app_fiod->transition_status = FIO_TRANS_FIOD_OVERRUN;
+                }
+        }
+        /* Update each app transition fifo */
+        for(i=0;i<count;i++) {
+		entry.input_point = FIOMSG_PAYLOAD(p_rx_frame)->frame_info[2+(i*3)]&0x7f;
+		entry.state = (FIOMSG_PAYLOAD(p_rx_frame)->frame_info[2+(i*3)]&0x80)?1:0;
+		entry.timestamp = FIOMSG_PAYLOAD(p_rx_frame)->frame_info[2+(i*3)+2];
+		entry.timestamp |= FIOMSG_PAYLOAD(p_rx_frame)->frame_info[2+(i*3)+1]<<8;
+		// push entry to each app_fiod fifo
+                list_for_each( p_app_elem, &p_sys_fiod->app_fiod_list ) {
+                        /* Get a ptr to this list entry */
+                        p_app_fiod = list_entry( p_app_elem, FIOMAN_APP_FIOD, sys_elem );
+                        if ((p_app_fiod->transition_status != FIO_TRANS_APP_OVERRUN)
+                                && ((entry.input_point == 0x7f) /* rollover entry */
+                                || FIO_BIT_TEST(p_app_fiod->input_transition_map, entry.input_point))) {
+                                if (kfifo_avail(&p_app_fiod->transition_fifo) < sizeof(FIO_TRANS_BUFFER)) {
+                                        // app fifo status is overflow
+                                        if (p_app_fiod->transition_status == FIO_TRANS_SUCCESS)
+                                                p_app_fiod->transition_status = FIO_TRANS_APP_OVERRUN;
+                                } else {
+                                        kfifo_in(&p_app_fiod->transition_fifo, &entry, sizeof(FIO_TRANS_BUFFER));
+                                        /*pr_debug("fioman_rx_frame_182:transition:ip=%d state=%d time=%d:fifo@%p=%d, st=%d\n",
+                                                entry.input_point, entry.state, entry.timestamp, &p_app_fiod->transition_fifo,
+                                                kfifo_len(&p_app_fiod->transition_fifo), p_app_fiod->transition_status);*/
+                                }
+                        }
+                }
+        }
+	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
+
+/* TEG DEL */
+pr_debug( "UPDATING Frame 182: block %d, %d entries\n", block, count );
+/* TEG DEL */
+
+}
+
+/*****************************************************************************/
+
 /*****************************************************************************/
 /*
 This function is called when a frame 183 is RX'ed.
@@ -2368,7 +2603,7 @@ fioman_rx_frame_183
 	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;
 	
 /* TEG DEL */
-/*printk( KERN_ALERT "UPDATING Frame 183\n" );*/
+/*pr_debug( "UPDATING Frame 183\n" );*/
 /* handle status bits from response frame */
 /* TEG DEL */
 }
