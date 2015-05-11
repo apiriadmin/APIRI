@@ -446,7 +446,7 @@ int tod_get_dst_info(dst_info_t *dst_info)
 
 int tod_set_dst_info(const dst_info_t *dst_info)
 {
-	char buf[TZ_BUFLEN] = {'T','Z','i','f','2', 0};
+	char buf[64+TZ_BUFLEN] = {'T','Z','i','f','2', 0};
 	char *tzstr = &buf[54];
 	int fd;
 	int begin_month, begin_day, begin_occ;
@@ -572,18 +572,19 @@ int tod_set_dst_state(int state)
 int tod_get(struct timeval *tv, int *tzsec_off, int *dst_off)
 {
 	struct tm *p_localtime;
-	time_t utc;
+	struct timeval utc;
 	
-	utc = time(NULL);
-	p_localtime = localtime(&utc);
+	gettimeofday(&utc, NULL);;
+	p_localtime = localtime(&utc.tv_sec);
 	if (tv != NULL) {
-		tv->tv_sec = utc - timezone + ((daylight && p_localtime->tm_isdst)?3600:0);
+		tv->tv_sec = utc.tv_sec - timezone + ((daylight && p_localtime->tm_isdst)?3600:0);
+                tv->tv_usec = utc.tv_usec;
 	}
 	if (tzsec_off != NULL) {
-		*tzsec_off = timezone;
+		*tzsec_off = -timezone;
 	}
 	if (dst_off != NULL) {
-		/* Correct for all but the 347 residents of Lord Howe Island! */
+		/* Correct for all but the 360 residents of Lord Howe Island! */
 		*dst_off = ((daylight && p_localtime->tm_isdst)?3600:0);
 	}
 
@@ -594,10 +595,11 @@ int tod_set(const struct timeval *tv, const int *tzsec_off)
 {
 	struct stat sb;
 	struct timeval tval;
+        struct tm tm;
 	rule_struct dst_rules[2];
-	char buf[TZ_BUFLEN] = {'T','Z','i','f','2', 0};
+	char buf[64+TZ_BUFLEN] = {'T','Z','i','f','2', 0};
 	char *tzstr = &buf[54];
-	int tzoff;
+	int tzoff, dstoff;
 	int fd;
 
 	tzset();
@@ -606,11 +608,12 @@ int tod_set(const struct timeval *tv, const int *tzsec_off)
 		
 		// Read existing DST Rule ?
 		// is /etc/localtime present?
-		if( stat("/etc/localtime", &sb) ) {
+		if (stat("/etc/localtime", &sb) == 0) {
 			if (get_dst_rules(dst_rules) == -1)
 				return -1;
 			// modify rule info and rewrite
-			tzoff = dst_rules[0].gmt_offset = -(*tzsec_off);
+			tzoff = -(*tzsec_off);
+			dstoff = tzoff - (dst_rules[0].gmt_offset - dst_rules[1].gmt_offset);
 			// Fill std offset
 			tzstr += sprintf(tzstr, "\nATCST%2.2d:%2.2d:%2.2d",
 				tzoff/3600, (tzoff%3600)/60, (tzoff%3600)%60);
@@ -618,9 +621,7 @@ int tod_set(const struct timeval *tv, const int *tzsec_off)
 			if (!!dst_rules[1].tzname[0]) {
 				// Fill dst offset
 				tzstr += sprintf(tzstr, "ATCDT%2.2d:%2.2d:%2.2d",
-					dst_rules[1].gmt_offset/3600,
-					(dst_rules[1].gmt_offset%3600)/60,
-					(dst_rules[1].gmt_offset%3600)%60);
+					dstoff/3600, (dstoff%3600)/60, (dstoff%3600)%60);
 				// Fill begin dst rule
 				tzstr += sprintf(tzstr, ",M%d.%d.%d/%2.2d:%2.2d:%2.2d",
 					dst_rules[0].month,
@@ -658,7 +659,13 @@ int tod_set(const struct timeval *tv, const int *tzsec_off)
 	
 	if (tv != NULL) {
 		tval = *tv;
-		tval.tv_sec += timezone;
+                if (tzsec_off == NULL)
+                        tzset();
+                gmtime_r(&tval.tv_sec, &tm);
+                tm.tm_isdst = -1;
+                if (mktime(&tm) == -1)
+                        return -1;
+		tval.tv_sec += timezone - ((daylight && tm.tm_isdst)?3600:0);
 		settimeofday(&tval, NULL);
 	}
 	return 0;

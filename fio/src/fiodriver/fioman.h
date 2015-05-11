@@ -87,8 +87,8 @@ struct fioman_sys_fiod
 	u8	inputs_raw[ FIO_INPUT_POINTS_BYTES ];
 									/* Filtered Input for FIOD */
 	u8	inputs_filtered[ FIO_INPUT_POINTS_BYTES ];
-	u8	input_filters_leading[ FIO_INPUT_POINTS_BYTES ];
-	u8	input_filters_trailing[ FIO_INPUT_POINTS_BYTES ];
+	u8	input_filters_leading[ FIO_INPUT_POINTS_BYTES * 8 ];
+	u8	input_filters_trailing[ FIO_INPUT_POINTS_BYTES * 8 ];
 	u8	input_transition_map[ FIO_INPUT_POINTS_BYTES ];		/* Inputs enabled for transition reporting */
 
 	u8	channels_reserved[ FIO_CHANNEL_BYTES ];
@@ -96,7 +96,7 @@ struct fioman_sys_fiod
 	u8	channel_map_red[ FIO_CHANNELS ];
 	u8	channel_map_yellow[ FIO_CHANNELS ];
 	u8	channel_map_green[ FIO_CHANNELS ];
-	int	frame_frequency_table[128][2];				/* Each frame element has [valid?][frequency] */
+	int	frame_frequency_table[128];				/* Table of sending frequency indexed by frame number */
 	FIO_MMU_FLASH_BIT	flash_bit;
 	FIO_TS_FM_STATE		fm_state;
 	FIO_TS1_VM_STATE	vm_state;
@@ -129,10 +129,11 @@ struct fioman_app_fiod
 									/* Load Switch Minus for FIOD */
 	u8	outputs_minus[ FIO_OUTPUT_POINTS_BYTES ];
 
-	u8	input_filters_leading[ FIO_INPUT_POINTS_BYTES ];
-	u8	input_filters_trailing[ FIO_INPUT_POINTS_BYTES ];
+	u8	input_filters_leading[ FIO_INPUT_POINTS_BYTES * 8 ];
+	u8	input_filters_trailing[ FIO_INPUT_POINTS_BYTES * 8 ];
 	u8	input_transition_map[ FIO_INPUT_POINTS_BYTES ];
 	struct kfifo	transition_fifo;
+        FIO_TRANS_STATUS        transition_status;
 
 	u8	channels_reserved[ FIO_CHANNEL_BYTES ];
 	FIO_HZ	frame_frequency_table[128];

@@ -876,7 +876,7 @@ fiomsg_port_enable
 	FIOMSG_PORT		*p_port	/* Port on which to enable FIOD */
 )
 {
-printk("fiomsg_port_enable: opening port %d\n", p_port->port);
+pr_debug("fiomsg_port_enable: opening port %d\n", p_port->port);
 	/* See if port has been opened */
 	if ( !p_port->port_opened ) {
 		/* Try to open the port if not open */
@@ -933,7 +933,7 @@ fiomsg_port_stop
 )
 {
 	int		ii;		/* Loop variable */
-printk("fiomsg_port_stop: stopping port %d\n", p_port->port);
+pr_debug("fiomsg_port_stop: stopping port %d\n", p_port->port);
 
 	/* Disable timers */
 	FIOMSG_TIMER_CANCEL( &p_port->tx_timer );
@@ -961,7 +961,7 @@ fiomsg_port_disable
 
 	/* get port table address */
 	p_port = FIOMSG_P_PORT( p_fiod->port );
-printk("fiomsg_port_disable: disabling port %d, comm_enabled=%d\n", p_port->port, p_port->comm_enabled);
+pr_debug("fiomsg_port_disable: disabling port %d, comm_enabled=%d\n", p_port->port, p_port->comm_enabled);
 
 	/* Show comm is disabled on port, and disable port messages
 	   if port disable is last time */
@@ -1109,7 +1109,7 @@ This function is used to actually send a request frame.
 /*****************************************************************************/
 
 /* TEG */
-static	int cnt = 0;
+/*static	int cnt = 0;*/
 /* TEG */
 void
 fiomsg_tx_send_frame
@@ -1120,14 +1120,14 @@ fiomsg_tx_send_frame
 {
 	int status;
 
-	/*pr_Debug(KERN_ALERT "tx_send_frame(%llu) #%d, len=%d: %x %x %x\n",
-		FIOMSG_CURRENT_TIME.tv64, p_tx_frame->frame[2], p_tx_frame->len,
-		p_tx_frame->frame[0], p_tx_frame->frame[1], p_tx_frame->frame[2]);*/
+	pr_debug("tx_send_frame(%llu) #%d, freq=%d len=%d: %x %x %x\n",
+		FIOMSG_CURRENT_TIME.tv64, p_tx_frame->frame[2], p_tx_frame->cur_freq, p_tx_frame->len,
+		p_tx_frame->frame[0], p_tx_frame->frame[1], p_tx_frame->frame[2]);
 	if( (status = sdlc_kernel_write(p_port->context, FIOMSG_PAYLOAD(p_tx_frame), p_tx_frame->len)) < 0 )
 		printk( KERN_ALERT "write error %d", status );
 	/* TEG */
-	FIOMSG_FRAME	*p_payload = FIOMSG_PAYLOAD( p_tx_frame );
-	pr_debug( KERN_ALERT "Frame (%d, %d) sending, jiffies(%lu)\n", p_payload->frame_no, cnt++, FIOMSG_CURRENT_TIME );
+	/*FIOMSG_FRAME	*p_payload = FIOMSG_PAYLOAD( p_tx_frame );
+	printk( KERN_ALERT "Frame (%d, %d) sending, jiffies(%lu)\n", p_payload->frame_no, cnt++, FIOMSG_CURRENT_TIME );*/
 	/* TEG */
 }
 
@@ -1185,8 +1185,11 @@ fiomsg_timer_callback_rtn fiomsg_tx_task( fiomsg_timer_callback_arg arg )
 		/* Time to send this frame */
 		/* Figure out when this frame should be sent again */
 		/*p_tx_frame->when = fiomsg_tx_frame_when( p_tx_frame->cur_freq );*/
-		p_tx_frame->when = FIOMSG_TIME_ADD(p_tx_frame->when,
-					(FIOMSG_CLOCKS_PER_SEC / fio_hz_table[ p_tx_frame->cur_freq ]));
+		if (p_tx_frame->cur_freq > FIO_HZ_ONCE) {
+                        p_tx_frame->when = FIOMSG_TIME_ADD(p_tx_frame->when,
+                                (FIOMSG_CLOCKS_PER_SEC / fio_hz_table[ p_tx_frame->cur_freq ]));
+                }
+
 		/* Set the TX timer for next TX frame */
 		fiomsg_tx_set_port_timer( p_port, p_tx_frame );
 
@@ -1204,13 +1207,10 @@ fiomsg_timer_callback_rtn fiomsg_tx_task( fiomsg_timer_callback_arg arg )
 		list_del_init( p_port->tx_queue.next );
 
 		/* Requeue frame if needed */
-		if ( FIO_HZ_ONCE != p_tx_frame->cur_freq )
-		{
+		if (p_tx_frame->cur_freq > FIO_HZ_ONCE) {
 			/* Requeue frame into correct order */
 			fiomsg_tx_add_frame( p_port, p_tx_frame );
-		}
-		else
-		{
+		} else {
 			/* Free memory used by one time frame */
 			kfree( p_tx_frame );
 		}
