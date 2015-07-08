@@ -141,7 +141,7 @@ typedef enum { CLEAR, SOFT_RESET, BACKLIGHT_ON, BACKLIGHT_OFF, AUTO_WRAP_ON, AUT
 		AUTO_REPEAT_OFF, CURSOR_ON, CURSOR_OFF, AUTO_SCROLL_ON, AUTO_SCROLL_OFF, BACKLIGHT_TIMEOUT,
 		INQUIRE_ATTRIBUTES } screen_types;
 
-typedef enum { POWER_UP, INQUIRE_AUX, INQUIRE_HEATER, INQUIRE_TYPE } other_types;
+typedef enum { POWER_UP, INQUIRE_AUX, INQUIRE_HEATER, INQUIRE_TYPE, INQUIRE_FOCUS } other_types;
 
 
 // #define REGEX_INIT { NULL, 0, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 0 }
@@ -204,6 +204,7 @@ static struct command_table_s {
 	{ "^" ESC "[[]An",		REGEX_INIT, other,		INQUIRE_AUX },
 	{ "^" ESC "[[]hn",		REGEX_INIT, other,		INQUIRE_HEATER },
 	{ "^" ESC "[[]c",		REGEX_INIT, other,		INQUIRE_TYPE },
+	{ "^" ESC "[[]Fn",		REGEX_INIT, other,              INQUIRE_FOCUS },
 };
 
 #define CMD_TAB_SIZE ( sizeof( cmd_tab ) / sizeof( cmd_tab[0]) )
@@ -459,6 +460,10 @@ void clear_line( display_t *disp, int line )
 	int i;
 	for(i=0; i<disp->screen.columns; i++) {
 		disp->terminal[line][i].c = ' ';
+                disp->terminal[line][i].underline = 0;
+                disp->terminal[line][i].blink = 0;
+                disp->terminal[line][i].reverse = 0;
+                disp->terminal[line][i].special = 0;
 	}
 }
 
@@ -506,6 +511,30 @@ void clear_screen( display_t * disp )
 
 	for( row = 0; row < disp->screen.rows; row++ )
 		clear_line( disp, row );
+}
+
+
+//
+// This helper routine performs a soft reset
+// as per ATC5201 Standard section 6.1.4.1
+//
+void reset_screen( display_t * disp )
+{
+        int i = 0;
+        
+        disp->screen.auto_wrap = 0;
+        disp->screen.auto_scroll = 0;
+        disp->tab_stops[0] = 9;
+        disp->tab_stops[1] = 17;
+        disp->tab_stops[2] = 25;
+        disp->tab_stops[3] = 33;
+        // set default stops every 8th column thereafter
+        for( i = 4; (i * 8) <= disp->screen.columns; i++ ) {
+                disp->tab_stops[i] = (i * 8) + 7;
+        }
+        disp->screen.backlight_timeout = 6;
+        disp->screen.backlight = 0;
+        clear_screen( disp );
 }
 
 
@@ -672,6 +701,7 @@ void screen( display_t * disp, int type, int args[] )
 			break;
 		case SOFT_RESET:
 			DBG( "%s(%d): SRS \n", __func__, term );
+                        reset_screen( disp);
 			break;
 		case BACKLIGHT_ON:
 			DBG( "%s(%d): SCR-BL ON \n", __func__, term );
@@ -763,6 +793,12 @@ void other( display_t *disp, int type, int args[] )
 				DBG("%s(%d): get_screen_type error\n", __func__, term);
 			}
 			break;
+                case INQUIRE_FOCUS: {
+			DBG( "%s(%d): [FOCUS] \n", __func__, term );
+                        sprintf( buf, "\x1b[%cR", (get_focus()==term)?'h':'l');
+                        routing_return( term, buf, NULL );
+                        }
+                        break;
 		}
 	}
 }
