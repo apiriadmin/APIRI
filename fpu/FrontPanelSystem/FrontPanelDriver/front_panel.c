@@ -208,12 +208,14 @@ static char * slot_to_string( int slot )
 	return( "Overflow" );
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31)
 static struct class *fp_class;
 
 static char *fp_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "%s", dev_name(dev));
 }
+#endif
 
 static int __init fp_init(void)
 {
@@ -262,6 +264,7 @@ static int __init fp_init(void)
 
 	printk( KERN_ALERT "\n\nfront_panel loaded at major = %d\n", fp_major );
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31)
 	fp_class = class_create(THIS_MODULE, "front-panel");
 	if (IS_ERR(fp_class)) {
 		printk(KERN_ERR "Error creating front-panel class.\n");
@@ -272,7 +275,7 @@ static int __init fp_init(void)
 		device_create(fp_class, NULL, MKDEV(fp_major, devlist[i].minor),
 				NULL, devlist[i].name );
 	}
-
+#endif
 
 #ifdef CONFIG_FP_DEV_FS
 	// create a sub directory within the /dev directory
@@ -333,13 +336,17 @@ static void __exit fp_exit(void)
 
 	for( i = 0; i < ARRAY_SIZE(devlist); i++ ) {
 		dev = MKDEV( fp_major, devlist[i].minor );
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31)
 		device_destroy(fp_class, dev);
+#endif
 		cdev_del( devlist[i].cdev );
 		kfree( devlist[i].cdev );
 		unregister_chrdev_region( dev, 1 );
 	}
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31)
 	class_destroy(fp_class);
+#endif
 
 	printk(KERN_ALERT "front_panel unloaded\n" );
 }
@@ -1148,7 +1155,11 @@ fp_poll( struct file *filp, poll_table * wait )
 //
 void send_signal( int pid, int sig )
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
+	struct task_struct * p = find_task_by_pid( pid );
+#else
 	struct task_struct * p = pid_task(find_vpid(pid), PIDTYPE_PID);
+#endif
 	send_sig_info( sig, SEND_SIG_PRIV, p );
 }
 
