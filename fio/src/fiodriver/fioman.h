@@ -46,7 +46,23 @@ This file contains all definitions for the FIOMAN.
 /*  Definition section.
 -----------------------------------------------------------------------------*/
 /*  Module public structure/enum definition.*/
+#include        <linux/version.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
+typedef struct kfifo *FIOMAN_FIFO;
+#define FIOMAN_FIFO_ALLOC(a,b,c)        ({a = kfifo_alloc(b,c,NULL);})
+#define FIOMAN_FIFO_PUT(a,b,c)          __kfifo_put(a,b,c)
+#define FIOMAN_FIFO_GET(a,b,c)          kfifo_get(a,b,c)
+#define FIOMAN_FIFO_LEN(a)              __kfifo_len(a)
+#define FIOMAN_FIFO_AVAIL(a)            (a->size - (a->in - a->out))
+#else
+typedef struct kfifo FIOMAN_FIFO;
+#define FIOMAN_FIFO_ALLOC(a,b,c)        kfifo_alloc(&a,b,c)
+#define FIOMAN_FIFO_PUT(a,b,c)          kfifo_in(&a,b,c)
+#define FIOMAN_FIFO_GET(a,b,c)          kfifo_out(&a,b,c)
+#define FIOMAN_FIFO_LEN(a)              kfifo_len(&a)
+#define FIOMAN_FIFO_AVAIL(a)            kfifo_avail(&a)
+#endif
 
 /*  Global section.
 -----------------------------------------------------------------------------*/
@@ -132,7 +148,7 @@ struct fioman_app_fiod
 	u8	input_filters_leading[ FIO_INPUT_POINTS_BYTES * 8 ];
 	u8	input_filters_trailing[ FIO_INPUT_POINTS_BYTES * 8 ];
 	u8	input_transition_map[ FIO_INPUT_POINTS_BYTES ];
-	struct kfifo	transition_fifo;
+	FIOMAN_FIFO	transition_fifo;
         FIO_TRANS_STATUS        transition_status;
 
 	u8	channels_reserved[ FIO_CHANNEL_BYTES ];

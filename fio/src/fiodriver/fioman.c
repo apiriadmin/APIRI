@@ -1251,8 +1251,7 @@ fioman_reg_fiod
 	p_app_fiod->watchdog_toggle_pending = false;
 	p_app_fiod->hm_disabled = false;
 	p_app_fiod->enabled = false;
-	result = kfifo_alloc(&p_app_fiod->transition_fifo, sizeof(FIO_TRANS_BUFFER)*1024, GFP_KERNEL);
-pr_debug("fioman_reg_fiod: kfifo_alloc@%p size=%d ret=%d\n", &p_app_fiod->transition_fifo, sizeof(FIO_TRANS_BUFFER)*1024,result);
+        FIOMAN_FIFO_ALLOC(p_app_fiod->transition_fifo, sizeof(FIO_TRANS_BUFFER)*1024, GFP_KERNEL);
         p_app_fiod->transition_status = FIO_TRANS_SUCCESS;
 	p_app_fiod->p_sys_fiod = p_sys_fiod;
 	list_add_tail( &p_app_fiod->elem, &p_priv->fiod_list );
@@ -3560,7 +3559,8 @@ int fioman_inputs_trans_read
 	FIOMAN_APP_FIOD		*p_app_fiod;	/* Ptr to app fiod structure */
 	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* Ptr to FIOMAN fiod structure */
         FIO_TRANS_STATUS        status;
-	int			i = 0, count = 0, copied;
+        FIO_TRANS_BUFFER        buffer;
+	int			i = 0, count = 0;
         unsigned long flags;
 	
 	/* Find this APP registration */
@@ -3577,17 +3577,17 @@ int fioman_inputs_trans_read
 
 	/* TBD: return app-specific transition buffer entries */
 	spin_lock_irqsave(&p_sys_fiod->lock, flags);
-	count = kfifo_len(&p_app_fiod->transition_fifo)/sizeof(FIO_TRANS_BUFFER);
+	count = FIOMAN_FIFO_LEN(p_app_fiod->transition_fifo)/sizeof(FIO_TRANS_BUFFER);
         status = p_app_fiod->transition_status;
         /* Reset status so reported only once per occurrence */
         p_app_fiod->transition_status = FIO_TRANS_SUCCESS;
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 	if (p_arg->count < count)
 		count = p_arg->count;
-pr_debug("fioman_inputs_trans_read: reading %d entries from fifo@%p len=%d\n", count, &p_app_fiod->transition_fifo, kfifo_len(&p_app_fiod->transition_fifo));
+pr_debug("fioman_inputs_trans_read: reading %d entries from fifo@%p len=%d\n", count, &p_app_fiod->transition_fifo, FIOMAN_FIFO_LEN(p_app_fiod->transition_fifo));
 	for (i=0; i<count; i++) {
-		kfifo_to_user(&p_app_fiod->transition_fifo, &p_arg->trans_buf[i], sizeof(FIO_TRANS_BUFFER), &copied);
-                if (copied != sizeof(FIO_TRANS_BUFFER))
+                if ((FIOMAN_FIFO_GET(p_app_fiod->transition_fifo, &buffer, sizeof(FIO_TRANS_BUFFER)) != sizeof(FIO_TRANS_BUFFER))
+                        || copy_to_user(&p_arg->trans_buf[i], &buffer, sizeof(FIO_TRANS_BUFFER)))
                         return -1;
 	}
         put_user(status, p_arg->status);
@@ -3808,10 +3808,6 @@ void hm_timeout(struct work_struct *work)
         FIOMAN_PRIV_DATA        *p_priv = hm_timeout_priv;
 	FIOMAN_APP_FIOD		*p_app_fiod;	/* Ptr to app fiod structure */
 	struct list_head 	*p_app_elem;	/* Ptr to app list element */
-        struct list_head        *p_app_next;
-        struct list_head        *p_priv_elem;
-        struct list_head        *p_priv_next;
-        FIOMAN_PRIV_DATA        *p_priv_old;
 
         pr_debug("hm_timeout: disable failed app @%p\n", p_priv);
 

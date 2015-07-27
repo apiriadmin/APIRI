@@ -887,7 +887,8 @@ pr_debug("fiomsg_port_enable: opening port %d\n", p_port->port);
 		}
 		/* Set the start timestamp for this port */
 		p_port->start_time = FIOMSG_CURRENT_TIME;
-		printk( KERN_ALERT "FIOMSG Task port(%d) -> opened (%llu)\n", p_port->port, p_port->start_time.tv64 );
+		printk( KERN_ALERT "FIOMSG Task port(%d) -> opened (%llu)\n", p_port->port, 
+                        FIOMSG_TIME_TO_NSECS(p_port->start_time) );
 	}
 	return 0;
 }
@@ -1059,20 +1060,26 @@ int fiomsg_get_hertz(FIO_HZ freq)
 FIOMSG_TIME
 fiomsg_tx_frame_when
 (
-	FIO_HZ	freq	/* Frequency of frame */
+	FIO_HZ	freq,   /* Frequency of frame */
+        bool align      /* Align "when time" at next even multiple of period */
 )
 {
-	FIOMSG_TIME	new_when;		/* New timer expiration time */
+	FIOMSG_TIME new_when;		/* New timer expiration time */
+        FIOMSG_TIME now = FIOMSG_CURRENT_TIME;
+        unsigned long hz = fio_hz_table[freq];
 
 	if ( ( FIO_HZ_MAX <= freq ) || ( FIO_HZ_ONCE >= freq ) )
 	{
-		new_when = FIOMSG_CURRENT_TIME; /* Handle pathalogical case */
+		new_when = now; /* Handle pathological case */
 	}
 	else
 	{
-		/*new_when = FIOMSG_CURRENT_TIME + ( HZ / fio_hz_table[ freq ] );*/
-		new_when = FIOMSG_TIME_ADD( FIOMSG_CURRENT_TIME,
-				(FIOMSG_CLOCKS_PER_SEC / fio_hz_table[ freq ]) );
+		new_when = FIOMSG_TIME_ADD(now, (FIOMSG_CLOCKS_PER_SEC / hz));
+                if (align) {
+                        new_when = FIOMSG_TIME_ALIGN(new_when, hz);
+                        pr_debug("fiomsg_tx_frame_when: now=%llu period=%lu align=%llu\n",
+                                FIOMSG_TIME_TO_NSECS(now), FIOMSG_CLOCKS_PER_SEC/hz, FIOMSG_TIME_TO_NSECS(new_when));
+                }
 	}
 
 	return ( new_when );			/* Return new timer expiration time */
@@ -1121,7 +1128,7 @@ fiomsg_tx_send_frame
 	int status;
 
 	pr_debug("tx_send_frame(%llu) #%d, freq=%d len=%d: %x %x %x\n",
-		FIOMSG_CURRENT_TIME.tv64, p_tx_frame->frame[2], p_tx_frame->cur_freq, p_tx_frame->len,
+		FIOMSG_TIME_TO_NSECS(FIOMSG_CURRENT_TIME), p_tx_frame->frame[2], p_tx_frame->cur_freq, p_tx_frame->len,
 		p_tx_frame->frame[0], p_tx_frame->frame[1], p_tx_frame->frame[2]);
 	if( (status = sdlc_kernel_write(p_port->context, FIOMSG_PAYLOAD(p_tx_frame), p_tx_frame->len)) < 0 )
 		printk( KERN_ALERT "write error %d", status );
@@ -1224,13 +1231,10 @@ fiomsg_timer_callback_rtn fiomsg_tx_task( fiomsg_timer_callback_arg arg )
 		/* So even if we get here, the system will keep running. */
 		/* JMG: change to reset the tx timer to the current when time */
 		fiomsg_tx_set_timer( p_port, current_when );
-#if defined(CONFIG_HIGH_RES_TIMERS)
 		pr_debug( KERN_ALERT "tx frame when(%d) (%llu) after jiffies (%llu)\n",
-				FIOMSG_PAYLOAD(p_tx_frame)->frame_no, current_when.tv64, FIOMSG_CURRENT_TIME.tv64 );
-#else
-		pr_debug( KERN_ALERT "tx frame(%d) when (%ld) after jiffies (%ld)\n",
-				FIOMSG_PAYLOAD(p_tx_frame)->frame_no, current_when, jiffies );
-#endif
+				FIOMSG_PAYLOAD(p_tx_frame)->frame_no, 
+                                FIOMSG_TIME_TO_NSECS(current_when), 
+                                FIOMSG_TIME_TO_NSECS(FIOMSG_CURRENT_TIME) );
 	}
 
 	/* Unlock resources */
@@ -1318,13 +1322,13 @@ fiomsg_timer_callback_rtn fiomsg_rx_task( fiomsg_timer_callback_arg arg )
 			FIOMSG_TIMER_CALLBACK_RTN;
 		}
 		/* Not the frame we expected, therefore ignore this frame */
-		pr_debug( KERN_ALERT "Dumping RX frame(%llu) #%d, expected #%d\n", FIOMSG_CURRENT_TIME.tv64,
+		pr_debug( KERN_ALERT "Dumping RX frame(%llu) #%d, expected #%d\n", FIOMSG_TIME_TO_NSECS(FIOMSG_CURRENT_TIME),
 				rx_frame->frame_no, p_rx_pend->frame_no);
 		frames_read++;
 	}
 	if( frames_read == 0 ) {
 		/* No frame to read, show no response */
-		pr_debug( KERN_ALERT "No RX frame read!(%llu), expected #%d\n", FIOMSG_CURRENT_TIME.tv64,
+		pr_debug( KERN_ALERT "No RX frame read!(%llu), expected #%d\n", FIOMSG_TIME_TO_NSECS(FIOMSG_CURRENT_TIME),
 				p_rx_pend->frame_no);
 		/* Update rx error count */
 		fiomsg_rx_update_frame( p_port, p_rx_pend, false );
