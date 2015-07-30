@@ -59,7 +59,7 @@ int fpui_open_config_window( int flags );
 int fpui_close( fpui_handle fd );
 int fpui_close_config_window( fpui_handle fd );
 int fpui_get_window_size( fpui_handle fd, int * rows, int * columns );
-bool fpui_get_focus( fpui_handle fd );
+int fpui_get_focus( fpui_handle fd );
 int fpui_clear( fpui_handle fd );
 int fpui_refresh( fpui_handle fd );
 int fpui_set_emergency( fpui_handle fd, bool state ) ;

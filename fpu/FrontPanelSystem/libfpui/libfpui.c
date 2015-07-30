@@ -139,15 +139,27 @@ int fpui_get_window_size( fpui_handle fd, int *rows, int *columns )
 }
 
 
-bool fpui_get_focus( fpui_handle fd )
+int fpui_get_focus( fpui_handle fd )
 {
-	bool b;
+	int  err;
+	char sbuf[16];
+	char focus;
 
-	if( ioctl( fd, FP_IOC_GET_FOCUS, &b ) < 0 ) {
-		return( -1 );
+	if( (err = fpui_write_string( fd, ESC "[Fn" )) < 0 ) {
+		return( err );
 	}
 
-	return( b );
+	if( (err = fpui_read( fd, sbuf, sizeof( sbuf ) )) < 0 ) {
+		return( err );
+	}
+
+	sscanf( sbuf, ESC "[%cR", &focus );
+	if (focus == 'h')
+		return 1;
+	if (focus == 'l')
+		return 0;
+
+	return -1;
 }
 
 

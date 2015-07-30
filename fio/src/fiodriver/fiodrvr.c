@@ -42,6 +42,7 @@ kernel module.
 #include	<linux/fs.h>		/* File structure definitions */
 #include	<linux/cdev.h>		/* Character driver definitions */
 #include	<linux/device.h>
+#include        <linux/version.h>
 
 /* Local includes. */
 #include	"fiodriver.h"				/* FIO Driver Definitions */
@@ -69,6 +70,7 @@ struct file_operations	fio_fops;
 /*  Private API implementation section.
 -----------------------------------------------------------------------------*/
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31)
 static struct class *fio_class;
 
 static char *fio_devnode(struct device *dev, mode_t *mode)
@@ -76,7 +78,7 @@ static char *fio_devnode(struct device *dev, mode_t *mode)
 	return kasprintf(GFP_KERNEL, "%s", dev_name(dev));
 	//return "fio";
 }
-
+#endif
 /*****************************************************************************/
 /*
 This function initializes the FIO Driver module.
@@ -113,6 +115,7 @@ fio_init( void )
 		goto error_region;
 	}
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31)
 	/* Create a class for this device and add the device */
 	fio_class = class_create(THIS_MODULE, "fio");
 	if (IS_ERR(fio_class)) {
@@ -123,7 +126,7 @@ fio_init( void )
 	}
 	fio_class->devnode = fio_devnode;
 	device_create(fio_class, NULL, fio_dev, NULL, "fio");
-
+#endif
 	/* DRIVER IS LIVE */
 
 	printk( KERN_ALERT "FIO Driver Loaded\n" );
@@ -148,9 +151,10 @@ This function cleans up the FIO Driver Module for unloading
 static void __exit
 fio_exit( void )
 {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31)
 	device_destroy(fio_class, fio_dev);
 	class_destroy(fio_class);
-
+#endif
 	/* Make character driver unavailable */
 	cdev_del( &fio_cdev );
 
