@@ -498,10 +498,10 @@ int tod_set_dst_info(const dst_info_t *dst_info)
 			return -1;
 		}
 		// Fill std offset from "timezone" global
-		tzstr += sprintf(tzstr, "\nATCST%2.2d:%2.2d:%2.2d",
+		tzstr += sprintf(tzstr, "\nATCST%2.2ld:%2.2ld:%2.2ld",
 			timezone/3600, (timezone%3600)/60, (timezone%3600)%60);
 		// Fill dst offset
-		tzstr += sprintf(tzstr, "ATCDT%2.2d:%2.2d:%2.2d",
+		tzstr += sprintf(tzstr, "ATCDT%2.2ld:%2.2ld:%2.2ld",
 			(timezone - dst_info->begin.generic.seconds_to_adjust)/3600,
 			((timezone - dst_info->begin.generic.seconds_to_adjust)%3600)/60,
 			((timezone - dst_info->begin.generic.seconds_to_adjust)%3600)%60);
@@ -623,7 +623,7 @@ int tod_set(const struct timeval *tv, const int *tzsec_off)
 				tzstr += sprintf(tzstr, "ATCDT%2.2d:%2.2d:%2.2d",
 					dstoff/3600, (dstoff%3600)/60, (dstoff%3600)%60);
 				// Fill begin dst rule
-				tzstr += sprintf(tzstr, ",M%d.%d.%d/%2.2d:%2.2d:%2.2d",
+				tzstr += sprintf(tzstr, ",M%d.%d.%d/%2.2ld:%2.2ld:%2.2ld",
 					dst_rules[0].month,
 					dst_rules[0].week,
 					dst_rules[0].day,
@@ -631,7 +631,7 @@ int tod_set(const struct timeval *tv, const int *tzsec_off)
 					(dst_rules[0].dst_offset%3600)/60,
 					(dst_rules[0].dst_offset%3600)%60);
 				// Fill end dst rule
-				tzstr += sprintf(tzstr, ",M%d.%d.%d/%2.2d:%2.2d:%2.2d",
+				tzstr += sprintf(tzstr, ",M%d.%d.%d/%2.2ld:%2.2ld:%2.2ld",
 					dst_rules[1].month,
 					dst_rules[1].week,
 					dst_rules[1].day,
