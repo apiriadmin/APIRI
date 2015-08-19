@@ -27,61 +27,131 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <string.h>
 #include <errno.h>
 #include <fpui.h>
 
+volatile sig_atomic_t sig_flag = 0;
+static char pid_file[100];
+static pid_t child_pid = 0;
+
+void clean_up()
+{
+	if(child_pid != 0)
+	{
+		kill(child_pid, SIGTERM);
+		child_pid=0;
+	}
+	if(strlen(pid_file) > 0)
+	{
+		remove(pid_file);
+	}
+}
+
+void signal_handler(int sig)
+{
+	clean_up();
+	exit(EXIT_FAILURE);
+}
+
+void print_usage()
+{
+	printf("Usage: fpuiexec [OPTIONS] program\n");
+	printf("  -n name                   application name for FrontPanelManager\n");
+	printf("  -p file                   process id file\n");
+	printf("  -r                        restart program if it exits\n");
+	printf("\n");
+}
+
 int main( int argc, char * argv[] )
 {
-	const char* regname = 0;
-	const char* program = 0;
+	int opt;
+	int fpi;
+	int restart=0;
+	char name[50];
+	char pid_buffer[25];
+	char* program = 0;
+	FILE* pid_file_handle = 0;
 
-	if( argc > 2 ) 
-	{	
-		regname = argv[1];
-		program = argv[2];
-	}
-	else
+	signal(SIGINT, signal_handler);
+	signal(SIGTERM, signal_handler);
+
+	name[0]=0;
+	pid_file[0]=0;
+	sprintf(pid_buffer, "%d\n", getpid());
+
+	while ((opt = getopt(argc, argv, "rn:p:")) != -1) 
 	{
-		printf("must supply regname and program arguments\n");
-		exit(1);
+		switch (opt) 
+		{
+			case 'r': restart=1; break;
+			case 'n': strcpy(name, optarg); break;	
+			case 'p': strcpy(pid_file, optarg); break;		
+			default:
+				print_usage();
+				exit(EXIT_FAILURE);
+		}
+ 	}
+
+	if(optind < argc) 
+	{
+		program=argv[optind];
+	} 
+	else 
+	{
+		print_usage();
+		exit(EXIT_FAILURE);
+	}
+
+	if(strlen(pid_file) > 0)
+	{
+		pid_file_handle = fopen(pid_file, "w");
+		if(pid_file_handle)
+		{
+			fwrite(pid_buffer, 1, strlen(pid_buffer), pid_file_handle);
+			fclose(pid_file_handle);
+		}
 	}
 	
-	int fpi;
-	fpi = fpui_open( O_RDWR, regname);
+	fpi = fpui_open( O_RDWR, name);
 	if( fpi <= 0 ) 
 	{
 		fprintf( stderr, "open /dev/fpi failed (%s)\n", strerror( errno ) );
 		exit( 1 );
 	}
-	printf("registered child as %s\n", regname);
+	printf("registered child as %s\n", name);
 	
-	pid_t child;
-	child = fork();
-	if (child == 0) 
+	do
 	{
-		// Child process
-		// Redirect standard input
-		close(STDIN_FILENO);
-		dup2(fpi, STDIN_FILENO);
+		child_pid = fork();
+		if (child_pid == 0) 
+		{
+			// Child process
+			// Redirect standard input
+			close(STDIN_FILENO);
+			dup2(fpi, STDIN_FILENO);
 
-		// Redirect standard output
-		close(STDOUT_FILENO);
-		dup2(fpi, STDOUT_FILENO);
+			// Redirect standard output
+			close(STDOUT_FILENO);
+			dup2(fpi, STDOUT_FILENO);
 
-		// Redirect standard error
-		close(STDERR_FILENO);
-		dup2(fpi, STDERR_FILENO);
+			// Redirect standard error
+			close(STDERR_FILENO);
+			dup2(fpi, STDERR_FILENO);
 
-		execvp(program, &argv[2]);
-	}
-	else if(child > 0)
-	{
-		int childExitStatus;
-		pid_t ws = waitpid( child, &childExitStatus, 0);
-	}
+			execvp(program, &argv[2]);
+		}
+		else if(child_pid > 0)
+		{
+			int childExitStatus;
+			pid_t ws = waitpid( child_pid, &childExitStatus, 0);
+			child_pid=0;
+		}
+	} while(restart);
 	
 	fpui_close(fpi);
+	clean_up();
 	return 0;
 }
 	
