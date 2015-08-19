@@ -72,7 +72,7 @@ typedef ktime_t				FIOMSG_TIME;
 typedef struct hrtimer			FIOMSG_TIMER;
 #define FIOMSG_CLOCKS_PER_SEC		NSEC_PER_SEC
 #define FIOMSG_CURRENT_TIME		ktime_get()
-#define FIOMSG_TIME_TO_NSECS(a)         ktime_to_ns(a)
+#define FIOMSG_TIME_TO_NSECS(a)         (long)ktime_to_ns(a)
 #define	FIOMSG_TIME_AFTER_EQ(a,b)	((a).tv64 >= (b).tv64)
 #define FIOMSG_TIME_AFTER(a,b)		((a).tv64 > (b).tv64)
 #define FIOMSG_TIME_EQUAL(a,b)		ktime_equal(a,b)
