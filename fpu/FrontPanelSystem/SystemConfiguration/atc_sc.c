@@ -1209,13 +1209,9 @@ printf("%s: screen #%d, x=%d, y=%d\n", __func__, screen_no, pCrt_screen->cursor_
 		case ETH_HOSTNAME_LINE:
 		{
 			char hostname[ETH_HOSTNAME_FIELDS + 1];
-			char fmt[8];
 			bool spc = false, valid = true;
 			
 			// parse the hostname alpha fields for valid name
-			//sprintf(fmt, "%%%ds", ETH_HOSTNAME_FIELDS);
-			//sscanf((char *)(pCrt_line->line + pCrt_line->fields[ETH_HOSTNAME_FIELD1].start),
-                        //        fmt, hostname);
 			for (i=0;i<ETH_HOSTNAME_FIELDS;i++) {
 				char ch = pCrt_line->line[pCrt_line->fields[ETH_HOSTNAME_FIELD1+i].start];
 				hostname[i] = ch;

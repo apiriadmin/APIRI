@@ -146,7 +146,7 @@ void get_screen_size(int fd)
 	// response should be in read_packet format
 	if( (count = read(fd, buf, sizeof(buf))) > 0 ) {
 		if (rp->command == DATA) {
-			if (sscanf(rp->data, "\x1b[%cR", &type) == 1) {
+			if (sscanf((const char *)rp->data, "\x1b[%cR", &type) == 1) {
 				if (toupper(type) == 'A')
 					g_rows = 4;
 				else if (toupper(type) == 'D')
