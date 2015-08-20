@@ -39,7 +39,7 @@ TEG - NO LOCKING IS IN PLACE.  THIS IS NOT AN ISSUE FOR INITIAL DEVELOPMENT
 /* System includes. */
 #include	<linux/fs.h>		/* File System Definitions */
 #include	<linux/poll.h>
-#include	<linux/atc_spxs.h>
+#include	"atc_spxs.h"
 
 /* Local includes. */
 #include	"fiomsg.h"		/* FIOMSG Definitions					*/
@@ -996,9 +996,11 @@ fiomsg_port_open
 	/* Initialize */
 	/* Open SDLC driver for indicated port */
 	if(p_port->port == FIO_PORT_SP5)
-		channel = ATC_SP5S;
+		channel = ATC_LKM_SP5S;
+        else if (p_port->port == FIO_PORT_SP8)
+                channel = ATC_LKM_SP8S;
 	else if (p_port->port == FIO_PORT_SP3) {
-		channel = ATC_SP3S;
+		channel = ATC_LKM_SP3S;
 		config.baud = ATC_B153600;
 	} else {
 		printk("fio_port_open: unknown port %d {%d,%d}", p_port->port, FIO_PORT_SP3, FIO_PORT_SP5);
