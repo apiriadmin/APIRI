@@ -97,9 +97,6 @@ int fpui_close( fpui_handle fd )
 
 int fpui_open_config_window( int flags )
 {
-	int fd    = 0;
-	int errcd = 0;
-
 	return (open(FRONT_PANEL_SYSCONFIG_DEV, flags));
 }
 

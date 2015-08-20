@@ -211,7 +211,11 @@ static char * slot_to_string( int slot )
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31)
 static struct class *fp_class;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
 static char *fp_devnode(struct device *dev, mode_t *mode)
+#else
+static char *fp_devnode(struct device *dev, umode_t *mode)
+#endif
 {
 	return kasprintf(GFP_KERNEL, "%s", dev_name(dev));
 }

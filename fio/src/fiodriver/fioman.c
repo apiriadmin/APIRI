@@ -1482,7 +1482,6 @@ fioman_query_fiod
 	FIO_IOC_QUERY_FIOD	*p_arg	/* Arguments to process */
 )
 {
-	FIOMAN_PRIV_DATA	*p_priv = filp->private_data;	/* Access Apps data */
 	FIOMSG_PORT				*p_port;
 	struct list_head		*p_elem;		/* Ptr to list element */
 	struct list_head		*p_next;		/* Temp for safe loop */
@@ -2631,8 +2630,8 @@ fioman_inputs_get
 	int count = 0, err = 0;
 	unsigned long flags;
 
-		/* Adjust byte count to buffer size */
-		count = p_arg->num_data_bytes;
+        /* Adjust byte count to buffer size */
+        count = p_arg->num_data_bytes;
 	if (count <= 0)
 		/* No buffer to copy inputs */
 		return -EINVAL;
@@ -2700,12 +2699,12 @@ fioman_inputs_get
 		inputs[4], inputs[5], inputs[6], inputs[7]);*/
 		
 	/* Copy Kernel Data array to User Space */
-	if (copy_to_user(p_arg->data, inputs, count))
-		/* Show error */
-		return ( -EFAULT );
+	if (err == 0)
+                if (copy_to_user(p_arg->data, inputs, count))
+                        /* Show error */
+                        err = -EFAULT;
 
-	/* Show success */
-	return 0;
+	return err;
 }
 
 /*****************************************************************************/
@@ -3105,8 +3104,8 @@ fioman_query_frame_notify_status
 	FIO_IOC_QUERY_NOTIFY_INFO	*p_arg	/* Arguments to process */
 )
 {
-	FIOMAN_PRIV_DATA	*p_priv = filp->private_data;	/* Access Apps data */
-	FIOMAN_APP_FIOD		*p_app_fiod = NULL;	/* Ptr to app fiod structure */
+	/*FIOMAN_PRIV_DATA	*p_priv = filp->private_data;*/	/* Access Apps data */
+	/*FIOMAN_APP_FIOD		*p_app_fiod = NULL;*/	/* Ptr to app fiod structure */
 
 	/* check each app_fiod for notification list */
 	
@@ -3924,7 +3923,7 @@ fioman_hm_heartbeat
                 
 		mod_timer(&p_priv->hm_timer,
 			jiffies + msecs_to_jiffies(p_priv->hm_timeout*100));
-        pr_debug("fioman_hm_heartbeat: app %p mod_timer now=%d expire=%d\n", p_priv, jiffies, msecs_to_jiffies(p_priv->hm_timeout*100));
+        pr_debug("fioman_hm_heartbeat: app %p mod_timer now=%ld expire=%ld\n", p_priv, jiffies, msecs_to_jiffies(p_priv->hm_timeout*100));
 
 	return 0;
 }

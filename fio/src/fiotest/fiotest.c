@@ -163,7 +163,7 @@ fio_test_run
 	FIO_INPUT_FILTER input_filters[3];
 	
 	printf( "\nRunning ...\n" );
-#if 0
+
 	/* Get frame schedule for frames #52 (raw inputs), #53 (filtered inputs) and #55 (outputs) */
 	frame_schedules[0].req_frame = 52;
 	frame_schedules[1].req_frame = 53;
@@ -210,9 +210,7 @@ fio_test_run
 		input_filters[0].input_point, input_filters[0].leading, input_filters[0].trailing,
 		input_filters[1].input_point, input_filters[1].leading, input_filters[1].trailing,
 		input_filters[2].input_point, input_filters[2].leading, input_filters[2].trailing);
-		
-#endif
-		
+
 	memset( raw, 0xff, sizeof( raw ) );
 	if ( 0 > ( err = fio_fiod_inputs_get( fio_handle, dev_handle, FIO_INPUTS_RAW, raw, sizeof(raw) ) ) ) {
 		printf( "ERR(%d), errno(%s): fio_fiod_inputs_get( FIO_INPUTS_RAW ) failed\n",

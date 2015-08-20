@@ -36,7 +36,6 @@ int main( int argc, char * argv[] )
 	int id = 0;
 	int i;
 	int fd;
-	FILE * fp;
 	char buf[64];
 
 	if( argc > 1 ) {
@@ -50,9 +49,7 @@ int main( int argc, char * argv[] )
 		exit( 99 );
 	}
 fprintf(stderr, "%s: fd=%d\n", argv[0], fd);
-	//fprintf( fp, "\f" );
 	fpui_write(fd, "\f", 1);
-	//fprintf( fp, "This is Sample Application %d\n\r", id );
 	sprintf( buf, "This is Sample Application %d\n\r", id );
 	fpui_write_string(fd, buf);
 	for( i = 0; i < id; i++ ) {

@@ -39,7 +39,7 @@ TEG - NO LOCKING IS IN PLACE.  THIS IS NOT AN ISSUE FOR INITIAL DEVELOPMENT
 /* System includes. */
 #include	<linux/fs.h>		/* File System Definitions */
 #include	<linux/poll.h>
-#include	<linux/atc_spxs.h>
+#include	"atc_spxs.h"
 
 /* Local includes. */
 #include	"fiomsg.h"		/* FIOMSG Definitions					*/
@@ -398,7 +398,6 @@ fiomsg_tx_next_when
 		FIOMSG_TX_DEAD_TIME_CALC	*p_n_dt;	/* Ptr to next dt row */
 		long						us_dt;		/* Calc'ed dead_time in microsecs */
 		FIOMSG_TIME					tmp_when;	/* For comparison */
-		unsigned long				current_frame_no, next_frame_no;
 
 		/* See if there is a "next" frame */
 		if ( next_elem != &p_port->tx_queue )
@@ -417,8 +416,6 @@ fiomsg_tx_next_when
 		*next_when = p_tx_next->when;
 
 		/* Now calculate interval */
-		current_frame_no = FIOMSG_PAYLOAD( p_tx_current )->frame_no;
-		next_frame_no = FIOMSG_PAYLOAD( p_tx_next )->frame_no;
 		p_c_dt = &dead_time[ FIOMSG_PAYLOAD( p_tx_current )->frame_no ];
 		p_n_dt = &dead_time[ FIOMSG_PAYLOAD( p_tx_next )->frame_no ];
 
@@ -887,7 +884,7 @@ pr_debug("fiomsg_port_enable: opening port %d\n", p_port->port);
 		}
 		/* Set the start timestamp for this port */
 		p_port->start_time = FIOMSG_CURRENT_TIME;
-		printk( KERN_ALERT "FIOMSG Task port(%d) -> opened (%llu)\n", p_port->port, 
+		printk( KERN_ALERT "FIOMSG Task port(%d) -> opened (%lu)\n", p_port->port, 
                         FIOMSG_TIME_TO_NSECS(p_port->start_time) );
 	}
 	return 0;
@@ -999,9 +996,11 @@ fiomsg_port_open
 	/* Initialize */
 	/* Open SDLC driver for indicated port */
 	if(p_port->port == FIO_PORT_SP5)
-		channel = ATC_SP5S;
+		channel = ATC_LKM_SP5S;
+        else if (p_port->port == FIO_PORT_SP8)
+                channel = ATC_LKM_SP8S;
 	else if (p_port->port == FIO_PORT_SP3) {
-		channel = ATC_SP3S;
+		channel = ATC_LKM_SP3S;
 		config.baud = ATC_B153600;
 	} else {
 		printk("fio_port_open: unknown port %d {%d,%d}", p_port->port, FIO_PORT_SP3, FIO_PORT_SP5);
@@ -1076,8 +1075,8 @@ fiomsg_tx_frame_when
 	{
 		new_when = FIOMSG_TIME_ADD(now, (FIOMSG_CLOCKS_PER_SEC / hz));
                 if (align) {
-                        new_when = FIOMSG_TIME_ALIGN(new_when, hz);
-                        pr_debug("fiomsg_tx_frame_when: now=%llu period=%lu align=%llu\n",
+                        FIOMSG_TIME_ALIGN(new_when, hz);
+                        pr_debug("fiomsg_tx_frame_when: now=%lu period=%lu align=%lu\n",
                                 FIOMSG_TIME_TO_NSECS(now), FIOMSG_CLOCKS_PER_SEC/hz, FIOMSG_TIME_TO_NSECS(new_when));
                 }
 	}
@@ -1127,7 +1126,7 @@ fiomsg_tx_send_frame
 {
 	int status;
 
-	pr_debug("tx_send_frame(%llu) #%d, freq=%d len=%d: %x %x %x\n",
+	pr_debug("tx_send_frame(%lu) #%d, freq=%d len=%d: %x %x %x\n",
 		FIOMSG_TIME_TO_NSECS(FIOMSG_CURRENT_TIME), p_tx_frame->frame[2], p_tx_frame->cur_freq, p_tx_frame->len,
 		p_tx_frame->frame[0], p_tx_frame->frame[1], p_tx_frame->frame[2]);
 	if( (status = sdlc_kernel_write(p_port->context, FIOMSG_PAYLOAD(p_tx_frame), p_tx_frame->len)) < 0 )
@@ -1231,7 +1230,7 @@ fiomsg_timer_callback_rtn fiomsg_tx_task( fiomsg_timer_callback_arg arg )
 		/* So even if we get here, the system will keep running. */
 		/* JMG: change to reset the tx timer to the current when time */
 		fiomsg_tx_set_timer( p_port, current_when );
-		pr_debug( KERN_ALERT "tx frame when(%d) (%llu) after jiffies (%llu)\n",
+		pr_debug( KERN_ALERT "tx frame when(%d) (%lu) after jiffies (%lu)\n",
 				FIOMSG_PAYLOAD(p_tx_frame)->frame_no, 
                                 FIOMSG_TIME_TO_NSECS(current_when), 
                                 FIOMSG_TIME_TO_NSECS(FIOMSG_CURRENT_TIME) );
@@ -1322,13 +1321,13 @@ fiomsg_timer_callback_rtn fiomsg_rx_task( fiomsg_timer_callback_arg arg )
 			FIOMSG_TIMER_CALLBACK_RTN;
 		}
 		/* Not the frame we expected, therefore ignore this frame */
-		pr_debug( KERN_ALERT "Dumping RX frame(%llu) #%d, expected #%d\n", FIOMSG_TIME_TO_NSECS(FIOMSG_CURRENT_TIME),
+		pr_debug( KERN_ALERT "Dumping RX frame(%lu) #%d, expected #%d\n", FIOMSG_TIME_TO_NSECS(FIOMSG_CURRENT_TIME),
 				rx_frame->frame_no, p_rx_pend->frame_no);
 		frames_read++;
 	}
 	if( frames_read == 0 ) {
 		/* No frame to read, show no response */
-		pr_debug( KERN_ALERT "No RX frame read!(%llu), expected #%d\n", FIOMSG_TIME_TO_NSECS(FIOMSG_CURRENT_TIME),
+		pr_debug( KERN_ALERT "No RX frame read!(%lu), expected #%d\n", FIOMSG_TIME_TO_NSECS(FIOMSG_CURRENT_TIME),
 				p_rx_pend->frame_no);
 		/* Update rx error count */
 		fiomsg_rx_update_frame( p_port, p_rx_pend, false );
