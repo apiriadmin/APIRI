@@ -385,8 +385,8 @@ int main (int argc, char **argv)
 
 	/* Register with fio API */
 	if ( 0 > ( fio_handle = fio_register() ) ) {
-		printf( "Failed to fio_register %s, err(%d), errno(%s)\n",
-				FIO_DEV, fio_handle, strerror( errno ) );
+		printf( "Failed to fio_register err(%d), errno(%s)\n",
+				fio_handle, strerror( errno ) );
 		return ( -1 );
 	}
 	printf( "fio_register() successful\n" );
@@ -541,8 +541,8 @@ int main (int argc, char **argv)
 
 	/* de-register fio API */
 	if ( 0 > ( err = fio_deregister( fio_handle ) ) ) {
-		printf( "Failed to deregister %s, errno(%s)\n",
-				FIO_DEV, strerror( errno ) );
+		printf( "Failed to deregister errno(%s)\n",
+				strerror( errno ) );
 		return ( -1 );
 	}
 

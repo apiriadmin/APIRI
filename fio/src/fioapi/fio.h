@@ -41,15 +41,12 @@ This file contains all definitions for the FIO API.
 
 
 /* Local includes. */
-#include "fiodriver.h"	/* FIO Driver Definitions */
+#include "fioapi.h"	/* FIO Type Definitions */
 
 
 /*  Definition section.
 -----------------------------------------------------------------------------*/
 /*  Module public structure/enum definition.*/
-
-/* File used to open FIO Driver */
-#define	FIO_DEV		"/dev/fio"
 
 
 /*  Global section.
@@ -229,12 +226,13 @@ extern int fio_fiod_inputs_filter_set( FIO_APP_HANDLE,
 					FIO_INPUT_FILTER *,
 					unsigned int );
 					
-extern int fio_fiod_frame_read( FIO_APP_HANDLE,
-                                FIO_DEV_HANDLE,
-                                unsigned int,
-                                unsigned int *,
-                                unsigned char *,
-                                unsigned int);
+extern int fio_fiod_frame_read( FIO_APP_HANDLE fh,
+                                FIO_DEV_HANDLE dh,
+                                unsigned int rx_frame,
+                                unsigned int *seq_number,
+                                unsigned char *buf,
+                                unsigned int count,
+                                unsigned int timeout);
                                 
 extern int fio_fiod_frame_size( FIO_APP_HANDLE,
                                 FIO_DEV_HANDLE,
