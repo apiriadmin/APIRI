@@ -155,6 +155,8 @@ struct fiomsg_port
 	FIOMSG_RX_PENDING	rx_pend[FIOMSG_RX_PEND_MAX];
 	struct list_head	rx_fiod_list[FIOD_MAX];		/* List of FIOD responses */
 								/* RX Buffer for this port */
+        wait_queue_head_t       read_wait;                      /* Wait queue for read frame calls */
+        
 	u8			rx_buffer[FIOMSG_RX_BUFFER];
 };
 typedef	struct fiomsg_port	FIOMSG_PORT;
@@ -192,7 +194,8 @@ struct fiomsg_tx_frame
 							/* TX Frame update func to call */
 	void			(*tx_func)( struct fiomsg_tx_frame * );
 	void			*fioman_context;	/* Context for tx_func */
-
+        struct fasync_struct    *notify_async_queue;
+        
 	bool			resp;			/* Is a response expected */
 	u16			len;			/* Length of Request Frame */
 	u8			frame[1];		/* Actual frame data */

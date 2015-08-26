@@ -2831,20 +2831,20 @@ This function is used to read response frame data.
 */
 /*****************************************************************************/
 
-int
-fioman_fiod_frame_read
+int fioman_fiod_frame_read
 (
-	struct file					*filp,	/* File Pointer */
-	FIO_IOC_FIOD_FRAME_READ		*p_arg	/* Arguments to process */
+	struct file              *filp, /* File Pointer */
+	FIO_IOC_FIOD_FRAME_READ  *p_arg /* Arguments to process */
 )
 {
-	FIOMAN_PRIV_DATA	*p_priv = filp->private_data;	/* Access Apps data */
-	FIOMAN_APP_FIOD		*p_app_fiod;	/* Ptr to app fiod structure */
-	FIOMSG_PORT			*p_port;
-	struct list_head	*p_elem;		/* Ptr to list element */
-	struct list_head	*p_next;		/* Temp for safe loop */
-	FIOMSG_RX_FRAME		*p_rx_frame;	/* Ptr to rx frame being examined */
-	unsigned int		count = 0;
+	FIOMAN_PRIV_DATA *p_priv = filp->private_data; /* Access Apps data */
+	FIOMAN_APP_FIOD  *p_app_fiod;                  /* Ptr to app fiod structure */
+	FIOMSG_PORT      *p_port;
+	struct list_head *p_elem;                      /* Ptr to list element */
+	struct list_head *p_next;                      /* Temp for safe loop */
+	FIOMSG_RX_FRAME  *p_rx_frame;                  /* Ptr to rx frame being examined */
+	unsigned int     count = 0;
+        int ret;
 
 	/* Find this APP registration */
 	p_app_fiod = fioman_find_dev( p_priv, p_arg->dev_handle );
@@ -2854,8 +2854,8 @@ fioman_fiod_frame_read
 		return ( -EINVAL );
 	}
 
-	if ((NULL == p_arg->buf) || (NULL == p_arg->seq_number))
-		return (-EINVAL);
+	if ((NULL == p_arg->buf) || (p_arg->timeout < 0))
+		return -EINVAL;
 
 	/* For each element in the list */
 	p_port = FIOMSG_P_PORT( p_app_fiod->fiod.port );
@@ -2865,23 +2865,27 @@ fioman_fiod_frame_read
 		p_rx_frame = list_entry( p_elem, FIOMSG_RX_FRAME, elem );
 
 		/* See if current element frame no is what we are looking for */
-		if ( (FIOMSG_PAYLOAD( p_rx_frame )->frame_no == p_arg->rx_frame)
-				&& (p_rx_frame->resp == true) )
-		{
-			count = (p_rx_frame->len < p_arg->count) ? p_rx_frame->len : p_arg->count;
-			if (copy_to_user(p_arg->buf, FIOMSG_PAYLOAD( p_rx_frame )->frame_info,
-					count )) {
-				/* Could not copy for some reason */
-				return ( -EFAULT );
-			}
-			/* Update other frame info in response */
-			put_user(p_rx_frame->info.last_seq, p_arg->seq_number);
-			return (count);
+		if (FIOMSG_PAYLOAD( p_rx_frame )->frame_no == p_arg->rx_frame) {
+                        if (p_rx_frame->resp == false) {
+                                ret = wait_event_interruptible_timeout(p_port->read_wait,
+                                        (p_rx_frame->resp == true), msecs_to_jiffies(p_arg->timeout));
+                                if (ret == 0)
+                                        return -ETIMEDOUT;
+                        }
+                        count = (p_rx_frame->len < p_arg->count) ? p_rx_frame->len : p_arg->count;
+                        if (copy_to_user(p_arg->buf, FIOMSG_PAYLOAD( p_rx_frame )->frame_info, count )) {
+                                /* Could not copy for some reason */
+                                return ( -EFAULT );
+                        }
+                        /* Update other frame info in response */
+                        if (p_arg->seq_number != NULL)
+                                put_user(p_rx_frame->info.last_seq, p_arg->seq_number);
+                        return (count);
 		}
 	}
 
-	/* Show success */
-	return (0);
+	/* Show invalid frame number */
+	return (-EINVAL);
 }
 
 /*****************************************************************************/
@@ -3010,6 +3014,7 @@ fioman_fiod_frame_notify_register
 	FIOMSG_PORT		*p_port;
 	struct list_head	*p_elem;	/* Ptr to list element */
 	struct list_head	*p_next;	/* Temp for safe loop */
+	FIOMSG_TX_FRAME		*p_tx_frame;	/* Ptr to tx frame being examined */
 	FIOMSG_RX_FRAME		*p_rx_frame;	/* Ptr to rx frame being examined */
 
 	/* Find this APP registration */
@@ -3020,23 +3025,36 @@ fioman_fiod_frame_notify_register
 		return (-EINVAL);
 	}
 
-	/* For each element in the list */
 	p_port = FIOMSG_P_PORT( p_app_fiod->fiod.port );
-	list_for_each_safe( p_elem, p_next, &p_port->rx_fiod_list[ p_app_fiod->fiod.fiod ] )
-	{
-		/* Get the response frame for this queue element */
-		p_rx_frame = list_entry( p_elem, FIOMSG_RX_FRAME, elem );
 
-		/* See if current element frame no is what we are looking for */
-		if (FIOMSG_PAYLOAD( p_rx_frame )->frame_no == p_arg->rx_frame)
-		{
-			/* add signal request to queue */
-			f_setown(filp, current->pid, 1);
-			filp->f_owner.signum = FIO_SIGIO;
-			if ((fasync_helper(0, filp, 1, &p_rx_frame->notify_async_queue)) >= 0) {
-				return 0;
-			}
-		}
+        if (p_arg->rx_frame < 128) {
+                list_for_each_safe( p_elem, p_next, &p_port->tx_queue ) {
+                        /* Get the tx request frame for this queue element */
+                        p_tx_frame = list_entry( p_elem, FIOMSG_TX_FRAME, elem );
+                        /* See if current element frame no is what we are looking for */
+                        if (FIOMSG_PAYLOAD( p_tx_frame )->frame_no == p_arg->rx_frame) {
+                                /* add signal request to queue */
+                                f_setown(filp, current->pid, 1);
+                                filp->f_owner.signum = FIO_SIGIO;
+                                if ((fasync_helper(0, filp, 1, &p_tx_frame->notify_async_queue)) >= 0) {
+                                        return 0;
+                                }
+                        }
+                }
+        } else if (p_arg->rx_frame < 256) { 
+                list_for_each_safe( p_elem, p_next, &p_port->rx_fiod_list[ p_app_fiod->fiod.fiod ] ) {
+                        /* Get the response frame for this queue element */
+                        p_rx_frame = list_entry( p_elem, FIOMSG_RX_FRAME, elem );
+                        /* See if current element frame no is what we are looking for */
+                        if (FIOMSG_PAYLOAD( p_rx_frame )->frame_no == p_arg->rx_frame) {
+                                /* add signal request to queue */
+                                f_setown(filp, current->pid, 1);
+                                filp->f_owner.signum = FIO_SIGIO;
+                                if ((fasync_helper(0, filp, 1, &p_rx_frame->notify_async_queue)) >= 0) {
+                                        return 0;
+                                }
+                        }
+                }
 	}
 
 	/* Show no such frame found or system error */
@@ -3061,6 +3079,7 @@ fioman_fiod_frame_notify_deregister
 	FIOMSG_PORT		*p_port;
 	struct list_head	*p_elem;	/* Ptr to list element */
 	struct list_head	*p_next;	/* Temp for safe loop */
+	FIOMSG_TX_FRAME		*p_tx_frame;	/* Ptr to tx frame being examined */
 	FIOMSG_RX_FRAME		*p_rx_frame;	/* Ptr to rx frame being examined */
 
 	/* Find this APP registration */
@@ -3071,20 +3090,30 @@ fioman_fiod_frame_notify_deregister
 		return (-EINVAL);
 	}
 
-	/* For each element in the list */
 	p_port = FIOMSG_P_PORT( p_app_fiod->fiod.port );
-	list_for_each_safe( p_elem, p_next, &p_port->rx_fiod_list[ p_app_fiod->fiod.fiod ] )
-	{
-		/* Get the response frame for this queue element */
-		p_rx_frame = list_entry( p_elem, FIOMSG_RX_FRAME, elem );
 
-		/* See if current element frame no is what we are looking for */
-		if (FIOMSG_PAYLOAD( p_rx_frame )->frame_no == p_arg->rx_frame)
-		{
-			/* remove signal request from queue */
-			fasync_helper(0, filp, 0, &p_rx_frame->notify_async_queue);
-			return 0;
-		}
+        if (p_arg->rx_frame < 128) {
+                list_for_each_safe( p_elem, p_next, &p_port->tx_queue ) {
+                        /* Get the tx request frame for this queue element */
+                        p_tx_frame = list_entry( p_elem, FIOMSG_TX_FRAME, elem );
+                        /* See if current element frame no is what we are looking for */
+                        if (FIOMSG_PAYLOAD( p_tx_frame )->frame_no == p_arg->rx_frame) {
+                                /* remove signal request from queue */
+                                fasync_helper(0, filp, 0, &p_tx_frame->notify_async_queue);
+                                return 0;
+                        }
+                }
+        } else if (p_arg->rx_frame < 256) { 
+                list_for_each_safe( p_elem, p_next, &p_port->rx_fiod_list[ p_app_fiod->fiod.fiod ] ) {
+                        /* Get the response frame for this queue element */
+                        p_rx_frame = list_entry( p_elem, FIOMSG_RX_FRAME, elem );
+                        /* See if current element frame no is what we are looking for */
+                        if (FIOMSG_PAYLOAD( p_rx_frame )->frame_no == p_arg->rx_frame) {
+                                /* remove signal request from queue */
+                                fasync_helper(0, filp, 0, &p_rx_frame->notify_async_queue);
+                                return 0;
+                        }
+                }
 	}
 
 	/* Show no such frame found or system error */
@@ -3100,17 +3129,18 @@ This function is used to query a notification.
 int
 fioman_query_frame_notify_status
 (
-	struct file			*filp,	/* File Pointer */
-	FIO_IOC_QUERY_NOTIFY_INFO	*p_arg	/* Arguments to process */
+	struct file               *filp, /* File Pointer */
+	FIO_IOC_QUERY_NOTIFY_INFO *p_arg /* Arguments to process */
 )
 {
-	/*FIOMAN_PRIV_DATA	*p_priv = filp->private_data;*/	/* Access Apps data */
-	/*FIOMAN_APP_FIOD		*p_app_fiod = NULL;*/	/* Ptr to app fiod structure */
+	FIOMAN_PRIV_DATA *p_priv = filp->private_data; /* Access Apps data */
+        FIO_NOTIFY_INFO info;
 
-	/* check each app_fiod for notification list */
-	
-	/* Show no such frame found or system error */
-	return (-EINVAL);
+        /* Is this app registered to notify? */
+        if ((FIOMAN_FIFO_GET(p_priv->frame_notification_fifo, &info, sizeof(FIO_NOTIFY_INFO)) != sizeof(FIO_NOTIFY_INFO))
+                || copy_to_user(p_arg->notify_info, &info, sizeof(FIO_NOTIFY_INFO)))
+                        return -1;
+	return 0;
 }
 
 /*****************************************************************************/

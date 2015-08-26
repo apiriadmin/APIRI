@@ -43,6 +43,7 @@ This module contains all code for the FIO API.
 
 /* Local includes. */
 #include	"fio.h"					/* FIO API Definitions */
+#include        "fiodriver.h"
 
 
 /*  Definition section.
@@ -908,27 +909,28 @@ This function is used to request the last response frame of given type.
 */
 /*****************************************************************************/
 
-int
-fio_fiod_frame_read
+int fio_fiod_frame_read
 (
-	FIO_APP_HANDLE		app_handle,		/* FIO APP Handle from fio_register() */
-	FIO_DEV_HANDLE		dev_handle,		/* FIOD Handle fio_fiod_register() */
-	unsigned int        rx_frame,
-	unsigned int        *seq_number,
-	unsigned char       *buf,
-	unsigned int        count
+	FIO_APP_HANDLE app_handle,  /* FIO APP Handle from fio_register() */
+	FIO_DEV_HANDLE dev_handle,  /* FIOD Handle fio_fiod_register() */
+	unsigned int   rx_frame,
+	unsigned int   *seq_number,
+	unsigned char  *buf,
+	unsigned int   count,
+        unsigned int   timeout
 )
 {
-	FIO_IOC_FIOD_FRAME_READ request;	/* IOCTL argument structure */
+	FIO_IOC_FIOD_FRAME_READ request; /* IOCTL argument structure */
 
-	/* Set up IOCTL structure */
-    request.dev_handle = dev_handle;
-    request.rx_frame = rx_frame;
-    request.seq_number = seq_number;
-    request.buf = buf;
-    request.count = count;
+        /* Set up IOCTL structure */
+        request.dev_handle = dev_handle;
+        request.rx_frame = rx_frame;
+        request.seq_number = seq_number;
+        request.buf = buf;
+        request.count = count;
+        request.timeout = timeout;
 
-	return ( ioctl( (int)app_handle, FIOMAN_IOC_FIOD_FRAME_READ, &request ) );
+        return ( ioctl( (int)app_handle, FIOMAN_IOC_FIOD_FRAME_READ, &request ) );
 }
 
 /*****************************************************************************/

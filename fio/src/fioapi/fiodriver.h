@@ -472,6 +472,7 @@ struct fio_ioc_fiod_frame_read
 	unsigned int   *seq_number;   /* Sequence number of response frame */
 	unsigned char  *buf;          /* Buffer to store response frame */
 	unsigned int   count;         /* Size of buffer for response frame */
+        unsigned int   timeout;       /* Maximum time to wait in milliseconds */
 };
 typedef	struct fio_ioc_fiod_frame_read	FIO_IOC_FIOD_FRAME_READ;
 #define	FIOMAN_IOC_FIOD_FRAME_READ	_IOR( FIO_IOC_MAGIC, \

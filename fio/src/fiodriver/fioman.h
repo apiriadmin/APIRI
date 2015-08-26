@@ -70,10 +70,11 @@ typedef struct kfifo FIOMAN_FIFO;
 /* Structure stored in *filp of App information */
 struct fioman_priv_data
 {
-	struct list_head	fiod_list;	/* List of Apps FIODS */
-	struct timer_list	hm_timer;	/* Health Monitor timer */
-	unsigned int		hm_timeout;	/* Health Monitor timeout period */
-	bool			hm_fault;	/* Health Monitor fault/timeout indication */
+	struct list_head        fiod_list;               /* List of Apps FIODS */
+	struct timer_list       hm_timer;                /* Health Monitor timer */
+	unsigned int            hm_timeout;              /* Health Monitor timeout period */
+	bool                    hm_fault;                /* Health Monitor fault/timeout indication */
+        FIOMAN_FIFO             frame_notification_fifo; /* fifo of FIO_NOTIFY_INFO entries */
 };
 typedef	struct	fioman_priv_data	FIOMAN_PRIV_DATA;
 
