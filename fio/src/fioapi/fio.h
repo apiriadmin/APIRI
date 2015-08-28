@@ -123,6 +123,12 @@ extern	int fio_fiod_outputs_reservation_get( FIO_APP_HANDLE,
 					unsigned char *,
 					unsigned int );
 
+/* Begin multi-device outputs set transaction */
+extern int fio_fiod_begin_outputs_set( FIO_APP_HANDLE );
+
+/* Commit multi-device outputs set transaction */
+extern int fio_fiod_commit_outputs_set( FIO_APP_HANDLE );
+
 extern int fio_fiod_channel_map_count( FIO_APP_HANDLE,
                                        FIO_DEV_HANDLE,
                                        FIO_VIEW );

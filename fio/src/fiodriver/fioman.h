@@ -75,6 +75,7 @@ struct fioman_priv_data
 	unsigned int            hm_timeout;              /* Health Monitor timeout period */
 	bool                    hm_fault;                /* Health Monitor fault/timeout indication */
         FIOMAN_FIFO             frame_notification_fifo; /* fifo of FIO_NOTIFY_INFO entries */
+        bool                    transaction_in_progress; /* Buffer app_fiods outputs if true */ 
 };
 typedef	struct	fioman_priv_data	FIOMAN_PRIV_DATA;
 

@@ -395,6 +395,26 @@ fio_fiod_outputs_set
 
 /*****************************************************************************/
 
+/* Begin multi-device outputs set transaction */
+int
+fio_fiod_begin_outputs_set
+(
+        FIO_APP_HANDLE app_handle
+)
+{
+        return ( ioctl( (int)app_handle, FIOMAN_IOC_TRANSACTION_BEGIN ) );
+}
+
+/* Commit multi-device outputs set transaction */
+int
+fio_fiod_commit_outputs_set
+(
+        FIO_APP_HANDLE app_handle
+)
+{
+        return ( ioctl( (int)app_handle, FIOMAN_IOC_TRANSACTION_COMMIT ) );
+}
+
 /*****************************************************************************/
 /*
 This function returns a count of channel mappings for the APP or SYSTEM view.

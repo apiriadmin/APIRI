@@ -1710,8 +1710,10 @@ fioman_outputs_set
 		/* Turn off all bits we are allowed to touch */
 		p_app_fiod->outputs_plus[ ii ]  &=~(p_app_fiod->outputs_reserved[ ii ]);
 		p_app_fiod->outputs_minus[ ii ] &=~(p_app_fiod->outputs_reserved[ ii ]);
-		p_sys_fiod->outputs_plus[ ii ]  &=~(p_app_fiod->outputs_reserved[ ii ]);
-		p_sys_fiod->outputs_minus[ ii ] &=~(p_app_fiod->outputs_reserved[ ii ]);
+                if (!p_priv->transaction_in_progress) {
+                        p_sys_fiod->outputs_plus[ ii ]  &=~(p_app_fiod->outputs_reserved[ ii ]);
+                        p_sys_fiod->outputs_minus[ ii ] &=~(p_app_fiod->outputs_reserved[ ii ]);
+                }
 
 		/* Isolate differences from what this APP has reserved */
 		/* Only leave on bits that we want set on and have reserved */
@@ -1721,8 +1723,10 @@ fioman_outputs_set
 		/* Turn on our bits, that we are allowed to turn on */
 		p_app_fiod->outputs_plus[ ii ]  |= plus[ ii ];
 		p_app_fiod->outputs_minus[ ii ] |= minus[ ii ];
-		p_sys_fiod->outputs_plus[ ii ]  |= plus[ ii ];
-		p_sys_fiod->outputs_minus[ ii ] |= minus[ ii ];
+                if (!p_priv->transaction_in_progress) {
+                        p_sys_fiod->outputs_plus[ ii ]  |= plus[ ii ];
+                        p_sys_fiod->outputs_minus[ ii ] |= minus[ ii ];
+                }
 	}
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 pr_debug("fioman_outputs_set: %x %x %x %x %x %x %x %x\n",
@@ -1817,6 +1821,79 @@ pr_debug( "fioman_outputs_get: plus:%x %x %x %x %x %x %x %x %x %x %x %x %x\n",
 }
 
 /*****************************************************************************/
+int fioman_transaction_begin( struct file *filp )
+{
+        FIOMAN_PRIV_DATA *p_priv = filp->private_data;
+
+        if (p_priv->transaction_in_progress)
+                return -EINVAL;
+                
+        p_priv->transaction_in_progress = true;
+
+        return 0;
+}
+
+int fioman_transaction_commit( struct file *filp )
+{
+        FIOMAN_PRIV_DATA *p_priv = filp->private_data;
+	struct list_head *p_app_elem;
+	FIOMAN_APP_FIOD  *p_app_fiod;
+	FIOMAN_SYS_FIOD  *p_sys_fiod;
+	int              ii;
+	unsigned long    flags = 0;
+
+        if ((p_priv == NULL) || (!p_priv->transaction_in_progress))
+                return -EINVAL;
+                
+        /* Write all fiod outputs as one transaction */
+        /* Get each of this app's sys_fiods, and lock */
+        list_for_each( p_app_elem, &p_priv->fiod_list )
+        {
+		/* Get a ptr to this list entry */
+		p_app_fiod = list_entry( p_app_elem, FIOMAN_APP_FIOD, elem );
+		/* See if this FIOD is currently enabled */
+		if ( p_app_fiod->enabled ) {
+                        p_sys_fiod = p_app_fiod->p_sys_fiod;
+                        /* Obtain lock for the associated sys_fiod */
+                        spin_lock_irqsave(&p_sys_fiod->lock, flags);
+		}
+	}
+        /* Copy from each app_fiod to each sys_fiod */
+        list_for_each( p_app_elem, &p_priv->fiod_list )
+        {
+		/* Get a ptr to this list entry */
+		p_app_fiod = list_entry( p_app_elem, FIOMAN_APP_FIOD, elem );
+		/* See if this FIOD is currently enabled */
+		if ( p_app_fiod->enabled ) {
+                        p_sys_fiod = p_app_fiod->p_sys_fiod;
+                        /* For each plus / minus byte */
+                        for ( ii = 0; ii < FIO_OUTPUT_POINTS_BYTES; ii++ ) {
+                                /* Turn off all bits we are allowed to touch */
+                                p_sys_fiod->outputs_plus[ ii ]  &=~(p_app_fiod->outputs_reserved[ ii ]);
+                                p_sys_fiod->outputs_plus[ ii ]  |= p_app_fiod->outputs_plus[ ii ];
+                                /* Set any 1 bits (app_fiod outputs already masked against reserved */
+                                p_sys_fiod->outputs_minus[ ii ] &=~(p_app_fiod->outputs_reserved[ ii ]);
+                                p_sys_fiod->outputs_minus[ ii ] |= p_app_fiod->outputs_minus[ ii ];
+                        }
+		}
+	}
+
+        /* Unlock sys_fiods */
+        list_for_each( p_app_elem, &p_priv->fiod_list )
+        {
+		/* Get a ptr to this list entry */
+		p_app_fiod = list_entry( p_app_elem, FIOMAN_APP_FIOD, elem );
+		/* See if this FIOD is currently enabled */
+		if ( p_app_fiod->enabled ) {
+                        p_sys_fiod = p_app_fiod->p_sys_fiod;
+                        spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
+		}
+	}
+        
+        p_priv->transaction_in_progress = false;
+        
+        return 0;
+}
 
 /*****************************************************************************/
 /*
@@ -4048,7 +4125,7 @@ fioman_open
 	p_priv->hm_timer.data = (unsigned long)p_priv;
         p_priv->hm_timeout = 0;
         p_priv->hm_fault = false;
-
+        p_priv->transaction_in_progress = false;
 
 	/* Save ptr so that fio_api calls have access */
 	filp->private_data = p_priv;
@@ -4775,6 +4852,14 @@ fioman_ioctl
 			break;
 		}
 
+                case FIOMAN_IOC_TRANSACTION_BEGIN:
+                        rt_code = fioman_transaction_begin( filp );
+                        break;
+                
+                case FIOMAN_IOC_TRANSACTION_COMMIT:
+                        rt_code = fioman_transaction_commit( filp );
+                        break;
+                        
 		/* Undefined command */
 		default:
 		{

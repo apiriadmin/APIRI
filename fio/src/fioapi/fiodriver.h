@@ -132,7 +132,9 @@ enum fioman_iocs
 	FIOMAN_IOC_50,			/* Get inputs enabled for transition monitoring */	
 	FIOMAN_IOC_51,			/* Set inputs enabled for transition monitoring */
 	FIOMAN_IOC_52,			/* Read input transition buffer */
-	FIOMAN_IOC_53,			/* Query if device exists on port */	
+	FIOMAN_IOC_53,			/* Query if device exists on port */
+        FIOMAN_IOC_54,                  /* Begin outputs set transaction */
+        FIOMAN_IOC_55,                  /* Commit outputs set transaction */	
 	FIOMAN_IOC_MAX			/* End of FIOMSG Range */
 };
 typedef	enum fioman_iocs	FIOMAN_IOCS;
@@ -617,7 +619,11 @@ typedef struct fio_ioc_wd_res_set	FIO_IOC_FIOD_WD_RES_SET;
 						FIO_IOCTL( FIOMAN_IOC_47 ))
 #define FIOMAN_IOC_HM_RESET		_IO( FIO_IOC_MAGIC, \
 						FIO_IOCTL( FIOMAN_IOC_48 ))
-
+/* Set Outputs Transaction */
+#define FIOMAN_IOC_TRANSACTION_BEGIN    _IO( FIO_IOC_MAGIC, \
+                                                FIO_IOCTL( FIOMAN_IOC_54 ))
+#define FIOMAN_IOC_TRANSACTION_COMMIT   _IO( FIO_IOC_MAGIC, \
+                                                FIO_IOCTL( FIOMAN_IOC_55 ))
 /*****************************************************************************/
 
 #endif /* #ifndef _FIODRIVER_H_ */
