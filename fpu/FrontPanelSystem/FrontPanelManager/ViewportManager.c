@@ -380,7 +380,8 @@ void viewport_listener( char *filepath )
 							screen_YY = 0;
 							screen_XX = 0;
 						}
-						write( fd, ESC "[6n", 4 );
+                                                // Send ping (now enquire AUX switch state)
+						write( fd, ESC "[An", 4 );
 						ping = true;
 					} else if( timeout == SHORT_TIMEOUT ) {
 						//
@@ -472,6 +473,17 @@ void viewport_listener( char *filepath )
 								break;
 							case AUX_STATE: // response to a query for AUX switch state
 								DBG( "%s: AUX switch status sequence\n", __func__ );
+								if( ping ) {
+									if( !display_present ) {
+										DBG( "%s: Display has been reconnected.\n", __func__ );
+										// TODO we need to signal the change
+										display_present = true;
+										check_screen_size( fd );
+									}
+                                                                        // read AUX switch state
+									ping = false;
+									break;
+								}
 								virtual_terminal_return( has_focus, buf );
 								break;
 							case PWR_UP:	// The UI powered up or reset
@@ -484,16 +496,6 @@ void viewport_listener( char *filepath )
 								break;
 							case CUR_POS:	// the response to a 'get cursor position' inquiry.
 								DBG( "%s: CURSOR POS sequence\n", __func__ );
-								if( ping ) {
-									if( !display_present ) {
-										DBG( "%s: Display has been reconnected.\n", __func__ );
-										// TODO we need to signal the change
-										display_present = true;
-										check_screen_size( fd );
-									}
-									ping = false;
-									break;
-								}
 								// fall through
 							default:
 								virtual_terminal_return( has_focus, buf );		//   send the string to the virtual terminals
@@ -520,11 +522,14 @@ void viewport_listener( char *filepath )
 							sprintf( buf, "*%c", ch );		//   prepare a string buffer
 						} else if( state == 2 ) {			// we received a '**' followed by some other character
 							// if {**,[0-F]} then set focus to app?
-							if( isxdigit(ch) && is_active(ch-0x30) ) {
-								 set_focus(ch-0x30);
-								 break;
-							 }else
-								sprintf( buf, "**%c", ch );	// prepare a string buffer
+							if (isxdigit(ch)) {
+                                                                char item = isdigit(ch)?(ch-0x30):(toupper(ch)-55);
+                                                                if (is_active(item)) {
+                                                                        set_focus(item);
+                                                                        break;
+                                                                }
+                                                        }
+                                                        sprintf( buf, "**%c", ch );	// prepare a string buffer
 						} else {					// we received a character without any special meaning
 							sprintf( buf, "%c", ch );		//   prepare a string buffer
 						}

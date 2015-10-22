@@ -315,11 +315,15 @@ int main( int argc, char * argv[] )
 							fprintf( stderr, "MS: keycode 0x%2.2x\n", rp->data[i]);
 							if (default_cmd) {
 								if (isxdigit(rp->data[i])) {
-									default_win = rp->data[i] - 0x30;
+									default_win = isdigit(rp->data[i])?
+                                                                                (rp->data[i]-0x30):
+                                                                                (toupper(rp->data[i])-55);
 									break;
 								}
 							} else if(isxdigit(rp->data[i])) {
-								int win = rp->data[i] - 0x30;
+								int win = isdigit(rp->data[i])?
+                                                                        (rp->data[i]-0x30):
+                                                                        (toupper(rp->data[i])-55);
 								if (regtab[win] != NULL) {
 									fprintf( stderr, "MS: Setting focus to process %x\n", win);
 									ioctl( msi, FP_IOC_SET_FOCUS, &win );
