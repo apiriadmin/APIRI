@@ -1,0 +1,8 @@
+#!/bin/sh
+
+export ARCH=powerpc
+export PATH=/opt/intelight/toolchain/ctng-linux-eb8248-201305/bin/:$PATH
+export LINUX_DIR=/ppc/eb8248/buildroot/output/build/linux-custom
+export BSPDIR=/opt/intelight/toolchain/sdk-eb8248-1.02
+export CC=powerpc-unknown-linux-uclibc-gcc
+export AR=powerpc-unknown-linux-uclibc-ar
