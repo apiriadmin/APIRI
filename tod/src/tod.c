@@ -115,12 +115,32 @@ int tod_cancel_tick_signal(int fd)
 
 int tod_request_onchange_signal(int signal)
 {
-	return tod_ioctl_call(ATC_TOD_REQUEST_ONCHANGE_SIG, signal);
+	int tod_fd;
+	int ret, arg;
+	
+	if ((ret = open("/dev/tod", O_RDONLY)) < 0)
+		return ret;
+	tod_fd = ret;
+	arg = signal;
+	ret = ioctl(tod_fd, ATC_TOD_REQUEST_ONCHANGE_SIG, &arg);
+	if (ret < 0) {
+		close(tod_fd);
+		return ret;
+	}
+		
+	return tod_fd;
 }
 
-int tod_cancel_onchange_signal(void)
+int tod_cancel_onchange_signal(int fd)
 {
-	return tod_ioctl_call(ATC_TOD_CANCEL_ONCHANGE_SIG, 0);
+	int ret, arg = 0;
+	
+	ret = ioctl(fd, ATC_TOD_CANCEL_ONCHANGE_SIG, &arg);
+	if (ret < 0)
+		return ret;
+		
+	close(fd);
+	return 0;
 }
 
 
