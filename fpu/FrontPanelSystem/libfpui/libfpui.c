@@ -108,9 +108,9 @@ int fpui_close_config_window( fpui_handle fd )
 
 int fpui_get_window_size( fpui_handle fd, int *rows, int *columns )
 {
-	int  err;
+	int  err = -1;
 	char sbuf[16];
-	char type;
+	char panel_type;
 
 	//Query panel type: A (4 lines); B (8 lines); D (16 lines)
 	if( (err = fpui_write_string( fd, ESC "[c" )) < 0 ) {
@@ -121,13 +121,13 @@ int fpui_get_window_size( fpui_handle fd, int *rows, int *columns )
 		return( err );
 	}
 
-	sscanf( sbuf, ESC "[%cR", &type );
+	sscanf( sbuf, ESC "[%cR", &panel_type );
 	*columns = 40;
-	if (type == 'A')
+	if (panel_type == 'A')
 		*rows = 4;
-	else if (type == 'B')
+	else if (panel_type == 'B')
 		*rows = 8;
-	else if (type == 'D')
+	else if (panel_type == 'D')
 		*rows = 16;
 	else
 		return -1;

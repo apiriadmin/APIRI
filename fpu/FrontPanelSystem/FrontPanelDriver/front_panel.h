@@ -51,7 +51,8 @@ typedef enum {
 	DIRECT = 6,				// command bypasses virtual terminal
 	SIGNAL_ALL = 7, 			// signal all processes that the state of the front panel display has changed
 	SIGNAL = 8,				// signal the 'to' application that something in it's windowing system has changed
-	ATTRIBUTES = 9				// request for attributes held by virtual display
+	ATTRIBUTES = 9,				// request for attributes held by virtual display
+	REFRESH = 10				// request to redraw on front panel device
 } command_t;
 
 #define COMMAND_NAMES { \

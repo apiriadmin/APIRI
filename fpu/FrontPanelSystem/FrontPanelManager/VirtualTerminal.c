@@ -352,6 +352,14 @@ void destroy_virtual_terminal( int term )
 	display[term] = NULL;
 }
 
+void refresh_virtual_terminal(int term)
+{
+	printf("%s: term=%d\n", __func__, term );
+	if (get_focus() == term) {
+		// redraw virtual display to panel
+		set_focus(term);
+	}
+}
 
 int getterm( display_t * disp )
 {
@@ -784,14 +792,11 @@ void other( display_t *disp, int type, int args[] )
 			DBG( "%s(%d): HEATER \n", __func__, term );
 			break;
 		case INQUIRE_TYPE: {
-			char screen_type;
-			if (get_screen_type(&screen_type) != -1) {
-				DBG( "%s(%d): TYPE %c\n", __func__, term, screen_type );
-				sprintf( buf, "\x1b[%cR", screen_type );
-				routing_return( term, buf, NULL );
-			} else {
-				DBG("%s(%d): get_screen_type error\n", __func__, term);
-			}
+			char screen_type = 'B';
+			get_screen_type(&screen_type);
+			DBG( "%s(%d): TYPE %c\n", __func__, term, screen_type );
+			sprintf( buf, "\x1b[%cR", screen_type );
+			routing_return( term, buf, NULL );
 			break;
                 case INQUIRE_FOCUS: {
 			DBG( "%s(%d): [FOCUS] \n", __func__, term );

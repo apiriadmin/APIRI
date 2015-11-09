@@ -179,6 +179,10 @@ void routing( int fd )
 				// int attr = get_attributes(display)
 				// routing_return(to, &attr, 0)
 				break;
+			case REFRESH:
+				DBG("%s: REFRESH from %s to %s (size=%ld)\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to), (long)rp->size );
+				refresh_virtual_terminal( rp->from );
+				break;
 			default:
 				DBG("%s: Undefined from %s to %s\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to) );
 				break;
