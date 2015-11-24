@@ -92,8 +92,8 @@ typedef struct read_packet {
 #define FPM_DEV     (AUX_DEV+1)		// this is the index of the Front Panel device entry
 #define FP_MAX_DEVS (FPM_DEV+1)		// this is the maximum number of possible interfaces
 
-#define AUX_ON  (0xff)
-#define AUX_OFF (0x00)
+#define AUX_SWITCH_ON  (0xff)
+#define AUX_SWITCH_OFF (0x00)
 
 #ifndef __KERNEL__
 #include <sys/ioctl.h>

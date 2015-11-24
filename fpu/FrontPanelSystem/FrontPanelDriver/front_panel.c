@@ -96,7 +96,7 @@ typedef struct fp_device_s {                      /* holds the state of each act
 	int		   last_slot;		/* the most recent slot used by the same process that is using this slot. */
 	enum { CLOSED=0x00, VR_OPEN=0x01, VW_OPEN=0x02, DR_OPEN=0x04, DW_OPEN=0x08 } open_flags;
 	char               fp_debug;            /* 0->off, 1->sense, 9->dump dev, 10-> all devs */
-	bool		   state;		/* used by AUX Switch interface to store it's current state */
+	int		   aux_state;		/* used by AUX Switch interface to store it's current state */
 } fp_device_t;
 
 #define V_MASK	(0x03)
@@ -718,7 +718,9 @@ int aux_state_to_user( fp_device_t * dev, char __user * buf, size_t count )
 {
 	size_t i;
 	size_t res = 0;
-	char token = (dev->state)? AUX_ON : AUX_OFF;
+	char token = (dev->aux_state)? AUX_SWITCH_ON : AUX_SWITCH_OFF;
+
+	pr_debug("%s: Slot=%s, Aux=%d\n", __func__, slot_to_string(dev->slot), token );
 
 	for( i = 0; i < count; i++ ) {
 		res += copy_to_user( &buf[i], &token, 1 );
@@ -958,7 +960,8 @@ ssize_t fp_write(struct file *filp, const char __user *buf, size_t count, loff_t
 	// command, from, to, buf, count
 	// we need to find the source instance of this request in order to route it properly.
 	switch( fp_dev->slot ) {
-	    	case FPM_DEV:	// these preformatted packets go to one of the application interfaces
+	    	case FPM_DEV:
+			// these preformatted packets go to one of the application interfaces
 			if( (lptr = send_packet( NOOP, FPM_DEV, 0, buf, count ) ) != NULL ) {
 				res = lptr->packet.size;
 			} else {
@@ -1193,8 +1196,10 @@ void send_signal( int pid, int sig )
 list_packet *send_packet( int command, int from, int to, const char __user *buf, size_t count )
 {
 	fp_device_t	*to_dev = NULL;
-	list_packet	*lptr   = NULL;
+	list_packet	*lptr = NULL, *llptr = NULL;
 	read_packet	*rptr   = NULL;
+	struct list_head *node = NULL;
+	struct list_head *next = NULL;
 	size_t          len    = 0;
 	size_t	        res    = 0;
 	int	        i;
@@ -1261,6 +1266,28 @@ list_packet *send_packet( int command, int from, int to, const char __user *buf,
 			kfree( lptr );
 			break;
 		case DATA:
+			// Check here for AUX switch status packet
+			// Update AUX device status
+			if (rptr->to == AUX_DEV) {
+				pr_debug("%s: AUX status update packet %02x\n", __func__, rptr->data[0]);
+				if (rptr->data[0] == AUX_SWITCH_ON)
+					fp_devtab[AUX_DEV].aux_state = AUX_SWITCH_ON;
+				else if (rptr->data[0] == AUX_SWITCH_OFF)
+					fp_devtab[AUX_DEV].aux_state = AUX_SWITCH_OFF;
+				// Delete any earlier status packets from queue
+				list_for_each_safe( node, next, &to_dev->vroot ) {
+					llptr = container_of( node, list_packet, links );
+					list_del( &llptr->links );		// unlink this structure from the list
+					kfree( llptr ); 				// free this record
+				}
+			}
+			// If raw-only packet, and to_dev is not open direct mode, discard
+			if ((rptr->to < APP_OPENS) && (rptr->raw_offset == 0) && !(to_dev->open_flags & DR_OPEN)) {
+				kfree(lptr);
+				lptr = NULL;
+				break;
+			}
+
 			list_add_tail( &lptr->links, &to_dev->vroot );				// load onto queue for the FPM
 			wake_up_interruptible( &to_dev->wait );					// wake up any blocked processes waiting on this queue
 			break;
@@ -1281,7 +1308,7 @@ list_packet *send_packet( int command, int from, int to, const char __user *buf,
 
 			break;
 		case FOCUS:
-			printk("Setting Focus to %x %x %x %x\n",
+			pr_debug("Setting Focus to %x %x %x %x\n",
 					lptr->packet.data[0], lptr->packet.data[1],
 					lptr->packet.data[2], lptr->packet.data[3] );
 			list_add_tail( &lptr->links, &to_dev->vroot );				// load onto queue for the FPM

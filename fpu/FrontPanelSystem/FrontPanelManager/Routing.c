@@ -65,6 +65,7 @@ extern void tohexn( char *, int );
 extern void virtual_terminal( int, char * );
 extern void create_virtual_terminal( int );
 extern void destroy_virtual_terminal( int );
+extern void refresh_virtual_terminal( int );
 extern int  is_active( int );
 
 
@@ -72,11 +73,11 @@ read_packet *make_packet( int command, int from, int to, char *s, char *t )
 {
 	int slen = 0, tlen = 0;
 	
-	if (s != NULL) {
+	if (s != NULL)
 		slen = strlen(s);
-		if (t != NULL)
-			tlen = strlen(t);
-	}
+		
+	if (t != NULL)
+		tlen = strlen(t);
 	
 	read_packet *rp = (read_packet *)calloc( 1, slen + tlen + sizeof(read_packet) );
 	if( rp == NULL ) return( NULL );
@@ -89,6 +90,7 @@ read_packet *make_packet( int command, int from, int to, char *s, char *t )
 		memcpy( (char *)rp->data, s, slen );
 	if (tlen)
 		memcpy( (char *)&rp->data[slen], t, tlen );
+
 	return( rp );
 }
 
@@ -198,18 +200,18 @@ void routing_return( int target, char *s, char *t )
 {
 	read_packet *rp = NULL;
 	
-	if (s == NULL)
+	if ((s == NULL) && (t == NULL))
 		return;
 	
 	rp = make_packet( DATA, FPM_DEV, target, s, t );
 
-	printf("%s: write combined mapped+raw response (%d bytes)\n", __func__, rp->size);
+	DBG("%s: write combined mapped+raw response (%d bytes)\n", __func__, rp->size);
 	if( write( fpm, rp, sizeof(read_packet) + rp->size ) < 0 ) {
-		printf("%s: Write error - %s\n", __func__, strerror( errno ) );
+		fprintf(stderr, "%s: Write error - %s\n", __func__, strerror( errno ) );
 	}
 	free_packet(rp);
 
-	printf("%s: write to fpm\n", __func__ );
+	DBG("%s: write to fpm\n", __func__ );
 }
 
 void routing_send_signal( int to, int sig )
