@@ -68,6 +68,8 @@ extern int xprintf( int fd, const char * fmt, ... );
 extern  void routing_return( int, char *, char *s );
 extern int get_screen_type(char *);
 extern int get_focus( void );
+extern void set_focus( int );
+extern bool panel_present( void );
 extern int screen_XX;
 extern int screen_YY;
 
@@ -141,7 +143,7 @@ typedef enum { CLEAR, SOFT_RESET, BACKLIGHT_ON, BACKLIGHT_OFF, AUTO_WRAP_ON, AUT
 		AUTO_REPEAT_OFF, CURSOR_ON, CURSOR_OFF, AUTO_SCROLL_ON, AUTO_SCROLL_OFF, BACKLIGHT_TIMEOUT,
 		INQUIRE_ATTRIBUTES } screen_types;
 
-typedef enum { POWER_UP, INQUIRE_AUX, INQUIRE_HEATER, INQUIRE_TYPE, INQUIRE_FOCUS } other_types;
+typedef enum { POWER_UP, INQUIRE_AUX, INQUIRE_HEATER, INQUIRE_TYPE, INQUIRE_FOCUS, PANEL_PRESENT } other_types;
 
 
 // #define REGEX_INIT { NULL, 0, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 0 }
@@ -205,6 +207,7 @@ static struct command_table_s {
 	{ "^" ESC "[[]hn",		REGEX_INIT, other,		INQUIRE_HEATER },
 	{ "^" ESC "[[]c",		REGEX_INIT, other,		INQUIRE_TYPE },
 	{ "^" ESC "[[]Fn",		REGEX_INIT, other,              INQUIRE_FOCUS },
+	{ "^" ESC "[[]5n",		REGEX_INIT, other,              PANEL_PRESENT },
 };
 
 #define CMD_TAB_SIZE ( sizeof( cmd_tab ) / sizeof( cmd_tab[0]) )
@@ -344,7 +347,11 @@ void destroy_virtual_terminal( int term )
 	if( ! is_active( term ) ) {
 		return;
 	}
-	
+
+	if (get_focus() == term) {
+		// destroyed window has focus, so revert to MS_DEV
+		set_focus( MS_DEV );
+	}
 	pthread_mutex_destroy( &display[term]->lock );
 	pthread_cond_destroy( &display[term]->update );
 	memset( display[term], 0, sizeof( display_t ) );
@@ -757,13 +764,18 @@ void screen( display_t * disp, int type, int args[] )
 			break;
 		case INQUIRE_ATTRIBUTES:
 			DBG( "%s(%d): ATT \n", __func__, term );
-			sprintf( buf, "\x1b[%c;%c;%c;%c;%d;%cR",
+			sprintf( buf, "\x1b[%c;%c;%c;%c;%d;%c;%c;%c;%c;%c;%cR",
 				hl( disp->screen.auto_wrap ),
 				hl( disp->screen.auto_scroll ),
 				hl( disp->screen.auto_repeat ),
 				hl( disp->screen.backlight ),
 				disp->screen.backlight_timeout,
-				hl( disp->screen.aux_switch) );
+				hl(disp->screen.aux_switch),
+				hl(disp->cursor.visible),
+				hl(disp->cursor.blink),
+				hl(disp->terminal[disp->cursor.row][disp->cursor.column].blink),
+				hl(disp->terminal[disp->cursor.row][disp->cursor.column].reverse),
+				hl(disp->terminal[disp->cursor.row][disp->cursor.column].underline));
 			routing_return( getterm( disp ), buf, NULL );
 			break;
 	}
@@ -801,6 +813,12 @@ void other( display_t *disp, int type, int args[] )
                 case INQUIRE_FOCUS: {
 			DBG( "%s(%d): [FOCUS] \n", __func__, term );
                         sprintf( buf, "\x1b[%cR", (get_focus()==term)?'h':'l');
+                        routing_return( term, buf, NULL );
+                        }
+                        break;
+                case PANEL_PRESENT: {
+			DBG( "%s(%d): [PRESENCE] \n", __func__, term );
+                        sprintf( buf, "\x1b[%cn", panel_present()?'0':'3');
                         routing_return( term, buf, NULL );
                         }
                         break;
@@ -974,6 +992,7 @@ void virtual_terminal( int terminal, char *s )
 				disp->cursor.column = find_next_tab( disp );	// move the cursor to the next tab stop
 				break;
 			case CHAR_DC1:	// add a keycode mapping
+				DBG( "%s(%d)   [KeyMapSet]\n", __func__, terminal);
 				km = (keymap_t *)&s[i];
 				for( j = 0; j < 16; j++) {
 					if( disp->keycode_map[j].key == '\0' ) {
@@ -987,6 +1006,7 @@ void virtual_terminal( int terminal, char *s )
 				goto clean_up;
 				break;
 			case CHAR_DC2:	// read back a keycode mapping
+				DBG( "%s(%d)   [KeyMapGet]\n", __func__, terminal);
 				km = (keymap_t *)&s[i];
 				for( j = 0; j < 16; j++) {
 					if( disp->keycode_map[j].key == km->key ) {
@@ -1002,6 +1022,7 @@ void virtual_terminal( int terminal, char *s )
 				goto clean_up;
 				break;
 			case CHAR_DC3:	// delete a keycode mapping
+				DBG( "%s(%d)   [KeyMapDel]\n", __func__, terminal);
 				km = (keymap_t *)&s[i];
 				for( j = 0; j < 16; j++) {
 					if( disp->keycode_map[j].key == km->key ) {
@@ -1014,6 +1035,7 @@ void virtual_terminal( int terminal, char *s )
 				goto clean_up;
 				break;
 			case CHAR_DC4:	// reset the entire keycode mapping table
+				DBG( "%s(%d)   [KeyMapReset]\n", __func__, terminal);
 				km = (keymap_t *)&s[i];
 				if( km->key == '0' ) {	// clear the entire map
 					for( j = 0; j < 16; j++) {
@@ -1198,7 +1220,6 @@ void virtual_terminal_return( int term, char *s )
 	char   raw[64];
 	char *t;
 	int    i;
-	DBG("%s: virtual_terminal_return(%d), slen=%d\n", __func__, term, strlen(s) );
 
 	if( !is_active( term ) ) {
 		fprintf(stderr, "%s: term not active!\n", __func__);
@@ -1215,6 +1236,9 @@ void virtual_terminal_return( int term, char *s )
 	// mapped response. These MUST be paired.
 
 	strcpy( raw, s );
+	DBG("%s:(%d)(%d), slen=%d %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		__func__, term, get_focus(), strlen(s),
+		raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7]  );
 
 	for( i = 0; (i < 16) && (display[term]->keycode_map[i].key != 0); i++ ) {
 		if( (t = strstr( s, display[term]->keycode_map[i].code)) != NULL ) {
@@ -1224,7 +1248,7 @@ void virtual_terminal_return( int term, char *s )
 			i = -1;							// restart search in case of multiple hits.
 		}
 	}
-	DBG("%s: call routing_return()\n", __func__ );
+	//DBG("%s: call routing_return()\n", __func__ );
 
 	routing_return( term, s, raw );
 }
