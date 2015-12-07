@@ -30,6 +30,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
+#include <linux/rtc.h>
 #include <linux/atc.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
@@ -43,6 +44,8 @@ static char *timesrc = "LINESYNC";
 module_param(timesrc, charp, 0644);
 MODULE_PARM_DESC(timesrc, "ATC Time Source Name");
 
+#define RTC_UPDATE_DELAY 500000000
+
 /* Info for each registered platform device */
 struct atc_tod_data {
 	int irq;
@@ -52,6 +55,11 @@ struct atc_tod_data {
 	struct miscdevice miscdev;
 	struct fasync_struct *tick_async_queue;
 	struct fasync_struct *onchange_async_queue;
+	struct work_struct rtc_read_work;
+	struct work_struct rtc_write_work;
+	struct rtc_time rtc_tm;
+	bool rtc_sync;
+	bool rtc_loaded;
 	int tick_sig_num;
     int onchange_sig_num;
 	bool linesync_sync;
@@ -59,6 +67,7 @@ struct atc_tod_data {
 	int frequency;
 	int timesrc;
 	unsigned int gpio_pin;
+	int rtc_errors;
 };
 
 static struct atc_tod_data *global_dev;
@@ -214,6 +223,83 @@ static const struct file_operations atc_tod_fops = {
 	.fasync = atc_tod_fasync,
 };
 
+static void atc_tod_rtc_read(struct work_struct *work)
+{
+	struct atc_tod_data *dd = container_of(work, struct atc_tod_data, rtc_read_work);
+	struct rtc_device *rtc;
+	struct timespec ts;
+	struct rtc_time tm = {0};
+
+	if((dd->rtc_loaded == true) || (dd->rtc_errors > 5)) {
+		dd->rtc_loaded = true;
+		return;
+	}
+
+	rtc = rtc_class_open("rtc0");
+	if(!rtc) {
+		pr_err("failed to open read rtc0\n");
+		dd->rtc_errors++;
+		return;
+	}
+
+	if(rtc_read_time(rtc, &tm) || rtc_valid_tm(&tm)) {
+		pr_err("failed to get RTC time\n");
+		rtc_class_close(rtc);
+		dd->rtc_tm.tm_sec = 0;
+		dd->rtc_errors++;
+		return;
+	}
+
+	/* Look for a RTC second rollover */
+	if(dd->rtc_tm.tm_sec != 0 && (dd->rtc_tm.tm_sec != tm.tm_sec)) {
+		rtc_tm_to_time(&tm, &ts.tv_sec);
+		ts.tv_nsec = 0;
+		do_settimeofday(&ts);
+		pr_info("setting system clock to "
+				"%d-%02d-%02d %02d:%02d:%02d UTC\n",
+				tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+				tm.tm_hour, tm.tm_min, tm.tm_sec);
+		dd->linesync_sync = false;
+		dd->rtc_sync = true;
+		dd->rtc_loaded = true;
+		dd->ts.tv_sec = 0;
+		dd->count = 0;
+	}
+
+	dd->rtc_tm = tm;
+	rtc_class_close(rtc);
+}
+
+static void atc_tod_rtc_write(struct work_struct *work)
+{
+	struct rtc_device *rtc;
+	struct timespec ts;
+	struct rtc_time tm = {0};
+	ktime_t timeout;
+
+	rtc = rtc_class_open("rtc0");
+	if(!rtc) {
+		pr_err("failed to open write rtc0\n");
+		return;
+	}
+
+	getnstimeofday(&ts);
+	rtc_time_to_tm(ts.tv_sec, &tm);
+	__set_current_state(TASK_UNINTERRUPTIBLE);
+	timeout = ktime_set(0, 1000000000 - RTC_UPDATE_DELAY - ts.tv_nsec);
+	schedule_hrtimeout_range(&timeout, 1000, HRTIMER_MODE_REL);
+
+	if (rtc_set_time(rtc, &tm))
+		pr_err("rtc_set_time error\n");
+	else
+		pr_info("setting rtc clock to "
+				"%d-%02d-%02d %02d:%02d:%02d UTC\n",
+				tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+				tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+	rtc_class_close(rtc);
+}
+
 static irqreturn_t atc_tod_irq_handler(int irq, void *data)
 {
 	struct atc_tod_data *dd = data;
@@ -221,6 +307,9 @@ static irqreturn_t atc_tod_irq_handler(int irq, void *data)
 	long delta;
 
 	dd->count++;
+
+	if (unlikely(dd->rtc_loaded == false))
+		schedule_work(&dd->rtc_read_work);
 
 	if(dd->linesync_sync) {
 		if(dd->count >= dd->frequency * 2) {
@@ -249,6 +338,7 @@ static irqreturn_t atc_tod_irq_handler(int irq, void *data)
 			if(dd->linesync_sync) {
 				pps_event(dd->pps, &ts, PPS_CAPTUREASSERT, NULL);
 			} else {
+				dd->rtc_sync = false;
 				dd->ts.tv_sec = 0;
 				if (dd->onchange_async_queue != NULL)
 					kill_fasync(&dd->onchange_async_queue, SIGIO, POLL_IN);
@@ -256,11 +346,15 @@ static irqreturn_t atc_tod_irq_handler(int irq, void *data)
 		}
 	} else {
 		pps_get_ts(&ts);
-		if(dd->ts.tv_sec != 0 && ts.ts_real.tv_sec != dd->ts.tv_sec) {
+		if((dd->rtc_loaded == true) && (dd->ts.tv_sec != 0) && (ts.ts_real.tv_sec != dd->ts.tv_sec)) {
+			pps_event(dd->pps, &ts, PPS_CAPTUREASSERT, NULL);
 			dd->linesync_sync = true;
 			dd->count = 0;
-			pps_event(dd->pps, &ts, PPS_CAPTUREASSERT, NULL);
-			pr_info("linesync pps synchronized with second\n");
+			if(dd->rtc_sync == false) {
+				dd->rtc_sync = true;
+				schedule_work(&dd->rtc_write_work);
+			}
+			pr_info("linesync pps synchronized with second\n");			
 		}
 		dd->ts = ts.ts_real;
 	}
@@ -298,6 +392,9 @@ static int atc_tod_probe(struct platform_device *pdev)
 	data->gpio_pin = ret;
 	gpio_label = "atc-linesync";
 
+	INIT_WORK(&data->rtc_read_work, atc_tod_rtc_read);
+	INIT_WORK(&data->rtc_write_work, atc_tod_rtc_write);
+
 	/* Initialize variables */
 	data->frequency = pl_freq;
 	data->linesync_sync = false;
@@ -307,6 +404,10 @@ static int atc_tod_probe(struct platform_device *pdev)
 	data->onchange_async_queue = NULL;
 	data->tick_sig_num = 0;
 	data->onchange_sig_num = 0;
+	data->rtc_sync = false;
+	data->rtc_loaded = false;
+	data->rtc_errors = 0;
+	data->rtc_tm.tm_sec = 0;
 
 	/* setup ioctl handling */
 	data->miscdev.minor = MISC_DYNAMIC_MINOR;
