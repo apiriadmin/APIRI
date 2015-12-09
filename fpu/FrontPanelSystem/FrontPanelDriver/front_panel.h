@@ -52,7 +52,8 @@ typedef enum {
 	SIGNAL_ALL = 7, 			// signal all processes that the state of the front panel display has changed
 	SIGNAL = 8,				// signal the 'to' application that something in it's windowing system has changed
 	ATTRIBUTES = 9,				// request for attributes held by virtual display
-	REFRESH = 10				// request to redraw on front panel device
+	REFRESH = 10,				// request to redraw on front panel device
+	EMERGENCY = 11				// set emergency mode on/off
 } command_t;
 
 #define COMMAND_NAMES { \
@@ -62,8 +63,12 @@ typedef enum {
 	"REGISTER", \
 	"DESTROY", \
 	"FOCUS", \
+	"DIRECT", \
 	"SIGNAL_ALL", \
-	"SIGNAL" \
+	"SIGNAL", \
+	"ATTRIBUTES", \
+	"REFRESH", \
+	"EMERGENCY" \
 };
 
 typedef struct read_packet {

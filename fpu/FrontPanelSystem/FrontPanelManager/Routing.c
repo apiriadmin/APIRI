@@ -157,8 +157,6 @@ void routing( int fd )
 				p_i = (unsigned int *)rp->data;
 				i = *p_i;
 				DBG("%s: FOCUS from %s to %s request to set %d\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to), i );
-
-
 				if( is_active( i ) ) {
 					set_focus( i );
 
@@ -184,6 +182,12 @@ void routing( int fd )
 			case REFRESH:
 				DBG("%s: REFRESH from %s to %s (size=%ld)\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to), (long)rp->size );
 				refresh_virtual_terminal( rp->from );
+				break;
+			case EMERGENCY:
+				p_i = (unsigned int *)rp->data;
+				i = *p_i;
+				DBG("%s: EMERGENCY from %s to %s (size=%ld)\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to), (long)rp->size );
+				set_emergency(rp->from, i);
 				break;
 			default:
 				DBG("%s: Undefined from %s to %s\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to) );

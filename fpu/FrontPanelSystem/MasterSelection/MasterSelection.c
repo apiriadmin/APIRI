@@ -103,6 +103,10 @@ char isdefault( int i )
 	return( (i == default_screen)?'*':' ' );
 }
 
+bool has_emergency( int i )
+{
+	return false;
+}
 
 bool build_menu( void )
 {
@@ -110,7 +114,13 @@ bool build_menu( void )
 
 	clear_menu();
 	for( i=0; i<MAX_MENU_ROWS; i++ ) {
-		sprintf( menu[i], "%1x%c%-16.16s  %1x%c%-16.16s", i*2, isdefault(i*2), reg_name(i*2), i*2+1, isdefault(i*2+1), reg_name(i*2+1) );
+		sprintf( menu[i], "%s%1x%c%-16.16s%s  %s%1x%c%-16.16s%s",
+			has_emergency(i*2)?"\x1b[25h":"",
+			i*2, isdefault(i*2), reg_name(i*2),
+			has_emergency(i*2)?"\x1b[25l":"",
+			has_emergency(i*2+1)?"\x1b[25h":"",
+			i*2+1, isdefault(i*2+1), reg_name(i*2+1),
+			has_emergency(i*2+1)?"\x1b[25l":"" );
 	}
 	return( true );
 }
@@ -120,17 +130,22 @@ void display( int fd, int row_index )
 {
 	int i, row;
 	int menu_start_row = ((g_rows-3) < MAX_MENU_ROWS)?row_index:0;
-	char *s;
+	char buf[100];
 
-	build_menu();
-	fpui_write_string_at( fd, "          FRONT PANEL MANAGER", 1, 1 );
-	fpui_write_string_at( fd, "SELECT WINDOW [0-F]  SET DEFAULT *[0-F]", 2, 1 );
+	//build_menu();
+	fpui_write_string_at(fd, "          FRONT PANEL MANAGER", 1, 1);
+	fpui_write_string_at(fd, "SELECT WINDOW [0-F]  SET DEFAULT *[0-F]", 2, 1);
 	for( i=menu_start_row, row=3; (i<MAX_MENU_ROWS) && (row<g_rows); i++ ) {
-		s = &menu[i][0];
-		printf("%s write %d bytes of menu row %d\n", __func__, strlen(s), i );
-		fpui_write_string_at(fd, s, row++, 1);
+		sprintf(buf, "%1x%c%s%-16.16s%s  %1x%c%s%-16.16s%s",
+			i*2, isdefault(i*2), has_emergency(i*2)?"\x1b[25h":"",
+			reg_name(i*2),
+			has_emergency(i*2)?"\x1b[25l":"",
+			i*2+1, isdefault(i*2+1), has_emergency(i*2+1)?"\x1b[25h":"",
+			reg_name(i*2+1),
+			has_emergency(i*2+1)?"\x1b[25l":"" );
+		fpui_write_string_at(fd, buf, row++, 1);
 	}
-	fpui_write_string_at( fd, "[UP/DN ARROW]        [CONFIG INFO- NEXT]", g_rows, 1 );
+	fpui_write_string_at(fd, "[UP/DN ARROW]        [CONFIG INFO- NEXT]", g_rows, 1);
 	fpui_set_cursor_pos(fd, 3, 10);
 }
 
@@ -365,6 +380,10 @@ int main( int argc, char * argv[] )
                         case FOCUS:
 				printf("%s: FOCUS packet from %d to %d\n", argv[0], rp->from, rp->to );
                                 break;
+                        case EMERGENCY:
+				// set emergency state for this app according to packet data
+				printf("%s: EMERGENCY packet from %d to %d\n", argv[0], rp->from, rp->to );
+                                break;				
                         default:
 				printf("%s: Undefined packet from %d to %d\n", argv[0], rp->from, rp->to );
 				exit( 99 );

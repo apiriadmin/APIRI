@@ -1117,6 +1117,24 @@ fp_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 				res = -EFAULT;
 			}
 			break;
+		case FP_IOC_EMERGENCY:
+			pr_debug("%s: FP_IOC_EMERGENCY\n", __func__ );
+			if( fp_devtab[FPM_DEV].open_flags == CLOSED ){
+				printk("%s: FP_IOC_EMERGENCY - FPM_DEV(0x%x) not available\n", __func__, fp_devtab[FPM_DEV].open_flags);
+				return( -EAGAIN );					// return error if not.
+			} else if( (_IOC_DIR( cmd_in ) & _IOC_READ) != 0 ) {		// Check for an illegal read request
+				return( -EFAULT );
+			} else if( (fp_dev->slot < 0)  || (fp_dev->slot >= APP_OPENS) )	 { // Only Apps can issue this Ioctl
+				return( -EFAULT );
+			}
+			
+			if( (send_packet(EMERGENCY, fp_dev->slot, FPM_DEV, s, 0) == NULL)
+				|| (send_packet(EMERGENCY, fp_dev->slot, MS_DEV, s, 0) == NULL) ) {
+				res = -EFAULT;
+			}
+			
+			break;
+			
 		default:
 			pr_debug("%s: Undefined Ioctl Command - 0x%x\n", __func__, cmd_in );
 			res = -ENOTTY;

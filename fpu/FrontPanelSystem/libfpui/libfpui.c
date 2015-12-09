@@ -533,49 +533,36 @@ ssize_t fpui_write( fpui_handle fd, char *buffer, int buflen )
 
 ssize_t fpui_write_char( fpui_handle fd, char ch )
 {
-	return( write( fd, &ch, 1 ) );
+	return( write(fd, &ch, 1) );
 }
 
 
 ssize_t fpui_write_string( fpui_handle fd, char *string )
 {
-	return( fpui_write( fd, string, strlen(string) ) );
+	return( write(fd, string, strlen(string)) );
 }
 
 
 ssize_t fpui_write_at( fpui_handle fd, char *buffer, int buflen, int row, int column )
 {
-	int errcd;
-
-	if( (errcd = fpui_set_cursor_pos( fd, row, column )) < 0 ) {
-		return( errcd );
-	}
-
-	return( fpui_write( fd, buffer, buflen ) );
+	char sbuf[128];
+	int count = 0, ssize = (buflen<100)?buflen:100;
+	
+	count = sprintf(sbuf, ESC "[%d;%df%*.*s", row, column, ssize, ssize, buffer);
+	
+	return( write(fd, sbuf, count) );
 }
 
 
 ssize_t fpui_write_char_at( fpui_handle fd, char ch, int row, int column )
 {
-	int errcd;
-
-	if( (errcd = fpui_set_cursor_pos( fd, row, column )) < 0 ) {
-		return( errcd );
-	}
-
-	return( write( fd, &ch, 1 ) );
+	return( fpui_write_at(fd, &ch, 1, row, column) );
 }
 
 
 ssize_t fpui_write_string_at( fpui_handle fd, char *string, int row, int column )
 {
-	int errcd;
-
-	if( (errcd = fpui_set_cursor_pos( fd, row, column )) < 0 ) {
-		return( errcd );
-	}
-
-	return( fpui_write( fd, string, strlen(string) ) );
+	return( fpui_write_at(fd, string, strlen(string), row, column) );
 }
 
 
@@ -603,8 +590,10 @@ int fpui_get_cursor_pos( fpui_handle fd,  int * row, int * column )
 int fpui_set_cursor_pos( fpui_handle fd,  int row, int column )
 {
 	char sbuf[16];
-	sprintf( sbuf, ESC "[%d;%df", row, column );
-	return( fpui_write_string( fd, sbuf ) );
+	int count = 0;
+	
+	count = sprintf( sbuf, ESC "[%d;%df", row, column );
+	return( write(fd, sbuf, count) );
 }
 
 

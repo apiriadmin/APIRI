@@ -103,11 +103,12 @@ typedef struct display_s {			// this structure encapsulates the entire virtual d
 	} screen;
 
 	unsigned char	tab_stops[16];		// array of tab stop column positions
-	unsigned char	special_chars[8][8];	// storage for up to 8 special characters (each cell is 8x8 pixels)
+	unsigned char	special_chars[8][9];	// storage for up to 8 special characters (each cell is 8x8 pixels)
 
 	int		underline_active;	// the last state of the underline attribute
 	int		blink_active;		// the last state of the blink attribute
 	int		reverse_active;		// the last state of the reverse video attribute
+	int		emergency;
 
 	struct onechar {			// this structure represents a single character
 		char	underline:1,		// this character is underlined
@@ -158,56 +159,56 @@ typedef enum { POWER_UP, INQUIRE_AUX, INQUIRE_HEATER, INQUIRE_TYPE, INQUIRE_FOCU
 */
 
 static struct command_table_s {
-	char    * pattern;
-	regex_t   preg;
+	char	*pattern;
+	regex_t	preg;
+	int	argc;
 	void	(*func)( display_t *, int, int[] );
 	int	type;
 } cmd_tab[] = {
-/*	{ "\t",				REGEX_INIT, cursor_position,	TAB },
-	{ "\r",				REGEX_INIT, cursor_position,	RETURN },
-	{ "\n",				REGEX_INIT, cursor_position,	NEWLINE },
-	{ "\b",				REGEX_INIT, cursor_position,	BACKSPACE },*/
-	{ "^" ESC "[[][0-9]+;[0-9]+f", 	REGEX_INIT, cursor_position,	ABSOLUTE },
-	{ "^" ESC "[[][0-9]+A",		REGEX_INIT, cursor_position,	UP },
-	{ "^" ESC "[[][0-9]+B",		REGEX_INIT, cursor_position,	DOWN },
-	{ "^" ESC "[[][0-9]+C",		REGEX_INIT, cursor_position,	RIGHT },
-	{ "^" ESC "[[][0-9]+D",		REGEX_INIT, cursor_position,	LEFT },
-	{ "^" ESC "[[]H",		REGEX_INIT, cursor_position,	HOME },
-	{ "^" ESC "[[]2J",		REGEX_INIT, screen,		CLEAR },
-	{ "^" ESC "c",			REGEX_INIT, screen,		SOFT_RESET },
-	{ "^" ESC "P[0-9]+[[]",//[0-9]+;[0-9]+;[0-9]+;[0-9]+;[0-9];[0-9]+f"
-					REGEX_INIT, character,		COMPOSE_SPECIAL },
-	{ "^" ESC "[[]<[0-9]+V",	REGEX_INIT, character,		DISPLAY_SPECIAL },
-	{ "^" ESC "[[]25h",		REGEX_INIT, character,		BLINK_ON },
-	{ "^" ESC "[[]25l",		REGEX_INIT, character,		BLINK_OFF },
-	{ "^" ESC "[[]<5h",		REGEX_INIT, screen,		BACKLIGHT_ON },
-	{ "^" ESC "[[]<5l",		REGEX_INIT, screen,		BACKLIGHT_OFF },
-	{ "^" ESC "[[]33h",		REGEX_INIT, character,		CURSOR_BLINK_ON },
-	{ "^" ESC "[[]33l",		REGEX_INIT, character,		CURSOR_BLINK_OFF },
-	{ "^" ESC "[[]27h",		REGEX_INIT, character,		REVERSE_VIDEO_ON },
-	{ "^" ESC "[[]27l",		REGEX_INIT, character,		REVERSE_VIDEO_OFF },
-	{ "^" ESC "[[]24h",		REGEX_INIT, character,		UNDERLINE_ON },
-	{ "^" ESC "[[]24l",		REGEX_INIT, character,		UNDERLINE_OFF },
-	{ "^" ESC "[[]0m",		REGEX_INIT, character,		ALL_ATTRIBUTES_OFF },
-	{ "^" ESC "H",			REGEX_INIT, cursor_position,	SET_TAB },
-	{ "^" ESC "[[][0-9]+g",		REGEX_INIT, cursor_position,	CLEAR_TAB },
-	{ "^" ESC "[[][?]7h",		REGEX_INIT, screen,		AUTO_WRAP_ON },
-	{ "^" ESC "[[][?]7l",		REGEX_INIT, screen,		AUTO_WRAP_OFF },
-	{ "^" ESC "[[][?]8h",		REGEX_INIT, screen,		AUTO_REPEAT_ON },
-	{ "^" ESC "[[][?]8l",		REGEX_INIT, screen,		AUTO_REPEAT_OFF },
-	{ "^" ESC "[[][?]25h",		REGEX_INIT, screen,		CURSOR_ON },
-	{ "^" ESC "[[][?]25l",		REGEX_INIT, screen,		CURSOR_OFF },
-	{ "^" ESC "[[]<47h",		REGEX_INIT, screen,		AUTO_SCROLL_ON },
-	{ "^" ESC "[[]<47l",		REGEX_INIT, screen,		AUTO_SCROLL_OFF },
-	{ "^" ESC "[[]<[0-9]+S",	REGEX_INIT, screen,		BACKLIGHT_TIMEOUT },
-	{ "^" ESC "[[]PU",		REGEX_INIT, other,		POWER_UP },
-	{ "^" ESC "[[]6n",		REGEX_INIT, cursor_position,	INQUIRE_POSITION },
-	{ "^" ESC "[[]Bn",		REGEX_INIT, screen,		INQUIRE_ATTRIBUTES },
-	{ "^" ESC "[[]An",		REGEX_INIT, other,		INQUIRE_AUX },
-	{ "^" ESC "[[]hn",		REGEX_INIT, other,		INQUIRE_HEATER },
-	{ "^" ESC "[[]c",		REGEX_INIT, other,		INQUIRE_TYPE },
-	{ "^" ESC "[[]Fn",		REGEX_INIT, other,              INQUIRE_FOCUS },
-	{ "^" ESC "[[]5n",		REGEX_INIT, other,              PANEL_PRESENT },
+/*	{ "\t",				REGEX_INIT, 0, cursor_position,	TAB },
+	{ "\r",				REGEX_INIT, 0, cursor_position,	RETURN },
+	{ "\n",				REGEX_INIT, 0, cursor_position,	NEWLINE },
+	{ "\b",				REGEX_INIT, 0, cursor_position,	BACKSPACE },*/
+	{ "^" ESC "[[][0-9]+;[0-9]+f", 	REGEX_INIT, 2, cursor_position,	ABSOLUTE },
+	{ "^" ESC "[[][0-9]+A",		REGEX_INIT, 1, cursor_position,	UP },
+	{ "^" ESC "[[][0-9]+B",		REGEX_INIT, 1, cursor_position,	DOWN },
+	{ "^" ESC "[[][0-9]+C",		REGEX_INIT, 1, cursor_position,	RIGHT },
+	{ "^" ESC "[[][0-9]+D",		REGEX_INIT, 1, cursor_position,	LEFT },
+	{ "^" ESC "[[]H",		REGEX_INIT, 0, cursor_position,	HOME },
+	{ "^" ESC "[[]2J",		REGEX_INIT, 0, screen,		CLEAR },
+	{ "^" ESC "c",			REGEX_INIT, 0, screen,		SOFT_RESET },
+	{ "^" ESC "P[1-8][[]"/*([0-9]+[;])+[0-9]+f*/, REGEX_INIT, 7, character, COMPOSE_SPECIAL },
+	{ "^" ESC "[[]<[0-9]+V",	REGEX_INIT, 1, character,	DISPLAY_SPECIAL },
+	{ "^" ESC "[[]25h",		REGEX_INIT, 0, character,	BLINK_ON },
+	{ "^" ESC "[[]25l",		REGEX_INIT, 0, character,	BLINK_OFF },
+	{ "^" ESC "[[]<5h",		REGEX_INIT, 0, screen,		BACKLIGHT_ON },
+	{ "^" ESC "[[]<5l",		REGEX_INIT, 0, screen,		BACKLIGHT_OFF },
+	{ "^" ESC "[[]33h",		REGEX_INIT, 0, character,	CURSOR_BLINK_ON },
+	{ "^" ESC "[[]33l",		REGEX_INIT, 0, character,	CURSOR_BLINK_OFF },
+	{ "^" ESC "[[]27h",		REGEX_INIT, 0, character,	REVERSE_VIDEO_ON },
+	{ "^" ESC "[[]27l",		REGEX_INIT, 0, character,	REVERSE_VIDEO_OFF },
+	{ "^" ESC "[[]24h",		REGEX_INIT, 0, character,	UNDERLINE_ON },
+	{ "^" ESC "[[]24l",		REGEX_INIT, 0, character,	UNDERLINE_OFF },
+	{ "^" ESC "[[]0m",		REGEX_INIT, 0, character,	ALL_ATTRIBUTES_OFF },
+	{ "^" ESC "H",			REGEX_INIT, 0, cursor_position,	SET_TAB },
+	{ "^" ESC "[[][0-9]+g",		REGEX_INIT, 1, cursor_position,	CLEAR_TAB },
+	{ "^" ESC "[[][?]7h",		REGEX_INIT, 0, screen,		AUTO_WRAP_ON },
+	{ "^" ESC "[[][?]7l",		REGEX_INIT, 0, screen,		AUTO_WRAP_OFF },
+	{ "^" ESC "[[][?]8h",		REGEX_INIT, 0, screen,		AUTO_REPEAT_ON },
+	{ "^" ESC "[[][?]8l",		REGEX_INIT, 0, screen,		AUTO_REPEAT_OFF },
+	{ "^" ESC "[[][?]25h",		REGEX_INIT, 0, screen,		CURSOR_ON },
+	{ "^" ESC "[[][?]25l",		REGEX_INIT, 0, screen,		CURSOR_OFF },
+	{ "^" ESC "[[]<47h",		REGEX_INIT, 0, screen,		AUTO_SCROLL_ON },
+	{ "^" ESC "[[]<47l",		REGEX_INIT, 0, screen,		AUTO_SCROLL_OFF },
+	{ "^" ESC "[[]<[0-9]+S",	REGEX_INIT, 1, screen,		BACKLIGHT_TIMEOUT },
+	{ "^" ESC "[[]PU",		REGEX_INIT, 0, other,		POWER_UP },
+	{ "^" ESC "[[]6n",		REGEX_INIT, 0, cursor_position,	INQUIRE_POSITION },
+	{ "^" ESC "[[]Bn",		REGEX_INIT, 0, screen,		INQUIRE_ATTRIBUTES },
+	{ "^" ESC "[[]An",		REGEX_INIT, 0, other,		INQUIRE_AUX },
+	{ "^" ESC "[[]hn",		REGEX_INIT, 0, other,		INQUIRE_HEATER },
+	{ "^" ESC "[[]c",		REGEX_INIT, 0, other,		INQUIRE_TYPE },
+	{ "^" ESC "[[]Fn",		REGEX_INIT, 0, other,           INQUIRE_FOCUS },
+	{ "^" ESC "[[]5n",		REGEX_INIT, 0, other,           PANEL_PRESENT },
 };
 
 #define CMD_TAB_SIZE ( sizeof( cmd_tab ) / sizeof( cmd_tab[0]) )
@@ -215,7 +216,7 @@ static struct command_table_s {
 void clear_screen( display_t * );
 
 static char return_buffer[128];
-
+bool emergency_mode = false;
 
 typedef struct {
 	char	cmd;
@@ -379,6 +380,25 @@ int getterm( display_t * disp )
 	return( -1 );
 }
 
+void set_emergency(int term, int state)
+{
+	int i;
+	
+	if (get_focus() == term)
+		state = 0;
+		
+	display[term]->emergency = state;
+	// set global emergency condition
+	for (i=0; i<FP_MAX_DEVS; i++) {
+		if ((display[i] != NULL) && (display[i]->majic == TUI_MAJIC)) {
+			if (display[i]->emergency) {
+				emergency_mode = true;				
+				return;
+			}
+		}
+	}
+	emergency_mode = false;
+}
 
 //
 // Cursor control routines
@@ -648,9 +668,10 @@ void character( display_t *disp, int type, int args[] )
 	switch( type ) {
 		case COMPOSE_SPECIAL:
 			DBG( "%s(%d): SPC @ %d\n", __func__, term, args[0] );
-			for( i = 0; i < 6/*8*/; i++ ) {
-				disp->special_chars[args[0]][i] = args[1+i];
+			for( i = 1; i < 7/*8*/; i++ ) {
+				disp->special_chars[args[0]][i] = args[i];
 			}
+			disp->special_chars[args[0]][0] = 1; //indicate configured
 			break;
 		case DISPLAY_SPECIAL:
 			DBG( "%s(%d): SPD @ %d\n", __func__, term, args[0]);
@@ -897,8 +918,8 @@ int parse_escape_request( display_t *disp, char *s )
 			// pmatch[0].rm_eo == byte offset of last character in 's' that matches pattern.
 			DBG( "%s: match on cmd_tab[%d] @%d for %d = <ESC>%s\n", __func__, i, pmatch[0].rm_so, pmatch[0].rm_eo - pmatch[0].rm_so, &cmd_tab[i].pattern[2] );
 			// memmove( s[pmatch[0].rm_so], s[pmatch[0].rm_eo+1], pmatch[0].rm_eo - pmatch[0].rm_so );
-			// TODO add a field to cmd_tab with number of args expected, and pass to parse_arg_list
-			parse_arg_list( s, args, 16 );		// decode any numbers that are part of the command
+
+			parse_arg_list( s, args, cmd_tab[i].argc ); // decode any numbers that are part of the command
 
 			cmd_tab[i].func( disp, cmd_tab[i].type, args );	// call the operational routine for this command
 
@@ -1152,13 +1173,15 @@ void load_screen( int fd, int term )
 
 	DBG("%s: attributes set, loading text\n", __func__ );
 	
-	// send the special character definitions
+	// send the special character definitions, if configured
 	for( i = 0; i < 8; i++ ) {
-		xprintf( fd, ESC "[P%d[%d", i+1, disp->special_chars[i][0] );
-		for( j = 1; j < 8; j++ ) {
-			xprintf( fd, ";%d", disp->special_chars[i][j] );
+		if (disp->special_chars[i][0] != 0) {
+			xprintf( fd, ESC "P%d[%d", i+1, disp->special_chars[i][0] );
+			for( j = 1; j < 8; j++ ) {
+				xprintf( fd, ";%d", disp->special_chars[i][j] );
+			}
+			xprintf( fd, "f" );
 		}
-		xprintf( fd, "f" );
 	}
 
 	for( r = 0; r < disp->screen.rows; r++ ) {
@@ -1210,6 +1233,8 @@ void load_screen( int fd, int term )
 	// xprintf( fd, "", hl( disp->cursor.underline ) );
 	xprintf( fd, ESC "[%d;%df",  disp->cursor.row+1, disp->cursor.column+1 );
 
+	set_emergency(term, 0);
+	
 	DBG("%s: Text loaded\n", __func__ );
 }
 

@@ -3578,15 +3578,17 @@ int fioman_inputs_trans_set
 		return -EINVAL;
 	
         count = p_arg->count;
-        if (count <= 0)
+	if (count <= 0) {
 		return ( -EFAULT );
+	}
 
 	if (count > FIO_INPUT_POINTS_BYTES)
                 count = FIO_INPUT_POINTS_BYTES;
 
 	p_sys_fiod = p_app_fiod->p_sys_fiod;
-	if (copy_from_user(input_trans_map, p_arg->data, count))
+	if (copy_from_user(input_trans_map, p_arg->data, count)) {
 		return -EFAULT;
+	}
 
 	spin_lock_irqsave(&p_sys_fiod->lock, flags);
 	for (i=0; i<(FIO_INPUT_POINTS_BYTES*8); i++) {
@@ -3629,12 +3631,14 @@ int fioman_inputs_trans_get
 	/* Find this APP registration */
 	p_app_fiod = fioman_find_dev( p_priv, p_arg->dev_handle );
 	/* See if we found the dev_handle */
-	if ( NULL == p_app_fiod )
+	if ( NULL == p_app_fiod ) {
 		/* No, return error */
 		return -EINVAL;
+	}
 	
-	if (p_arg->count >= FIO_INPUT_POINTS_BYTES)
+	if (p_arg->count > FIO_INPUT_POINTS_BYTES) {
 		return -EINVAL;
+	}
 
 	p_sys_fiod = p_app_fiod->p_sys_fiod;
 	switch (p_arg->view) {
