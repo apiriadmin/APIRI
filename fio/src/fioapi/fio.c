@@ -1107,7 +1107,7 @@ fio_fiod_inputs_trans_set
 	unsigned int	count
 )
 {
-	FIO_IOC_INPUTS_TRANS_GET request;	/* IOCTL argument structure */
+	FIO_IOC_INPUTS_TRANS_SET request;	/* IOCTL argument structure */
 
 	/* Set up IOCTL structure */
 	request.dev_handle = dev_handle;
