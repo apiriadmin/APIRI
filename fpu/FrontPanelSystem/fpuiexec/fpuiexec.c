@@ -132,7 +132,6 @@ int main( int argc, char * argv[] )
 		fprintf( stderr, "open /dev/fpi failed (%s)\n", strerror( errno ) );
 		exit( 1 );
 	}
-	printf("registered child as %s\n", name);
 	
 	do
 	{
