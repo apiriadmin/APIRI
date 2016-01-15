@@ -1259,26 +1259,30 @@ list_packet *send_packet( int command, int from, int to, const char __user *buf,
 		slot_to_string(lptr->packet.from), slot_to_string(lptr->packet.to),
 		lptr->packet.size, lptr->packet.data, len, rptr->command );
 
-	to_dev = &fp_devtab[ rptr->to ];
+	if (rptr->to < FP_MAX_DEVS) {
+		to_dev = &fp_devtab[ rptr->to ];
 
-	if( down_interruptible( &to_dev->sem ) ) {
-		//return( -ERESTARTSYS );
-		return( NULL );
+		if( down_interruptible( &to_dev->sem ) ) {
+			//return( -ERESTARTSYS );
+			return( NULL );
+		}
 	}
 
 	// separate out signaling commands from the rest and handle them
 	switch( rptr->command ) {
 		case SIGNAL_ALL:
-			for( i = 0; i < FP_MAX_DEVS; i++ ) {
+			pr_debug("%s: SIGNAL_ALL packet\n", __func__);
+			for( i = 0; i < FPM_DEV; i++ ) {
 				// if the pid is set, send SIGWINCH to it.
-				if( fp_devtab[i].pid > 1 ) {
+				if( (fp_devtab[i].open_flags != CLOSED) && (fp_devtab[i].pid > 1) ) {
 					send_signal( fp_devtab[i].pid, SIGWINCH );
 				}
 			}
 			kfree( lptr );
 			break;
 		case SIGNAL:
-			if( fp_devtab[rptr->to].pid > 0 ) {
+			pr_debug("%s: SIGNAL packet\n", __func__);
+			if( (fp_devtab[i].open_flags != CLOSED) && (fp_devtab[rptr->to].pid > 0) ) {
 				send_signal( fp_devtab[rptr->to].pid, SIGWINCH );
 			}
 			kfree( lptr );
@@ -1338,7 +1342,8 @@ list_packet *send_packet( int command, int from, int to, const char __user *buf,
 			break;
 	}
 
-	up( &to_dev->sem );
+	if (to_dev != NULL)
+		up( &to_dev->sem );
 
 	return( lptr );
 }

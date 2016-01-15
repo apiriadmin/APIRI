@@ -218,14 +218,20 @@ void routing_return( int target, char *s, char *t )
 	DBG("%s: write to fpm\n", __func__ );
 }
 
-void routing_send_signal( int to, int sig )
+void routing_send_signal( int to )
 {
-	read_packet *rp = make_packet( sig, FPM_DEV, to, NULL, NULL );
+	read_packet *rp = NULL;
+	
+	if (to == FP_MAX_DEVS)
+		rp = make_packet( SIGNAL_ALL, FPM_DEV, to, NULL, NULL );
+	else
+		rp = make_packet( SIGNAL, FPM_DEV, to, NULL, NULL );
 
-	if( write( fpm, rp, sizeof( read_packet ) ) < 0 ) {
+	printf("%s: write signal packet (%d bytes)\n", __func__, rp->size);
+	if( write( fpm, rp, sizeof(read_packet) + rp->size ) < 0 ) {
 		fprintf(stderr, "%s: Write error - %s\n", __func__, strerror( errno ) );
 	}
-    free_packet(rp);
+	free_packet(rp);
 }
 
 

@@ -38,6 +38,7 @@
 
 static int msi;				// globaled for signal handler
 static int default_screen = MS_DEV;	// temporary storage for default screen
+static bool panel_change = true;
 
 extern void tohex( char * );
 extern void tohexn( char *, int );
@@ -46,6 +47,7 @@ extern int xprintf( int fd, const char * fmt, ... );
 void window_handler( int arg )
 {
 	fprintf( stderr, "SIGWINCH\n" );
+	panel_change = true;
 }
 
 
@@ -247,17 +249,23 @@ int main( int argc, char * argv[] )
 
 	printf("%s Ready msi=%d\n", argv[0], msi );
 
-	// get actual panel dimensions
-	get_screen_size( msi );
-	fpui_clear( msi );
-	display( msi, row_index );
 
 	// Use default key mappings
 
 	for( ;; ) {
+		if (panel_change) {
+			// get actual panel dimensions
+			get_screen_size( msi );
+			fpui_clear( msi );
+			display( msi, row_index );
+			panel_change = false;
+		}
+			
 		printf( "MS: reading on msi=%d\n", msi );
-		if (((i = read(msi, buf, sizeof(buf))) < 0)
-				|| (i < sizeof(read_packet)) ) {
+		i = read(msi, buf, sizeof(buf));
+		if ( (i < 0) || (i < sizeof(read_packet)) ) {
+			if (errno == EINTR)
+				continue;
 			perror( argv[0] );
 			exit( 30 );
 		}

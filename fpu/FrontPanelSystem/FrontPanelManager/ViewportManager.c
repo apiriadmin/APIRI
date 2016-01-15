@@ -64,7 +64,7 @@ extern void vt_lock( int );
 extern void load_screen( int, int );
 extern void vt_unlock( int );
 extern void tohex( char * );
-extern void routing_send_signal( int, int );
+extern void routing_send_signal( int );
 extern void routing_return(int, char *, char *s);
 extern int is_active( int );
 extern void virtual_terminal_return( int, char * );
@@ -115,7 +115,7 @@ bool panel_present( void )
 	return display_present;
 }
 
-int screen_YY = 8;
+int screen_YY = 16;
 int screen_XX = 40;
 
 bool check_screen_size( int fd )
@@ -128,7 +128,7 @@ bool check_screen_size( int fd )
 	ufds.revents = 0;
 
 	// Set Default values
-	screen_YY = 8;
+	screen_YY = 16;
 	screen_XX = 40;
 
 	// to determine the screen size, one idea is to set the cursor position
@@ -164,7 +164,7 @@ bool check_screen_size( int fd )
 		if ((row == screenSizes[t][1]) && (col == screenSizes[t][0])) {
 			screen_YY = row;
 			screen_XX = col;
-			DBG("screen size detected %d %d\n", row, col);
+			/*DBG*/printf("screen size detected %d %d\n", row, col);
 			break;
 		}
 	}
@@ -382,13 +382,14 @@ void viewport_listener( char *filepath )
 						// do 5 second things.
 						//
 						if( ping ) {	// did we send a ping and not get a response
+							//screen_YY = 0;
+							//screen_XX = 0;
 							if( display_present ) {
-								DBG( "%s: Display has been disconnected.\n", __func__ );
+								display_present = false;
+								/*DBG*/printf( "%s: Display has been disconnected.\n", __func__ );
 								// TODO we need to signal the change
+								routing_send_signal(FP_MAX_DEVS);
 							}
-							display_present = false;
-							screen_YY = 0;
-							screen_XX = 0;
 						}
                                                 // Send ping (now enquire AUX switch state)
 						write( fd, ESC "[An", 4 );
@@ -424,9 +425,13 @@ void viewport_listener( char *filepath )
 						fprintf( stderr, "%s: Fgetc EOF (%s)\n", __func__, strerror( errno ) );
 					} else if (!display_present) {
 						// Panel must be present now
+						/*DBG*/printf( "%s: Display has been reconnected.\n", __func__ );
 						display_present = true;
 						tcflush(fd,TCIFLUSH);
 						check_screen_size( fd );
+						set_focus(has_focus);
+						routing_send_signal(FP_MAX_DEVS);
+						ping = false;
 						break;
 					} else if( ch == CHAR_ESC ) {
 						// get as much of the escape sequence as we can recognize
@@ -497,10 +502,12 @@ void viewport_listener( char *filepath )
 								DBG( "%s: AUX switch status sequence\n", __func__ );
 								if( ping ) {
 									if( !display_present ) {
-										DBG( "%s: Display has been reconnected.\n", __func__ );
+										/*DBG*/printf( "%s: Display has been reconnected (ping).\n", __func__ );
 										// TODO we need to signal the change
 										display_present = true;
 										check_screen_size( fd );
+										routing_send_signal(FP_MAX_DEVS); //signal all
+										set_focus(has_focus);
 									}
 									ping = false;
 								}

@@ -1022,7 +1022,7 @@ void virtual_terminal( int terminal, char *s )
 						break;
 					}
 				}
-				i += 8;	// skip over the 8 bytes that make up  this operation
+				i += sizeof(keymap_t);	// skip over the bytes that make up  this operation
 				qsort( disp->keycode_map, 16, sizeof( struct keycode_s ), keycomp );
 				goto clean_up;
 				break;
