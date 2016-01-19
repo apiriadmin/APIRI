@@ -46,7 +46,6 @@ extern int xprintf( int fd, const char * fmt, ... );
 
 void window_handler( int arg )
 {
-	fprintf( stderr, "SIGWINCH\n" );
 	panel_change = true;
 }
 
@@ -166,11 +165,14 @@ void get_screen_size(int fd)
 			if (sscanf((const char *)rp->data, "\x1b[%cR", &type) == 1) {
 				if (toupper(type) == 'A')
 					g_rows = 4;
+				else if (toupper(type) == 'B')
+					g_rows = 8;
 				else if (toupper(type) == 'D')
 					g_rows = 16;
 			}
 		}
 	}
+	fprintf( stderr, "MS: panel type = %x, g_rows = %d\n", type, g_rows);	
 }
 
 #define KEY_ENT   0x0d
@@ -205,9 +207,17 @@ int main( int argc, char * argv[] )
 	bool default_cmd = false;
 	int default_win = -1;
 	char default_app[16] = "";
-
+	struct sigaction act;
+	
 	signal( SIGHUP, alldone );
-	signal( SIGWINCH, window_handler );
+	
+	memset (&act, 0, sizeof(act));
+	act.sa_handler = window_handler;
+	act.sa_flags = 0;
+	if (sigaction(SIGWINCH, &act, NULL) != 0) {
+	        fprintf( stderr, "%s: sigaction error - %s\n", argv[0], strerror( errno ) );
+		exit( 99 );		
+	}
 
 	// try to read the default app from /etc/default/fpui
 	FILE *fp = fopen("/etc/default/fpui", "r");
@@ -255,14 +265,15 @@ int main( int argc, char * argv[] )
 	for( ;; ) {
 		if (panel_change) {
 			// get actual panel dimensions
+			fprintf(stderr, "MS: panel change\n");
 			get_screen_size( msi );
 			fpui_clear( msi );
 			display( msi, row_index );
 			panel_change = false;
 		}
 			
-		printf( "MS: reading on msi=%d\n", msi );
 		i = read(msi, buf, sizeof(buf));
+		printf( "MS: read() return %d\n", i );
 		if ( (i < 0) || (i < sizeof(read_packet)) ) {
 			if (errno == EINTR)
 				continue;
