@@ -1151,6 +1151,8 @@ void load_screen( int fd, int term )
 	if (!is_active( term ))
 		return;
 
+	disp->screen.columns = screen_XX;
+	disp->screen.rows = screen_YY;
 	DBG("%s: fd=%d, term=%d (%d:%d)\n", __func__, fd, term, disp->screen.rows, disp->screen.columns );
 
 	// clear screen
