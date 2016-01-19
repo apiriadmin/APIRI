@@ -75,6 +75,7 @@ void process_cmd(sc_cmd_struct *pCmd);
   */
 static sc_internal_data	display_data;
 int g_rows = 4, g_cols = 40;
+bool panel_change = false;
 
 
  /*
@@ -92,6 +93,11 @@ int ipow(int base, int exp)
 	return result;
 }
 
+void signal_handler( int arg )
+{
+	fprintf( stderr, "SIGWINCH\n" );
+	panel_change = true;
+}
 
  int main()
  {
@@ -104,11 +110,16 @@ int ipow(int base, int exp)
   */	
  int start_sc_module()
  {
-
+	struct sigaction act;
  	/* Buffers used to store the current command */
 	unsigned char cmd_buffer[MAX_CMD_BUFFER_SIZE];
 	sc_cmd_struct crt_cmd;
-	
+
+	memset(&act, 0, sizeof(act));
+	act.sa_handler = signal_handler;
+	act.sa_flags = 0;
+	sigaction(SIGWINCH, &act, NULL);
+
 	/* Open the communication channel with the FPM module */
 	display_data.file_descr = open(PATH_NAME_FPI, O_RDWR | O_EXCL);
 	
@@ -130,6 +141,15 @@ int ipow(int base, int exp)
 	/* Stay in the infinite loop read/parse/process command */
 	while (1)
 	{
+		if (panel_change) {
+			if (fpui_panel_present(display_data.file_descr)
+				&& (fpui_get_window_size(display_data.file_descr, &g_rows, &g_cols) != 0)) {
+				g_rows = EXTERNAL_SCREEN_Y_SIZE;
+				g_cols = EXTERNAL_SCREEN_X_SIZE;
+			}
+			display_screen(display_data.crt_screen);
+			panel_change = false;
+		}
 		read_cmd(cmd_buffer);
 		parse_cmd(cmd_buffer, &crt_cmd);
 		process_cmd(&crt_cmd);
@@ -285,7 +305,8 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 	memcpy(pScreen->header[0], HEADER_LINE_0_MENU,
 		strlen(HEADER_LINE_0_MENU));
 	memcpy(pScreen->header[1], HEADER_LINE_1_MENU,
-		strlen(HEADER_LINE_1_MENU));	
+		strlen(HEADER_LINE_1_MENU));
+	memcpy(pScreen->footer, FOOTER_LINE_MENU, strlen(FOOTER_LINE_MENU));
 	init_one_field_line(pScreen, 0, LINE_0_MENU, false);
 	init_one_field_line(pScreen, 1, LINE_1_MENU, false);
 	init_one_field_line(pScreen, 2, LINE_2_MENU, true);
@@ -308,7 +329,9 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 	pScreen->display_offset_y = 0;
 	pScreen->update = (void *)update_time_screen;
 	memcpy(pScreen->header[0], HEADER_LINE_0_TIME,
-		strlen(HEADER_LINE_0_TIME));	
+		strlen(HEADER_LINE_0_TIME));
+	memcpy(pScreen->footer, FOOTER_LINE_TIME,
+		strlen(FOOTER_LINE_TIME));
 	init_one_field_line(pScreen, 0, LINE_0_TIME, false);
 	init_one_field_line(pScreen, 1, LINE_1_TIME, false);
 	init_one_field_line(pScreen, 2, LINE_2_TIME, false);
@@ -423,6 +446,7 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 		strlen(HEADER_LINE_0_ETH));
 	memcpy(pScreen->header[1], HEADER_LINE_1_ETH,
 		strlen(HEADER_LINE_1_ETH));	
+	memcpy(pScreen->footer, FOOTER_LINE_ETH, strlen(FOOTER_LINE_ETH));
 	
 	byteCount = get_data_from_file("/sys/class/net/eth0/address", NULL, buffer, 17);
 	memcpy((char *)&pScreen->header[1][19], buffer, byteCount);
@@ -622,6 +646,7 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 		strlen(HEADER_LINE_0_SRVC));
 	memcpy(pScreen->header[1], HEADER_LINE_1_SRVC,
 		strlen(HEADER_LINE_1_SRVC));
+	memcpy(pScreen->footer, FOOTER_LINE_SRVC, strlen(FOOTER_LINE_SRVC));
 	init_remaining_lines(pScreen, 0);
 	//init_one_field_line(pScreen, 7, LINE_7_SRVC, false);
 	{DIR *dir;
@@ -697,7 +722,8 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 	pScreen->display_offset_y = 0;
 	pScreen->update = (void *)update_linux_screen;
 	memcpy(pScreen->header[0], HEADER_LINE_0_LNUX,
-		strlen(HEADER_LINE_0_LNUX));	
+		strlen(HEADER_LINE_0_LNUX));
+	memcpy(pScreen->footer, FOOTER_LINE_LNUX, strlen(FOOTER_LINE_LNUX));
 	init_one_field_line(pScreen, 0, LINE_0_LNUX, true);
 	init_one_field_line(pScreen, 1, LINE_1_LNUX, true);
 	init_one_field_line(pScreen, 2, LINE_2_LNUX, true);
@@ -748,7 +774,8 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 	pScreen->display_offset_y = 0;
 	pScreen->update = NULL;
 	memcpy(pScreen->header[0], HEADER_LINE_0_APIV,
-		strlen(HEADER_LINE_0_APIV));	
+		strlen(HEADER_LINE_0_APIV));
+	memcpy(pScreen->footer, FOOTER_LINE_APIV, strlen(FOOTER_LINE_APIV));
 	init_one_field_line(pScreen, 0, LINE_0_APIV, false);
 	init_one_field_line(pScreen, 1, LINE_1_APIV, false);
 	init_one_field_line(pScreen, 2, LINE_2_APIV, false);
@@ -783,6 +810,7 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 	pScreen->update = (void *)update_eeprom_screen;
 	memcpy(pScreen->header[0], HEADER_LINE_0_EPRM,
 		strlen(HEADER_LINE_0_EPRM));
+	memcpy(pScreen->footer, FOOTER_LINE_EPRM, strlen(FOOTER_LINE_EPRM));
 	init_remaining_lines(pScreen, 0);
 	for(lineNo=0; lineNo<MAX_INTERNAL_SCREEN_Y_SIZE; lineNo++) {
 		memset(pScreen->screen_lines[lineNo].line, ' ', EPRM_SCREEN_X_SIZE);
@@ -801,7 +829,8 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 	pScreen->display_offset_y = 0;
 	pScreen->update = (void *)update_timesrc_screen;
 	memcpy(pScreen->header[0], HEADER_LINE_0_TSRC,
-		strlen(HEADER_LINE_0_TSRC));	
+		strlen(HEADER_LINE_0_TSRC));
+	memcpy(pScreen->footer, FOOTER_LINE_TSRC, strlen(FOOTER_LINE_TSRC));
 	init_one_field_line(pScreen, 0, LINE_0_TSRC, false);
 
         //int tsrc = tod_get_timesrc();
@@ -875,7 +904,8 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 	pScreen->header_dim_y = HELP_SCREEN_HEADER_SIZE;
 	pScreen->update = NULL;
 	memcpy(pScreen->header[0], HEADER_LINE_0_HELP,
-		strlen(HEADER_LINE_0_HELP));	
+		strlen(HEADER_LINE_0_HELP));
+	memcpy(pScreen->footer, FOOTER_LINE_HELP, strlen(FOOTER_LINE_HELP));
 	init_one_field_line(pScreen, 0, LINE_0_HELP, false);
 	init_one_field_line(pScreen, 1, LINE_1_HELP, true);
 	init_one_field_line(pScreen, 2, LINE_2_HELP, true);
@@ -936,9 +966,12 @@ for(i=0; i<pCrt_screen->dim_y; i++)
  	}
 
 	/* Write the fixed footer at the last line */
-	send_display_change(0, g_rows-1,
+	if (pCrt_screen->footer != NULL) {
+		send_display_change(0, g_rows-1,
 			CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	write(display_data.file_descr, "[UP/DN ARROW] [APPLY-ENT]  [QUIT-**NEXT]", 40);
+		write(display_data.file_descr, pCrt_screen->footer,
+			pCrt_screen->dim_x);
+	}
 	
  	//send_display_change(pCrt_screen->cursor_x, crt_cursor_y, CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
 	pCrt_screen->cursor_x = pCrt_screen->cursor_y = 0;
