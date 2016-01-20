@@ -936,8 +936,8 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 
 	 /* Lock the screens and call send_display_change with NO_SCREEN_LOCK as a parameter. */
 	pthread_mutex_lock(&display_data.screen_mutex);
-	printf("%s: screen #%d, y-dim=%d, y-offset=%d\n", __func__, screen_no,
-		pCrt_screen->dim_y, pCrt_screen->display_offset_y);
+	/*printf("%s: screen #%d, y-dim=%d, y-offset=%d\n", __func__, screen_no,
+		pCrt_screen->dim_y, pCrt_screen->display_offset_y);*/
 /*int i;
 for(i=0; i<pCrt_screen->dim_y; i++)
 	printf("%*.*s\n", EPRM_SCREEN_X_SIZE, EPRM_SCREEN_X_SIZE, pCrt_screen->screen_lines[i].line);*/
@@ -992,15 +992,15 @@ fpui_set_cursor(display_data.file_descr, true);
 			sc_line_field *pCrt_field = &pCrt_line->fields[crt_field];
 			pCrt_screen->cursor_y = line+pCrt_screen->display_offset_y;
 			pCrt_screen->cursor_x = pCrt_field->start + pCrt_field->length - 1;
-printf("%s: screen #%d, x=%d, y=%d, %*.*s\n", __func__, screen_no, pCrt_field->start, crt_cursor_y,
-	pCrt_field->length,pCrt_field->length,(pCrt_line->line + pCrt_field->start));
+/*printf("%s: screen #%d, x=%d, y=%d, %*.*s\n", __func__, screen_no, pCrt_field->start, crt_cursor_y,
+	pCrt_field->length,pCrt_field->length,(pCrt_line->line + pCrt_field->start));*/
 			send_display_change(pCrt_field->start,
 				crt_cursor_y,
 				CS_DISPLAY_MAKE_BLINKING,
 				(pCrt_line->line + pCrt_field->start), pCrt_field->length,
 				NO_SCREEN_LOCK);
 			/* set the cursor on the last position */
-printf("%s: screen #%d, x=%d, y=%d\n", __func__, screen_no, pCrt_screen->cursor_x, crt_cursor_y);
+/*printf("%s: screen #%d, x=%d, y=%d\n", __func__, screen_no, pCrt_screen->cursor_x, crt_cursor_y);*/
 			send_display_change(pCrt_screen->cursor_x,
 				crt_cursor_y,
 				CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
@@ -1009,8 +1009,8 @@ printf("%s: screen #%d, x=%d, y=%d\n", __func__, screen_no, pCrt_screen->cursor_
 		line++;
 		crt_cursor_y++;
  	}
-	printf("%s: screen #%d, cursor_y=%d, cursor_x=%d\n", __func__, screen_no,
-		pCrt_screen->cursor_y, pCrt_screen->cursor_x);
+	/*printf("%s: screen #%d, cursor_y=%d, cursor_x=%d\n", __func__, screen_no,
+		pCrt_screen->cursor_y, pCrt_screen->cursor_x);*/
 
  	/* Create the thread that will update the variable screen part
  	 */
@@ -1212,7 +1212,7 @@ printf("%s: screen #%d, x=%d, y=%d\n", __func__, screen_no, pCrt_screen->cursor_
 	case ETH1_SCREEN_ID:
 	case ETH2_SCREEN_ID:
 	{
-		char sh_cmd[320];
+		char sh_cmd[400];
 		bool eth_if_changed = false, eth_dns_changed = false;
 		bool eth_enable = true;
 		char *eth_name = (screen_no == ETH1_SCREEN_ID)?"eth0":"eth1";
@@ -1243,6 +1243,41 @@ printf("%s: screen #%d, x=%d, y=%d\n", __func__, screen_no, pCrt_screen->cursor_
 				eth_if_changed = true;
 			}
 			break;
+#if 1
+		case ETH_IPADDR_LINE:
+		case ETH_NETMASK_LINE:
+		case ETH_GWADDR_LINE:
+			for (i=0; i<4; i++) {
+				pCrt_field = &pCrt_line->fields[1 + (2*i)];
+				if ((pCrt_field->type == kModified) || (pCrt_field->type == kModified2)) {
+					pCrt_field->internal_data = pCrt_field->temp_data;
+					break;
+				}
+			}
+			sprintf(sh_cmd,
+				"awk '{if($1==\"iface\"){if($2==\"%s\")"
+				"{iface=1;if(match($0, / static/)){static=1;}else{static=0;}}else{iface=0;}print $0;next;}}"
+				"{if(iface&&static&&$1==\"address\")"
+				"{print \"\t\" \"address %d.%d.%d.%d\";"
+				"print \"\t\" \"netmask %d.%d.%d.%d\";"
+				"print \"\t\" \"gateway %d.%d.%d.%d\";"
+				"print \"\";}"
+				"else{if($1==\"iface\"){iface=0;}else{if(!iface){print $0}}};next;}' /etc/network/interfaces >/tmp/ifs", eth_name,
+				pCrt_screen->screen_lines[ETH_IPADDR_LINE].fields[ETH_IPADDR1_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_IPADDR_LINE].fields[ETH_IPADDR2_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_IPADDR_LINE].fields[ETH_IPADDR3_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_IPADDR_LINE].fields[ETH_IPADDR4_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_NETMASK_LINE].fields[ETH_NETMASK1_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_NETMASK_LINE].fields[ETH_NETMASK2_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_NETMASK_LINE].fields[ETH_NETMASK3_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_NETMASK_LINE].fields[ETH_NETMASK4_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR1_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR2_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR3_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR4_FIELD].internal_data);
+			eth_if_changed = true;
+			break;
+#else
 		case ETH_IPADDR_LINE:
 			for (i=0; i<4; i++) {
 				pCrt_field = &pCrt_line->fields[ETH_IPADDR1_FIELD + (2*i)];
@@ -1306,6 +1341,7 @@ printf("%s: screen #%d, x=%d, y=%d\n", __func__, screen_no, pCrt_screen->cursor_
 				}
 			}
 			break;
+#endif
 		case ETH_NSADDR_LINE:
 			for (i=0; i<4; i++) {
 				pCrt_field = &pCrt_line->fields[ETH_NSADDR1_FIELD + (2*i)];
@@ -1346,7 +1382,6 @@ printf("%s: screen #%d, x=%d, y=%d\n", __func__, screen_no, pCrt_screen->cursor_
 				}
 			}
 			if (valid) {
-printf("writing hostname:%s\n", hostname);
 				// write to /etc/hostname
 				sprintf(sh_cmd, "sed -i 's/.*/%s/' /etc/hostname", hostname);
 				system(sh_cmd);
@@ -1384,7 +1419,7 @@ printf("writing hostname:%s\n", hostname);
 		}
 
 		if (eth_if_changed || eth_dns_changed) {
-			printf("%s\n",sh_cmd);
+			/*printf("%s\n",sh_cmd);*/
 			system(sh_cmd);
 			// stop network interface
 			sprintf(sh_cmd, "/sbin/ifdown -f %s", eth_name);
@@ -3369,8 +3404,8 @@ void update_timesrc_screen(void)
 		}
 	};
 	
-	printf("%s: cmd type=%d, crt curs xy=(%d,%d) field=%d\n",
-			__func__, pCmd->type, crt_cursor_x, crt_cursor_y, crt_field);
+	/*printf("%s: cmd type=%d, crt curs xy=(%d,%d) field=%d\n",
+			__func__, pCmd->type, crt_cursor_x, crt_cursor_y, crt_field);*/
 	switch (pCmd->type)
 	{
 		case kChangeCharCmd: /* change field command */
