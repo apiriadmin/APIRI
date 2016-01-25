@@ -121,7 +121,7 @@ void signal_handler( int arg )
 	sigaction(SIGWINCH, &act, NULL);
 
 	/* Open the communication channel with the FPM module */
-	display_data.file_descr = open(PATH_NAME_FPI, O_RDWR | O_EXCL);
+	display_data.file_descr = fpui_open_config_window(O_RDWR | O_EXCL);
 	
 	if (display_data.file_descr < 0) /* error opening the channel? */
 		return ERR_OPEN_CONNECTION;
@@ -154,7 +154,7 @@ void signal_handler( int arg )
 		parse_cmd(cmd_buffer, &crt_cmd);
 		process_cmd(&crt_cmd);
 	}
-	close(display_data.file_descr);
+	fpui_close_config_window(display_data.file_descr);
  }
  
  /* Initialize one unmodifiable field line, defined by a pointer to a screen and the line number */ 
