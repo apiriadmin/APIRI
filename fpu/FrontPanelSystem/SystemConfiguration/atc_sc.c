@@ -1256,13 +1256,20 @@ fpui_set_cursor(display_data.file_descr, true);
 					break;
 				}
 			}
+			uint8_t gwip1 = pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR1_FIELD].internal_data;
+			uint8_t gwip2 = pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR2_FIELD].internal_data;
+			uint8_t gwip3 = pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR3_FIELD].internal_data;
+			uint8_t gwip4 = pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR4_FIELD].internal_data;
+			char gwstr[32] = "";
+			if (gwip1|gwip2|gwip3|gwip4)
+				sprintf(gwstr, "print \"\t\" \"gateway %d.%d.%d.%d\";", gwip1, gwip2, gwip3, gwip4);
 			sprintf(sh_cmd,
 				"awk '{if($1==\"iface\"){if($2==\"%s\")"
 				"{iface=1;if(match($0, / static/)){static=1;}else{static=0;}}else{iface=0;}print $0;next;}}"
 				"{if(iface&&static&&$1==\"address\")"
 				"{print \"\t\" \"address %d.%d.%d.%d\";"
 				"print \"\t\" \"netmask %d.%d.%d.%d\";"
-				"print \"\t\" \"gateway %d.%d.%d.%d\";"
+				"%s"
 				"print \"\";}"
 				"else{if($1==\"iface\"||$1==\"auto\")"
 				"{iface=0;print $0}else{if(!iface){print $0}}};next;}' /etc/network/interfaces >/tmp/ifs",
@@ -1275,10 +1282,7 @@ fpui_set_cursor(display_data.file_descr, true);
 				pCrt_screen->screen_lines[ETH_NETMASK_LINE].fields[ETH_NETMASK2_FIELD].internal_data,
 				pCrt_screen->screen_lines[ETH_NETMASK_LINE].fields[ETH_NETMASK3_FIELD].internal_data,
 				pCrt_screen->screen_lines[ETH_NETMASK_LINE].fields[ETH_NETMASK4_FIELD].internal_data,
-				pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR1_FIELD].internal_data,
-				pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR2_FIELD].internal_data,
-				pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR3_FIELD].internal_data,
-				pCrt_screen->screen_lines[ETH_GWADDR_LINE].fields[ETH_GWADDR4_FIELD].internal_data);
+				gwstr );
 			eth_if_changed = true;
 			break;
 #else
