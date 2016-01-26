@@ -1264,7 +1264,9 @@ fpui_set_cursor(display_data.file_descr, true);
 				"print \"\t\" \"netmask %d.%d.%d.%d\";"
 				"print \"\t\" \"gateway %d.%d.%d.%d\";"
 				"print \"\";}"
-				"else{if($1==\"iface\"){iface=0;}else{if(!iface){print $0}}};next;}' /etc/network/interfaces >/tmp/ifs", eth_name,
+				"else{if($1==\"iface\"||$1==\"auto\")"
+				"{iface=0;print $0}else{if(!iface){print $0}}};next;}' /etc/network/interfaces >/tmp/ifs",
+				eth_name,
 				pCrt_screen->screen_lines[ETH_IPADDR_LINE].fields[ETH_IPADDR1_FIELD].internal_data,
 				pCrt_screen->screen_lines[ETH_IPADDR_LINE].fields[ETH_IPADDR2_FIELD].internal_data,
 				pCrt_screen->screen_lines[ETH_IPADDR_LINE].fields[ETH_IPADDR3_FIELD].internal_data,
