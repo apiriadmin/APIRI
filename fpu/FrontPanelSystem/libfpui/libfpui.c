@@ -632,6 +632,11 @@ int fpui_compose_special_char( fpui_handle fd, int index, unsigned char *buffer 
 	int len = 0;
 	char buf[40];
 
+	if ((index < 1) || (index > 8)) {
+		errno = EINVAL;
+		return -1;
+	}
+		
 	len += sprintf( &buf[len], ESC "P%d[", index );
 	for( i = 0; i < 8; i++ ) {
 		len += sprintf( &buf[len], "%d;", buffer[i] );
