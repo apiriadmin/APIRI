@@ -142,7 +142,7 @@ int main(int argc, char **argv)
 				}
 						
 				// add ntp gps device links
-				sprintf(command, "sed -i '5 a ln -s /dev/sp%d /dev/gps0' %s",
+				sprintf(command, "sed -i '$ a ln -s /dev/sp%d /dev/gps0' %s",
 					portNumber, NTPGPS_FILE);
 				system(command);
 			} else if (timesrc_new == ATC_TIMESRC_EXTERNAL2) {
