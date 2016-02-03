@@ -365,6 +365,18 @@ u8 device_to_addr( FIO_DEVICE_TYPE device_type )
 	else if ( device_type == FIOOUT14SIU2 )
 		/* 14 Pack Output SIU2 */
 		frame_addr = 3;
+	else if ( device_type == FIOCMU )
+		/* ITS CMU */
+		frame_addr = 15;
+	else if ( (device_type >= FIODR1) && (device_type <= FIODR8) )
+		/* TS2 Detector BIU */
+		frame_addr = (device_type - FIODR1) + 8;
+	else if ( (device_type >= FIOTF1) && (device_type <= FIOTF8) )
+		/* TS2 TF BIU */
+		frame_addr = (device_type - FIOTF1);
+	else if ( device_type == FIOMMU )
+		/* TS2 MMU */
+		frame_addr = 16;
 
 	return frame_addr;
 }
@@ -403,7 +415,7 @@ fioman_ready_generic_tx_frame
 		p_tx->when = FIOMSG_CURRENT_TIME;		/* Set when to send frame */
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
-		copy_from_user(FIOMSG_PAYLOAD(p_tx), payload, count);
+		copy_from_user(FIOMSG_PAYLOAD(p_tx)->frame_info, payload, count);
 	}
 	else
 	{
