@@ -115,7 +115,7 @@ bool build_menu( void )
 
 	clear_menu();
 	for( i=0; i<MAX_MENU_ROWS; i++ ) {
-		sprintf( menu[i], "%s%1x%c%-16.16s%s  %s%1x%c%-16.16s%s",
+		sprintf( menu[i], "%s%1X%c%-16.16s%s  %s%1X%c%-16.16s%s",
 			has_emergency(i*2)?"\x1b[25h":"",
 			i*2, isdefault(i*2), reg_name(i*2),
 			has_emergency(i*2)?"\x1b[25l":"",
@@ -137,7 +137,7 @@ void display( int fd, int row_index )
 	fpui_write_string_at(fd, "          FRONT PANEL MANAGER", 1, 1);
 	fpui_write_string_at(fd, "SELECT WINDOW [0-F]  SET DEFAULT *[0-F]", 2, 1);
 	for( i=menu_start_row, row=3; (i<MAX_MENU_ROWS) && (row<g_rows); i++ ) {
-		sprintf(buf, "%1x%c%s%-16.16s%s  %1x%c%s%-16.16s%s",
+		sprintf(buf, "%1X%c%s%-16.16s%s  %1X%c%s%-16.16s%s",
 			i*2, isdefault(i*2), has_emergency(i*2)?"\x1b[25h":"",
 			reg_name(i*2),
 			has_emergency(i*2)?"\x1b[25l":"",
