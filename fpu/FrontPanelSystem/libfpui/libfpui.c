@@ -58,7 +58,7 @@ char *fpui_apiver( fpui_handle fd, int type )
 {
 	switch( type ) {
 		case 1:
-			return( "Intelight, 1.0, 2.17" );
+			return( "APIRI, 1.1, 2.17" );
 		case 2:
 			if( ioctl( fd, FP_IOC_VERSION, version_buf ) < 0 ) {
 				return( NULL );
