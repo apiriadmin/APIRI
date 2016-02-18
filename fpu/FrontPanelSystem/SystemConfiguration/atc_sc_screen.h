@@ -25,6 +25,7 @@
 #define ATC_SC_SCREEN_H
 
 // Internal and external screens max size info
+#define MAX_SCREENS 18
 #define EXTERNAL_SCREEN_X_SIZE 	40
 #define EXTERNAL_SCREEN_Y_SIZE 	16  // in reality its 8 but the last line is reserved for "Quick Help"
 
@@ -36,17 +37,17 @@
 
 
 // ID for the various internal screens
-#define NO_INTERNAL_SCREENS     10
-#define MENU_SCREEN_ID          0
-#define TIME_SCREEN_ID          1
-#define ETH1_SCREEN_ID          2
-#define ETH2_SCREEN_ID          3
-#define SRVC_SCREEN_ID          4
-#define LNUX_SCREEN_ID          5
-#define APIV_SCREEN_ID          6
-#define EPRM_SCREEN_ID          7
-#define TSRC_SCREEN_ID          8
-#define HELP_SCREEN_ID          9
+#define NO_INTERNAL_SCREENS     8
+#define TIME_SCREEN_ID          0
+#define ETH1_SCREEN_ID          1
+#define ETH2_SCREEN_ID          2
+#define SRVC_SCREEN_ID          3
+#define LNUX_SCREEN_ID          4
+#define APIV_SCREEN_ID          5
+#define EPRM_SCREEN_ID          6
+#define TSRC_SCREEN_ID          7
+#define MENU_SCREEN_ID          16
+#define HELP_SCREEN_ID          17
 
 // Sizes of various internal screens
 #define MENU_SCREEN_X_SIZE 	40
