@@ -823,23 +823,22 @@ printf("atc_sc: initialize APIV Screen\n");
 	init_one_field_line(pScreen, 2, LINE_2_APIV, false);
 	init_one_field_line(pScreen, 3, LINE_3_APIV, false);
 	init_one_field_line(pScreen, 4, LINE_4_APIV, false);
-	init_one_field_line(pScreen, 5, LINE_5_APIV, false);
-	init_remaining_lines(pScreen, 6);
-	byteCount = snprintf(buffer, 23, "%-23.23s", fpui_apiver(display_data.file_descr,1));
-	memcpy(&pScreen->screen_lines[0].line[17], buffer, byteCount);
-	byteCount = snprintf(buffer, 19, "%-19.19s", fpui_apiver(display_data.file_descr,2));
-	memcpy((char *)&pScreen->screen_lines[1].line[21], buffer, byteCount);
+	init_remaining_lines(pScreen, 5);
+	byteCount = snprintf(buffer, 26, "%-26.26s", fpui_apiver(display_data.file_descr,1));
+	memcpy(&pScreen->screen_lines[0].line[14], buffer, byteCount);
+	byteCount = snprintf(buffer, 22, "%-22.22s", fpui_apiver(display_data.file_descr,2));
+	memcpy((char *)&pScreen->screen_lines[1].line[18], buffer, byteCount);
 	// Connect to fio api to get version info
 	FIO_APP_HANDLE fiod = -1;
 	if ((fiod = fio_register()) >= 0) { 
-		byteCount = snprintf(buffer, 24, "%-24.24s", fio_apiver(fiod, FIO_VERSION_LIBRARY));
-		memcpy(&pScreen->screen_lines[2].line[16], buffer, byteCount);
-		byteCount = snprintf(buffer, 20, "%-20.20s", fio_apiver(fiod, FIO_VERSION_LKM));
-		memcpy((char *)&pScreen->screen_lines[3].line[20], buffer, byteCount);
+		byteCount = snprintf(buffer, 27, "%-27.27s", fio_apiver(fiod, FIO_VERSION_LIBRARY));
+		memcpy(&pScreen->screen_lines[2].line[13], buffer, byteCount);
+		byteCount = snprintf(buffer, 23, "%-23.23s", fio_apiver(fiod, FIO_VERSION_LKM));
+		memcpy((char *)&pScreen->screen_lines[3].line[17], buffer, byteCount);
 		fio_deregister(fiod);
 	}
-	byteCount = snprintf(buffer, 24, "%-24.24s", tod_apiver());
-	memcpy(&pScreen->screen_lines[4].line[16], buffer, byteCount);
+	byteCount = snprintf(buffer, 27, "%-27.27s", tod_apiver());
+	memcpy(&pScreen->screen_lines[4].line[13], buffer, byteCount);
 	
  	/* Initialize the EPRM screen */
 printf("atc_sc: initialize EPRM Screen\n");
@@ -858,10 +857,12 @@ printf("atc_sc: initialize EPRM Screen\n");
 	memcpy(pScreen->header[0], HEADER_LINE_0_EPRM,
 		strlen(HEADER_LINE_0_EPRM));
 	memcpy(pScreen->footer, FOOTER_LINE_EPRM, strlen(FOOTER_LINE_EPRM));
-	init_remaining_lines(pScreen, 0);
-	for(lineNo=0; lineNo<MAX_INTERNAL_SCREEN_Y_SIZE; lineNo++) {
+	init_one_field_line(pScreen, 0, LINE_0_EPRM, false);
+	init_one_field_line(pScreen, 1, LINE_1_EPRM, false);
+	init_remaining_lines(pScreen, 2);
+	/*for(lineNo=0; lineNo<MAX_INTERNAL_SCREEN_Y_SIZE; lineNo++) {
 		memset(pScreen->screen_lines[lineNo].line, ' ', EPRM_SCREEN_X_SIZE);
-	}
+	}*/
 
 	/* update eeprom content from current state before display */
 	sprintf(buffer, "/usr/bin/eeprom -u");
@@ -3020,7 +3021,7 @@ void update_eeprom_screen(void *arg)
 	}
 	/* if version is ATC Standard v6, and not 2070 default, and size < eprm_sz, and  crc is good ... */
 	/* (assume size value is from eprm start to end of CRC, so crc is at eeprom[size-2] */
-	if ((eeprom[0] == 2) && sz && (sz <= eprm_sz) && (crc_ccitt(0xffff, eeprom, sz) == 0xf0b8)) {
+	if ((eeprom[0] == 2) && sz && (sz <= eprm_sz) && (crc_ccitt(0xffff, (uint8_t *)eeprom, sz) == 0xf0b8)) {
 		count = eeprom[j++];
 		byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "#Modules: %d", count);
 		memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);
@@ -3147,7 +3148,9 @@ void update_eeprom_screen(void *arg)
 			byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "Expansion Bus Type: %d", eeprom[j++]);
 			memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);
 			/* Encoded SPI Addressing */
-			j++;
+			byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "Encoded SPI: %spresent\n",
+						(eeprom[j++] == 2)?"":"not ");
+			memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);
 			/* CRC #1 */
 			uint16_t *crc_16 = (uint16_t *)&eeprom[j];
 			j += 2;
@@ -3173,6 +3176,14 @@ void update_eeprom_screen(void *arg)
 			j += 2;
 			byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "Communication Drop#: %d", *temp);
 			memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);
+			/* CAN Bus Configuration */
+			byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "CAN Bus Configuration: %02X\n",
+						eeprom[j++]);
+			memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);
+			/* Host Board Serial Signal Options */
+			byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "Serial Port Pin Options: %02X\n",
+						eeprom[j++]);
+			memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);
 			/* Agency Reserved Bytes from Datakey */
 			byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "Agency Reserve (35 bytes):");
 			memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);
@@ -3189,7 +3200,12 @@ void update_eeprom_screen(void *arg)
 			j += 2;
 			byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "CRC #2 (16-bit): %04X", *crc_16);
 			memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);			
+		} else {
+			byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "          {content not valid}          ");
+			memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);
 		}
+
+printf("atc_sc:update_eeprom_screen: lines=%d\n", line_no);
 		if (line_no < MAX_INTERNAL_SCREEN_Y_SIZE) {
 			pScreen->dim_y = line_no;
 		} else {

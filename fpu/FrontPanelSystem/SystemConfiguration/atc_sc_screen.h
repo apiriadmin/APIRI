@@ -183,22 +183,17 @@
 
 // Definitions for the API INFO screen
 #define HEADER_LINE_0_APIV	"            API INFORMATION             "
-#define LINE_0_APIV		"FPUI API Version: n/a                   "
-#define LINE_1_APIV		"FPUI API LKM Version: n/a               "
-#define LINE_2_APIV		"FIO API Version: n/a                    "
-#define LINE_3_APIV		"FIO API LKM Version: n/a                "
-#define LINE_4_APIV		"TOD API Version: n/a                    "
-#define LINE_5_APIV		"                                        "
+#define LINE_0_APIV		"FPUI Version: n/a                       "
+#define LINE_1_APIV		"FPUI LKM Version: n/a                   "
+#define LINE_2_APIV		"FIO Version: n/a                        "
+#define LINE_3_APIV		"FIO LKM Version: n/a                    "
+#define LINE_4_APIV		"TOD Version: n/a                        "
 #define FOOTER_LINE_APIV 	"[UP/DN ARROW] [APPLY-ENT]  [QUIT-**NEXT]"
 
 // Definitions for the HOST EEPROM screen
 #define HEADER_LINE_0_EPRM	"        HOST EEPROM INFORMATION         "
 #define LINE_0_EPRM		"Host EEPROM Version:                    "
 #define LINE_1_EPRM		"Host EEPROM Size (bytes):               "
-#define LINE_2_EPRM		"                                        "
-#define LINE_3_EPRM		"                                        "
-#define LINE_4_EPRM		"                                        "
-#define LINE_5_EPRM		"                                        "
 #define FOOTER_LINE_EPRM 	"[UP/DN ARROW] [APPLY-ENT]  [QUIT-**NEXT]"
 
 // Definitions for the TIME SOURCE screen
