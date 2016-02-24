@@ -92,7 +92,7 @@ int tod_request_tick_signal(int signal)
 		return ret;
 	tod_fd = ret;
 	arg = signal;
-	ret = ioctl(tod_fd, ATC_TOD_REQUEST_TICK_SIG, &arg);
+	ret = ioctl(tod_fd, ATC_TOD_REQUEST_TICK_SIG, arg);
 	if (ret < 0) {
 		close(tod_fd);
 		return ret;
@@ -122,7 +122,7 @@ int tod_request_onchange_signal(int signal)
 		return ret;
 	tod_fd = ret;
 	arg = signal;
-	ret = ioctl(tod_fd, ATC_TOD_REQUEST_ONCHANGE_SIG, &arg);
+	ret = ioctl(tod_fd, ATC_TOD_REQUEST_ONCHANGE_SIG, arg);
 	if (ret < 0) {
 		close(tod_fd);
 		return ret;
