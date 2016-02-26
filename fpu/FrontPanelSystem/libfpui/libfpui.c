@@ -733,12 +733,16 @@ int fpui_get_keymap( fpui_handle fd, char key, char *seq, int size )
 	}
 
 	memset( &km, 0, sizeof( km ) );			// clear the buffer for the response
-
-	if( (n = read(fd, &km, sizeof( km ))) >= 0 ) {	// read the response
-		memmove(seq, km.seq, (size<7)?size:7);	// copy the escape sequence to the users buffer
+	n = read(fd, &km, sizeof( km ));		// read the response
+	if ((n > 0) && (km.cmd == CHAR_DC2)) {
+		if ((n == 1) || (km.seq[0] == '\0'))
+			seq[0] = '\0';
+		else
+			strcpy(seq, km.seq);	// copy the escape sequence to the users buffer
+		return 0;
 	}
 
-	return( n );
+	return -1;
 }
 
 

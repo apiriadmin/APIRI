@@ -1002,7 +1002,6 @@ void virtual_terminal( int terminal, char *s )
 						disp->cursor.row--;		// move the cursor up one line
 					}
 				}
-				
 				break;
 			case CHAR_FF:	// Form Feed
 				clear_screen( disp );				// clear the entire screen
@@ -1013,8 +1012,9 @@ void virtual_terminal( int terminal, char *s )
 				disp->cursor.column = find_next_tab( disp );	// move the cursor to the next tab stop
 				break;
 			case CHAR_DC1:	// add a keycode mapping
-				DBG( "%s(%d)   [KeyMapSet]\n", __func__, terminal);
 				km = (keymap_t *)&s[i];
+				DBG( "%s(%d)   [KeyMapSet][key=%02x][seq=%02x%02x%02x%02x]\n", __func__, terminal,
+					km->key, km->seq[0], km->seq[1], km->seq[2], km->seq[3]);
 				for( j = 0; j < 16; j++) {
 					if( disp->keycode_map[j].key == '\0' ) {
 						memmove( disp->keycode_map[j].code, km->seq, 7);
@@ -1027,18 +1027,22 @@ void virtual_terminal( int terminal, char *s )
 				goto clean_up;
 				break;
 			case CHAR_DC2:	// read back a keycode mapping
-				DBG( "%s(%d)   [KeyMapGet]\n", __func__, terminal);
 				km = (keymap_t *)&s[i];
+				DBG( "%s(%d)   [KeyMapGet][key=%02x]\n", __func__, terminal, km->key);
+				char key = km->key;
 				for( j = 0; j < 16; j++) {
-					if( disp->keycode_map[j].key == km->key ) {
-						km = (keymap_t *)return_buffer;
-						km->cmd = CHAR_DC2;
-						km->key = disp->keycode_map[j].key;
-						memmove( km->seq, disp->keycode_map[j].code, 7 );
-						virtual_terminal_return( terminal, (char *)km );
+					if( disp->keycode_map[j].key == key ) {
 						break;
 					}
 				}
+				km = (keymap_t *)return_buffer;
+				km->cmd = CHAR_DC2;
+				km->key = key;
+				if (j<16)
+					memcpy(km->seq, disp->keycode_map[j].code, 7);
+				else
+					km->key = 0;
+				routing_return(terminal, (char *)km, NULL);					
 				i += 1;
 				goto clean_up;
 				break;
@@ -1056,8 +1060,8 @@ void virtual_terminal( int terminal, char *s )
 				goto clean_up;
 				break;
 			case CHAR_DC4:	// reset the entire keycode mapping table
-				DBG( "%s(%d)   [KeyMapReset]\n", __func__, terminal);
 				km = (keymap_t *)&s[i];
+				DBG( "%s(%d)   [KeyMapReset][%c]\n", __func__, terminal, km->key);
 				if( km->key == '0' ) {	// clear the entire map
 					for( j = 0; j < 16; j++) {
 						disp->keycode_map[j].key = 0;
@@ -1127,10 +1131,10 @@ void virtual_terminal( int terminal, char *s )
 					    }
 				    }
 				break;
-		    }
-	    }
+		}
+		viewport_copy_out( terminal, s );
+	}
 
-	viewport_copy_out( terminal, s );
 
 clean_up:
 	pthread_cond_signal( &disp->update );		// signal that the display has updated.
