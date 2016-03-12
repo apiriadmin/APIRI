@@ -60,10 +60,11 @@ static char *slot_to_string( int slot )
 #endif
 
 extern void set_focus( int );
+extern void set_emergency( int, int );
 extern void tohex( char * );
 extern void tohexn( char *, int );
 extern void virtual_terminal( int, char * );
-extern void create_virtual_terminal( int );
+extern void create_virtual_terminal( int, bool );
 extern void destroy_virtual_terminal( int );
 extern void refresh_virtual_terminal( int );
 extern int  is_active( int );
@@ -144,7 +145,11 @@ void routing( int fd )
 				break;
 			case CREATE:
 				DBG("%s: CREATE from %s to %s\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to) );
-				create_virtual_terminal( rp->from );		// create the virtual terminal
+				create_virtual_terminal( rp->from, false );		// create the virtual terminal
+				break;
+			case DIRECT:
+				DBG("%s: DIRECT from %s to %s\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to) );
+				create_virtual_terminal( rp->from, true );		// create direct mode terminal
 				break;
 			case REGISTER:
 				DBG("%s: REGISTER from %s to %s (size=%ld)\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to), (long)rp->size );
@@ -215,7 +220,7 @@ void routing_return( int target, char *s, char *t )
 	}
 	free_packet(rp);
 
-	DBG("%s: write to fpm\n", __func__ );
+	DBG("%s: write to %s\n", __func__, slot_to_string(target) );
 }
 
 void routing_send_signal( int to )

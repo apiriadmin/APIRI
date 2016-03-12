@@ -59,6 +59,7 @@ void alldone( int arg )
 
 
 static char *regtab[APP_OPENS];
+static bool emergency[APP_OPENS] = {0};
 #define MAX_MENU_ROWS 8
 static char menu[MAX_MENU_ROWS][41];
 int g_rows = 8, g_cols = 40;
@@ -106,7 +107,7 @@ char isdefault( int i )
 
 bool has_emergency( int i )
 {
-	return false;
+	return emergency[i];
 }
 
 bool build_menu( void )
@@ -208,6 +209,7 @@ int main( int argc, char * argv[] )
 	int default_win = -1;
 	char default_app[16] = "";
 	struct sigaction act;
+	unsigned int *p_state;
 	
 	signal( SIGHUP, alldone );
 	
@@ -265,6 +267,7 @@ int main( int argc, char * argv[] )
 	for( ;; ) {
 		if (panel_change) {
 			// get actual panel dimensions
+			row_index = 0;
 			fprintf(stderr, "MS: panel change\n");
 			get_screen_size( msi );
 			fpui_clear( msi );
@@ -361,6 +364,8 @@ int main( int argc, char * argv[] )
 								if (regtab[win] != NULL) {
 									fprintf( stderr, "MS: Setting focus to process %x\n", win);
 									ioctl( msi, FP_IOC_SET_FOCUS, &win );
+									// clear any emergency condition for this app
+									emergency[win] = 0;
 									break;
 								}
 							}
@@ -400,9 +405,14 @@ int main( int argc, char * argv[] )
 				printf("%s: FOCUS packet from %d to %d\n", argv[0], rp->from, rp->to );
                                 break;
                         case EMERGENCY:
+                        {
+				p_state = (unsigned int *)rp->data;
 				// set emergency state for this app according to packet data
-				printf("%s: EMERGENCY packet from %d to %d\n", argv[0], rp->from, rp->to );
-                                break;				
+				emergency[rp->from] = *p_state;
+				printf("%s: EMERGENCY packet from %d to %d, state=%d\n", argv[0], rp->from, rp->to, *p_state);
+				display( msi, row_index );
+                                break;
+			}				
                         default:
 				printf("%s: Undefined packet from %d to %d\n", argv[0], rp->from, rp->to );
 				exit( 99 );

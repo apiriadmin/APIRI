@@ -44,6 +44,7 @@ static FILE *log = NULL;
 #define DBG(x...)           do{}while(0)
 #endif
 
+#define CHAR_BEL    0x07
 #define CHAR_BS     0x08
 #define CHAR_HT	    0x09
 #define CHAR_LF	    0x0a
@@ -77,7 +78,7 @@ void virtual_terminal_return( int , char* );
 
 
 typedef struct display_s {			// this structure encapsulates the entire virtual display
-
+	int		is_direct;
 	unsigned int	majic;			// majic number tu indicate this display structure is valid.
 	pthread_mutex_t lock;
 	pthread_cond_t  update;
@@ -124,12 +125,13 @@ typedef struct display_s {			// this structure encapsulates the entire virtual d
 	} keycode_map[16];			// allow up to 16 keys to be mapped.
 } display_t;
 
-
 display_t *display[FP_MAX_DEVS];		// array of pointers to virtual terminals
+int direct_term[FP_MAX_DEVS] = {0};		// array of flags indicating if term is open in direct mode
 
 void cursor_position( display_t *, int, int[] );
 void character( display_t *, int, int[] );
 void screen( display_t *, int, int[] );
+void inquiry( display_t *, int, int[] );
 void other( display_t *, int, int[] );
 
 #define ESC "\x1b"
@@ -201,12 +203,11 @@ static struct command_table_s {
 	{ "^" ESC "[[]<47h",		REGEX_INIT, 0, screen,		AUTO_SCROLL_ON },
 	{ "^" ESC "[[]<47l",		REGEX_INIT, 0, screen,		AUTO_SCROLL_OFF },
 	{ "^" ESC "[[]<[0-9]+S",	REGEX_INIT, 1, screen,		BACKLIGHT_TIMEOUT },
-	{ "^" ESC "[[]PU",		REGEX_INIT, 0, other,		POWER_UP },
-	{ "^" ESC "[[]6n",		REGEX_INIT, 0, cursor_position,	INQUIRE_POSITION },
-	{ "^" ESC "[[]Bn",		REGEX_INIT, 0, screen,		INQUIRE_ATTRIBUTES },
-	{ "^" ESC "[[]An",		REGEX_INIT, 0, other,		INQUIRE_AUX },
-	{ "^" ESC "[[]hn",		REGEX_INIT, 0, other,		INQUIRE_HEATER },
-	{ "^" ESC "[[]c",		REGEX_INIT, 0, other,		INQUIRE_TYPE },
+	{ "^" ESC "[[]6n",		REGEX_INIT, 0, inquiry,         INQUIRE_POSITION },
+	{ "^" ESC "[[]Bn",		REGEX_INIT, 0, inquiry,         INQUIRE_ATTRIBUTES },
+	{ "^" ESC "[[]An",		REGEX_INIT, 0, inquiry,         INQUIRE_AUX },
+	{ "^" ESC "[[]hn",		REGEX_INIT, 0, inquiry,         INQUIRE_HEATER },
+	{ "^" ESC "[[]c",		REGEX_INIT, 0, inquiry,         INQUIRE_TYPE },
 	{ "^" ESC "[[]Fn",		REGEX_INIT, 0, other,           INQUIRE_FOCUS },
 	{ "^" ESC "[[]5n",		REGEX_INIT, 0, other,           PANEL_PRESENT },
 };
@@ -283,11 +284,11 @@ void vt_wait_for_update( int term )
 }
 
 
-int create_virtual_terminal( int term )
+int create_virtual_terminal( int term, bool direct_mode )
 {
 	int i;
 
-	printf("%s: term=%d\n", __func__, term );
+	printf("%s: term=%d %s\n", __func__, term, direct_mode?"direct mode":"" );
 
 #ifdef DEBUG
 	if (log == NULL) {
@@ -297,11 +298,18 @@ int create_virtual_terminal( int term )
 	}
 #endif
 
-	if( (term < 0) || (term >= FP_MAX_DEVS) ) {
+	if ((term < 0) || (term >= FP_MAX_DEVS)) {
 		return( -EINVAL );
 	}
-	if( display[term] != NULL ) {
+	
+	if (display[term] != NULL) {
 		return( -EINVAL );
+	}
+
+	if (direct_mode) {
+		direct_term[term] = true;
+	} else {
+		direct_term[term] = false;
 	}
 	
 	display[term] = calloc( 1, sizeof( display_t ) );
@@ -578,7 +586,6 @@ void cursor_position( display_t * disp, int type, int args[] )
 #ifdef DEBUG
 	int term = getterm( disp );
 #endif
-	char buf[32];
 	int row;
 	int column;
 
@@ -646,11 +653,6 @@ void cursor_position( display_t * disp, int type, int args[] )
 			break;
 		case CLEAR_TAB:
 			DBG( "%s(%d): CHT \n", __func__, term );
-			break;
-		case INQUIRE_POSITION:
-			get_cursor( disp, &row, &column );
-			sprintf( buf, "\x1b[%d;%dR", row+1, column+1 );
-			routing_return( getterm( disp ), buf, NULL );
 			break;
 	}
 }
@@ -724,7 +726,6 @@ void screen( display_t * disp, int type, int args[] )
 #ifdef DEBUG
 	int term = getterm( disp );
 #endif
-	char buf[32];
 	int row;
 	int column;
 
@@ -783,8 +784,26 @@ void screen( display_t * disp, int type, int args[] )
 			DBG( "%s(%d): SBTO  (%d)\n", __func__, term, args[0] );
 			disp->screen.backlight_timeout = args[0];
 			break;
+	}
+}
+
+
+void inquiry( display_t *disp, int type, int args[] )
+{
+	int term = getterm( disp );
+	char buf[32];
+	int row;
+	int column;
+
+	switch( type ) {
+		case INQUIRE_POSITION:
+			DBG( "%s(%d): [CURSOR POS] \n", __func__, term );
+			get_cursor( disp, &row, &column );
+			sprintf( buf, "\x1b[%d;%dR", row+1, column+1 );
+			routing_return( getterm( disp ), buf, NULL );
+			break;
 		case INQUIRE_ATTRIBUTES:
-			DBG( "%s(%d): ATT \n", __func__, term );
+			DBG( "%s(%d): [ATTR] \n", __func__, term );
 			sprintf( buf, "\x1b[%c;%c;%c;%c;%d;%c;%c;%c;%c;%c;%cR",
 				hl( disp->screen.auto_wrap ),
 				hl( disp->screen.auto_scroll ),
@@ -799,20 +818,8 @@ void screen( display_t * disp, int type, int args[] )
 				hl(disp->terminal[disp->cursor.row][disp->cursor.column].underline));
 			routing_return( getterm( disp ), buf, NULL );
 			break;
-	}
-}
-
-
-void other( display_t *disp, int type, int args[] )
-{
-	int term = getterm( disp );
-	char buf[32];
-
-	switch( type ) {
-		case POWER_UP:
-			break;
 		case INQUIRE_AUX:
-			DBG( "%s(%d): AUX \n", __func__, term );
+			DBG( "%s(%d): [AUX] \n", __func__, term );
 			if (get_focus() == term) {
 				sprintf( buf, "\x1b[An");
 				viewport_copy_out( term, buf );
@@ -822,33 +829,43 @@ void other( display_t *disp, int type, int args[] )
 			}
 			break;
 		case INQUIRE_HEATER:
-			DBG( "%s(%d): HEATER \n", __func__, term );
+			DBG( "%s(%d): [HEATER] \n", __func__, term );
 			break;
 		case INQUIRE_TYPE: {
 			char screen_type = 'B';
 			get_screen_type(&screen_type);
-			DBG( "%s(%d): TYPE %c\n", __func__, term, screen_type );
+			DBG( "%s(%d): [TYPE %c]\n", __func__, term, screen_type );
 			sprintf( buf, "\x1b[%cR", screen_type );
 			routing_return( term, buf, NULL );
 			break;
+		}
+	}
+}
+
+/*
+ * These inquiry sequences are handled here and not copied out to actual
+ * front panel display.
+ */
+void other( display_t *disp, int type, int args[] )
+{
+	int term = getterm( disp );
+	char buf[32];
+
+	switch( type ) {
                 case INQUIRE_FOCUS: {
 			DBG( "%s(%d): [FOCUS] \n", __func__, term );
                         sprintf( buf, "\x1b[%cR", (get_focus()==term)?'h':'l');
-                        routing_return( term, buf, NULL );
+                        routing_return( term, buf, buf );
                         }
                         break;
                 case PANEL_PRESENT: {
 			DBG( "%s(%d): [PRESENCE] \n", __func__, term );
                         sprintf( buf, "\x1b[%cn", panel_present()?'0':'3');
-                        routing_return( term, buf, NULL );
+                        routing_return( term, buf, buf );
                         }
                         break;
-		}
 	}
 }
-
-
-
 
 
 //
@@ -887,11 +904,13 @@ int parse_arg_list( char *s, int args[], int argc )
 
 
 //
-// this routine parses and executes the escape sequence pointed to
+// This routine parses and executes the escape sequence pointed to
 // by 's'. Undefined or unsupported sequences are simply skipped
-// over. The number of characters parsed out of the string is returned.
+// over. The 'skip' boolean is returned true for those sequences which
+// are not to be copied out to the physical front panel. The number of
+// characters parsed out of the string is returned.
 //
-int parse_escape_request( display_t *disp, char *s )
+int parse_escape_request( display_t *disp, char *s, bool *skip )
 {
 	int i;
 	int errcode;
@@ -922,6 +941,9 @@ int parse_escape_request( display_t *disp, char *s )
 			parse_arg_list( s, args, cmd_tab[i].argc ); // decode any numbers that are part of the command
 
 			cmd_tab[i].func( disp, cmd_tab[i].type, args );	// call the operational routine for this command
+			if (cmd_tab[i].func == other) {
+				*skip = true;
+			}
 
 			return( pmatch[0].rm_eo - pmatch[0].rm_so );	// return the number of characters consumed by this command
 		} else if( errcode != REG_NOMATCH ) {
@@ -933,8 +955,6 @@ int parse_escape_request( display_t *disp, char *s )
 	// If we can't parse the escape return 2 bytes as consumed so we continue past the calling loop
 	return 2;
 }
-
-
 
 //
 // This is the main controlling routine for the virtual terminal.
@@ -951,9 +971,11 @@ void virtual_terminal( int terminal, char *s )
 {
 	int i;
 	int j;
+	int len;
 	display_t *disp = display[terminal];
 	keymap_t  *km;
-
+	char *sub = strdup(s);
+	bool skip = false;
 
 	if( disp == NULL ) {
 		printf("%s: term %d No display device exists!\n", __func__, terminal );
@@ -964,12 +986,82 @@ void virtual_terminal( int terminal, char *s )
 
 	pthread_mutex_lock( &disp->lock );		// lock this terminal while updating it
 
-	for( i = 0; s[i]; i++ ) {
+	i = 0;
+	sub[0] = '\0';
+	while (s[i] != '\0') {
+	//for( i = 0; s[i]; i++ ) {
 		// handle any escape sequences 
 	    	if( s[i] == CHAR_ESCAPE ) {
-			i += parse_escape_request( disp, &s[i] ) - 1;
+			skip = false;
+			len = parse_escape_request( disp, &s[i], &skip );
+			if (skip == false)
+				strncat(sub, &s[i], len);
+			i += len;
 			continue;
 		}
+
+		// handle any internal control characters
+		switch( s[i] ) {
+			case CHAR_DC1:	// add a keycode mapping
+				km = (keymap_t *)&s[i];
+				DBG( "%s(%d)   [KeyMapSet][key=%02x][seq=%02x%02x%02x%02x]\n", __func__, terminal,
+					km->key, km->seq[0], km->seq[1], km->seq[2], km->seq[3]);
+				for( j = 0; j < 16; j++) {
+					if( disp->keycode_map[j].key == '\0' ) {
+						memmove( disp->keycode_map[j].code, km->seq, 7);
+						disp->keycode_map[j].key = km->key;
+						break;
+					}
+				}
+				i += sizeof(keymap_t);	// skip over the bytes that make up  this operation
+				qsort( disp->keycode_map, 16, sizeof( struct keycode_s ), keycomp );
+				continue;
+			case CHAR_DC2:	// read back a keycode mapping
+				km = (keymap_t *)&s[i];
+				DBG( "%s(%d)   [KeyMapGet][key=%02x]\n", __func__, terminal, km->key);
+				char key = km->key;
+				for( j = 0; j < 16; j++) {
+					if( disp->keycode_map[j].key == key ) {
+						break;
+					}
+				}
+				km = (keymap_t *)return_buffer;
+				km->cmd = CHAR_DC2;
+				km->key = key;
+				if (j<16)
+					memcpy(km->seq, disp->keycode_map[j].code, 7);
+				else
+					km->key = 0;
+				routing_return(terminal, (char *)km, NULL);					
+				i += 2;
+				continue;
+			case CHAR_DC3:	// delete a keycode mapping
+				DBG( "%s(%d)   [KeyMapDel]\n", __func__, terminal);
+				km = (keymap_t *)&s[i];
+				for( j = 0; j < 16; j++) {
+					if( disp->keycode_map[j].key == km->key ) {
+						memset( disp->keycode_map[j].code, 0, 8 );
+						break;
+					}
+				}
+				i += 2;	// skip over the key byte used in this operation
+				qsort( disp->keycode_map, 16, sizeof( struct keycode_s ), keycomp );
+				continue;
+			case CHAR_DC4:	// reset the entire keycode mapping table
+				km = (keymap_t *)&s[i];
+				DBG( "%s(%d)   [KeyMapReset][%c]\n", __func__, terminal, km->key);
+				if( km->key == '0' ) {	// clear the entire map
+					for( j = 0; j < 16; j++) {
+						disp->keycode_map[j].key = 0;
+					}
+				} else if( km->key == '1' ) {	// restore the default values.
+					for( j = 0; j < DEFAULT_KEYMAP_SIZE; j++ ) {
+						disp->keycode_map[j] = default_keymap[j];
+					}
+				}
+				i += 2;
+				continue;
+			}
 
 		// the rest should be normal characters
 		switch( s[i] ) {
@@ -1011,75 +1103,18 @@ void virtual_terminal( int terminal, char *s )
 			case CHAR_HT:	// Horizontal Tab
 				disp->cursor.column = find_next_tab( disp );	// move the cursor to the next tab stop
 				break;
-			case CHAR_DC1:	// add a keycode mapping
-				km = (keymap_t *)&s[i];
-				DBG( "%s(%d)   [KeyMapSet][key=%02x][seq=%02x%02x%02x%02x]\n", __func__, terminal,
-					km->key, km->seq[0], km->seq[1], km->seq[2], km->seq[3]);
-				for( j = 0; j < 16; j++) {
-					if( disp->keycode_map[j].key == '\0' ) {
-						memmove( disp->keycode_map[j].code, km->seq, 7);
-						disp->keycode_map[j].key = km->key;
-						break;
-					}
-				}
-				i += sizeof(keymap_t);	// skip over the bytes that make up  this operation
-				qsort( disp->keycode_map, 16, sizeof( struct keycode_s ), keycomp );
-				goto clean_up;
-				break;
-			case CHAR_DC2:	// read back a keycode mapping
-				km = (keymap_t *)&s[i];
-				DBG( "%s(%d)   [KeyMapGet][key=%02x]\n", __func__, terminal, km->key);
-				char key = km->key;
-				for( j = 0; j < 16; j++) {
-					if( disp->keycode_map[j].key == key ) {
-						break;
-					}
-				}
-				km = (keymap_t *)return_buffer;
-				km->cmd = CHAR_DC2;
-				km->key = key;
-				if (j<16)
-					memcpy(km->seq, disp->keycode_map[j].code, 7);
-				else
-					km->key = 0;
-				routing_return(terminal, (char *)km, NULL);					
-				i += 1;
-				goto clean_up;
-				break;
-			case CHAR_DC3:	// delete a keycode mapping
-				DBG( "%s(%d)   [KeyMapDel]\n", __func__, terminal);
-				km = (keymap_t *)&s[i];
-				for( j = 0; j < 16; j++) {
-					if( disp->keycode_map[j].key == km->key ) {
-						memset( disp->keycode_map[j].code, 0, 8 );
-						break;
-					}
-				}
-				i += 1;	// skip over the key byte used in this operation
-				qsort( disp->keycode_map, 16, sizeof( struct keycode_s ), keycomp );
-				goto clean_up;
-				break;
-			case CHAR_DC4:	// reset the entire keycode mapping table
-				km = (keymap_t *)&s[i];
-				DBG( "%s(%d)   [KeyMapReset][%c]\n", __func__, terminal, km->key);
-				if( km->key == '0' ) {	// clear the entire map
-					for( j = 0; j < 16; j++) {
-						disp->keycode_map[j].key = 0;
-					}
-				} else if( km->key == '1' ) {	// restore the default values.
-					for( j = 0; j < DEFAULT_KEYMAP_SIZE; j++ ) {
-						disp->keycode_map[j] = default_keymap[j];
-					}
-				}
-				i += 1;
-				goto clean_up;
+			case CHAR_BEL:  // Bell
 				break;
 			case '\0':	// End of string??
 				// should never get here, but the line if done.
-				break;
+				continue;
 			default:
 				// skip any non-printable (control) characters we don't support
-				if( ! isprint( s[i] ) ) continue;
+				if(!isprint(s[i])) {
+					printf("%s: skipping char %02X\n", __func__, s[i]);
+					i++;
+					continue;
+				}
 
 				DBG( "%s(%d) %c [0x%2.2x] @ (%d,%d)\n", __func__, terminal, s[i], s[i], disp->cursor.row, disp->cursor.column );
 				// write the character at the current location of the cursor
@@ -1131,12 +1166,16 @@ void virtual_terminal( int terminal, char *s )
 					    }
 				    }
 				break;
-		}
-		viewport_copy_out( terminal, s );
-	}
+		    }
+		    strncat(sub, &s[i], 1);
+		    i++;
+	    }
 
+	if (strlen(s) != strlen(sub))
+		printf("%s: skipped %d chars \n", __func__, strlen(s)-strlen(sub));
+	viewport_copy_out( terminal, sub );
 
-clean_up:
+	free(sub);
 	pthread_cond_signal( &disp->update );		// signal that the display has updated.
 	pthread_mutex_unlock( &disp->lock );		// lock this terminal while updateing it
 }
@@ -1155,6 +1194,8 @@ void load_screen( int fd, int term )
 	if (!is_active( term ))
 		return;
 
+	set_emergency(term, 0);
+		
 	disp->screen.columns = screen_XX;
 	disp->screen.rows = screen_YY;
 	DBG("%s: fd=%d, term=%d (%d:%d)\n", __func__, fd, term, disp->screen.rows, disp->screen.columns );
@@ -1176,6 +1217,9 @@ void load_screen( int fd, int term )
 	xprintf( fd, ESC "[25l" );	// Turn blink off
 	xprintf( fd, ESC "[27l" );	// Turn reverse video off
 
+	// If this term is opened in direct mode, do not load text to panel
+	if (direct_term[term])
+		return;
 
 	DBG("%s: attributes set, loading text\n", __func__ );
 	
@@ -1238,8 +1282,6 @@ void load_screen( int fd, int term )
 	xprintf( fd, ESC "[33%c",  hl( disp->cursor.blink ) );
 	// xprintf( fd, "", hl( disp->cursor.underline ) );
 	xprintf( fd, ESC "[%d;%df",  disp->cursor.row+1, disp->cursor.column+1 );
-
-	set_emergency(term, 0);
 	
 	DBG("%s: Text loaded\n", __func__ );
 }
@@ -1251,6 +1293,7 @@ void virtual_terminal_return( int term, char *s )
 	char   raw[64];
 	char *t;
 	int    i;
+	DBG("%s: virtual_terminal_return(%d), slen=%d\n", __func__, term, strlen(s) );
 
 	if( !is_active( term ) ) {
 		fprintf(stderr, "%s: term not active!\n", __func__);
@@ -1279,7 +1322,6 @@ void virtual_terminal_return( int term, char *s )
 			i = -1;							// restart search in case of multiple hits.
 		}
 	}
-	//DBG("%s: call routing_return()\n", __func__ );
 
 	routing_return( term, s, raw );
 }
