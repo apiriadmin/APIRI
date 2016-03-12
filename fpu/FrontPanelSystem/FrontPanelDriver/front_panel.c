@@ -418,7 +418,9 @@ int fp_open(struct inode *inode, struct file *filp)
 
 				if( slot >= APP_OPENS )	 {
 					return( -EMFILE );
-				} else if( send_packet( CREATE, slot, FPM_DEV, NULL, 0 ) == NULL ) {
+				}
+				// Create the virtual or direct mode terminal
+				if( send_packet((flags & O_SYNC)?DIRECT:CREATE, slot, FPM_DEV, NULL, 0) == NULL) {
 					return( -ENOMEM );
 				}
 				this_slot = slot;
@@ -508,7 +510,8 @@ int fp_open(struct inode *inode, struct file *filp)
 					}
 				}
 			}
-			printk("%s: APP(%d) is open %s\n", __func__, fp_dev->slot, (flags&O_SYNC)?"DIRECT":"" );
+			printk("%s: APP(%d) is open flags=0x%x %s\n",
+				__func__, fp_dev->slot, flags, (flags&O_SYNC)?"(DIRECT)":"" );
 			break;
 	    	case 1:		// Master Selection interface
 			fp_dev = &fp_devtab[MS_DEV];
@@ -871,8 +874,9 @@ ssize_t fp_read(struct file *filp, char __user *buf, size_t count, loff_t *fpos)
 				fp_dev->active_record = NULL;				// clear the reference so we can fetch a new record
 			}
 			break;
-		//case AUX_DEV:	// return the last enqueued packet as latest AUX switch state
-		//	break;
+		case AUX_DEV:	// return the last enqueued packet as latest AUX switch state
+			res = aux_state_to_user( fp_dev, buf, count );
+			break;
 		default:	// the remaining devices may read only part of a record.
 			data_len = rptr->size;
 			data_ptr = rptr->data;
@@ -1126,9 +1130,9 @@ fp_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 			} else if( (fp_dev->slot < 0)  || (fp_dev->slot >= APP_OPENS) )	 { // Only Apps can issue this Ioctl
 				return( -EFAULT );
 			}
-			
-			if( (send_packet(EMERGENCY, fp_dev->slot, FPM_DEV, s, 0) == NULL)
-				|| (send_packet(EMERGENCY, fp_dev->slot, MS_DEV, s, 0) == NULL) ) {
+			s = (char *)&arg;
+			if( (send_packet(EMERGENCY, fp_dev->slot, FPM_DEV, (char *)&arg, _IOC_SIZE(cmd_in)) == NULL)
+				|| (send_packet(EMERGENCY, fp_dev->slot, MS_DEV, s, _IOC_SIZE(cmd_in)) == NULL) ) {
 				res = -EFAULT;
 			}
 			
@@ -1246,17 +1250,23 @@ list_packet *send_packet( int command, int from, int to, const char __user *buf,
 		rptr->from    = from;						// load the originating device
 		rptr->to      = to;						// load the destination device
 
-		if( count > 0 )
-			if( (res = copy_from_user( &rptr->data, buf, count ) ) < 0 ) {	// copy data from user space to payload area
-				kfree( lptr );
-				return( NULL );
+		if (count > 0) {
+			if (access_ok(VERIFY_READ, (void __user *)buf, count)) {
+				if( (res = copy_from_user( &rptr->data, buf, count ) ) < 0 ) {
+					kfree( lptr );
+					return( NULL );
+				}
+				rptr->size  = count - res;	// copy_from_user returns number of bytes NOT transfered
+			} else {
+				memcpy(&rptr->data, buf, count);
+				rptr->size = count;
 			}
-		rptr->size  = count - res;					// copy_from_user returns number of bytes NOT transfered
+		}
 	}
 
 	pr_debug("%s: from=%s, to=%s, size=%d, data=%p, total=%d, cmd=%d\n", __func__,
 		slot_to_string(lptr->packet.from), slot_to_string(lptr->packet.to),
-		lptr->packet.size, lptr->packet.data, len, rptr->command );
+		lptr->packet.size, lptr->packet.data, len, rptr->command);
 
 	if (rptr->to < FP_MAX_DEVS) {
 		to_dev = &fp_devtab[ rptr->to ];
@@ -1280,8 +1290,8 @@ list_packet *send_packet( int command, int from, int to, const char __user *buf,
 			kfree( lptr );
 			break;
 		case SIGNAL:
-			pr_debug("%s: SIGNAL packet\n", __func__);
-			if( (fp_devtab[i].open_flags != CLOSED) && (fp_devtab[rptr->to].pid > 0) ) {
+			pr_debug("%s: SIGNAL packet to %s\n", __func__, slot_to_string(lptr->packet.to));
+			if( (fp_devtab[rptr->to].open_flags != CLOSED) && (fp_devtab[rptr->to].pid > 0) ) {
 				send_signal( fp_devtab[rptr->to].pid, SIGWINCH );
 			}
 			kfree( lptr );
@@ -1311,22 +1321,6 @@ list_packet *send_packet( int command, int from, int to, const char __user *buf,
 
 			list_add_tail( &lptr->links, &to_dev->vroot );				// load onto queue for the FPM
 			wake_up_interruptible( &to_dev->wait );					// wake up any blocked processes waiting on this queue
-			break;
-		case DIRECT:
-			// make sure associated virtual packet has not already been consumed
-			//if (!list_empty(&to_dev->vroot)) {
-				// get the last record off the virtual list
-				//lpptr = list_entry( to_dev->vroot.prev, list_packet, links );
-				//if (lpptr->packet.sequence == rptr->sequence) {
-					//pr_debug("direct packet, matching virtual #%d!\n",rptr->sequence);
-					//list_add_tail( &lptr->links, &to_dev->droot );		// load onto queue for the FPM
-					//wake_up_interruptible( &to_dev->wait );			// wake up any blocked processes waiting on this queue
-					//break;
-				//}
-			//}
-			//pr_debug("direct packet with no matching virtual!\n");
-			//kfree( lptr );
-
 			break;
 		case FOCUS:
 			pr_debug("Setting Focus to %x %x %x %x\n",
