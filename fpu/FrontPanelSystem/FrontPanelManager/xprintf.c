@@ -31,27 +31,29 @@
 #include <string.h>
 
 
-int xprintf( int fd, const char * fmt, ... )
+int xprintf(int fd, const char * fmt, ...)
 {
-	int       n; 
-	int       size = 41;			// the default number of columns
-	char    * s;
-	char    * sx;
-	va_list   ap;
+	int        n; 
+	int        size = 41; // the default number of columns
+	char       *s;
+	char       *sx;
+	va_list    ap;
 
-	if( (s = calloc( 1, size )) == NULL ) {
-		return( -1 );
+	if ((s = calloc( 1, size )) == NULL) {
+		return -1;
 	}
 
-	for( ;; ) {
+	for(;;) {
 		// Try to print in the allocated space.
-		va_start( ap, fmt );
-		n = vsnprintf( s, size, fmt, ap );
-		va_end( ap );
+		va_start(ap, fmt);
+		n = vsnprintf(s, size, fmt, ap);
+		va_end(ap);
 
 		// If that worked, send the message
-		if ( (n > -1) && (n < size) ) {
-			return( write( fd, s, n/*+1*/ ) );
+		if ((n > -1) && (n < size)) {
+			n = write(fd, s, n);
+			free(s);
+			return n;
 		}
 
 		// Else try again with more space.
@@ -61,9 +63,9 @@ int xprintf( int fd, const char * fmt, ... )
 			size *= 2;			// twice the old size
 		}
 
-		if ((sx = realloc (s, size)) == NULL) {	// request a new larger allocation
-			free( s );			// allocation failed, free original allocation
-			return( -1 );			// return an error
+		if ((sx = realloc(s, size)) == NULL) {	// request a new larger allocation
+			free(s);			// allocation failed, free original allocation
+			return -1;			// return an error
 		} else {
 			s = sx;				// allocation succeeded, take new reference
 		}
