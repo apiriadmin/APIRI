@@ -51,7 +51,9 @@ typedef enum {
 	DIRECT = 6,				// command bypasses virtual terminal
 	SIGNAL_ALL = 7, 			// signal all processes that the state of the front panel display has changed
 	SIGNAL = 8,				// signal the 'to' application that something in it's windowing system has changed
-	ATTRIBUTES = 9				// request for attributes held by virtual display
+	ATTRIBUTES = 9,				// request for attributes held by virtual display
+	REFRESH = 10,				// request to redraw on front panel device
+	EMERGENCY = 11				// set emergency mode on/off
 } command_t;
 
 #define COMMAND_NAMES { \
@@ -61,8 +63,12 @@ typedef enum {
 	"REGISTER", \
 	"DESTROY", \
 	"FOCUS", \
+	"DIRECT", \
 	"SIGNAL_ALL", \
-	"SIGNAL" \
+	"SIGNAL", \
+	"ATTRIBUTES", \
+	"REFRESH", \
+	"EMERGENCY" \
 };
 
 typedef struct read_packet {
@@ -91,8 +97,8 @@ typedef struct read_packet {
 #define FPM_DEV     (AUX_DEV+1)		// this is the index of the Front Panel device entry
 #define FP_MAX_DEVS (FPM_DEV+1)		// this is the maximum number of possible interfaces
 
-#define AUX_ON  (0xff)
-#define AUX_OFF (0x00)
+#define AUX_SWITCH_ON  (0xff)
+#define AUX_SWITCH_OFF (0x00)
 
 #ifndef __KERNEL__
 #include <sys/ioctl.h>

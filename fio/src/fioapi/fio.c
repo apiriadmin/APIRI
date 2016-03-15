@@ -43,6 +43,7 @@ This module contains all code for the FIO API.
 
 /* Local includes. */
 #include	"fio.h"					/* FIO API Definitions */
+#include        "fiodriver.h"
 
 
 /*  Definition section.
@@ -210,7 +211,7 @@ static char lkm_version[80] = "";
 char *fio_apiver( FIO_APP_HANDLE app_handle, FIO_VERSION which )
 {
 	if (which == FIO_VERSION_LIBRARY)
-		return( "Intelight, 1.1, 2.17" );
+		return( "APIRI, 1.1, 2.17" );
 	if (which == FIO_VERSION_LKM) {
 		if (ioctl( (int)app_handle, FIOMAN_IOC_VERSION_GET, lkm_version) != -1) {
 			return lkm_version;
@@ -393,6 +394,26 @@ fio_fiod_outputs_set
 }
 
 /*****************************************************************************/
+
+/* Begin multi-device outputs set transaction */
+int
+fio_fiod_begin_outputs_set
+(
+        FIO_APP_HANDLE app_handle
+)
+{
+        return ( ioctl( (int)app_handle, FIOMAN_IOC_TRANSACTION_BEGIN ) );
+}
+
+/* Commit multi-device outputs set transaction */
+int
+fio_fiod_commit_outputs_set
+(
+        FIO_APP_HANDLE app_handle
+)
+{
+        return ( ioctl( (int)app_handle, FIOMAN_IOC_TRANSACTION_COMMIT ) );
+}
 
 /*****************************************************************************/
 /*
@@ -908,27 +929,28 @@ This function is used to request the last response frame of given type.
 */
 /*****************************************************************************/
 
-int
-fio_fiod_frame_read
+int fio_fiod_frame_read
 (
-	FIO_APP_HANDLE		app_handle,		/* FIO APP Handle from fio_register() */
-	FIO_DEV_HANDLE		dev_handle,		/* FIOD Handle fio_fiod_register() */
-	unsigned int        rx_frame,
-	unsigned int        *seq_number,
-	unsigned char       *buf,
-	unsigned int        count
+	FIO_APP_HANDLE app_handle,  /* FIO APP Handle from fio_register() */
+	FIO_DEV_HANDLE dev_handle,  /* FIOD Handle fio_fiod_register() */
+	unsigned int   rx_frame,
+	unsigned int   *seq_number,
+	unsigned char  *buf,
+	unsigned int   count,
+        unsigned int   timeout
 )
 {
-	FIO_IOC_FIOD_FRAME_READ request;	/* IOCTL argument structure */
+	FIO_IOC_FIOD_FRAME_READ request; /* IOCTL argument structure */
 
-	/* Set up IOCTL structure */
-    request.dev_handle = dev_handle;
-    request.rx_frame = rx_frame;
-    request.seq_number = seq_number;
-    request.buf = buf;
-    request.count = count;
+        /* Set up IOCTL structure */
+        request.dev_handle = dev_handle;
+        request.rx_frame = rx_frame;
+        request.seq_number = seq_number;
+        request.buf = buf;
+        request.count = count;
+        request.timeout = timeout;
 
-	return ( ioctl( (int)app_handle, FIOMAN_IOC_FIOD_FRAME_READ, &request ) );
+        return ( ioctl( (int)app_handle, FIOMAN_IOC_FIOD_FRAME_READ, &request ) );
 }
 
 /*****************************************************************************/
@@ -1085,7 +1107,7 @@ fio_fiod_inputs_trans_set
 	unsigned int	count
 )
 {
-	FIO_IOC_INPUTS_TRANS_GET request;	/* IOCTL argument structure */
+	FIO_IOC_INPUTS_TRANS_SET request;	/* IOCTL argument structure */
 
 	/* Set up IOCTL structure */
 	request.dev_handle = dev_handle;

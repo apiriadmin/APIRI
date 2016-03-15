@@ -36,15 +36,21 @@ typedef enum { false=(0!=0), true=(0==0) } bool;
 #endif
 
 typedef union {
-	int		errcode;
-	unsigned int	auto_wrap:1,
-			auto_scroll:1,
-			auto_repeat:1,
-			backlight:1,
-			aux_switch:1,
-			:3,
-			backlight_timeout:8,
-			:16;
+	int errcode;
+	struct {
+		unsigned int auto_wrap:1,
+			     auto_scroll:1,
+			     auto_repeat:1,
+			     backlight:1,
+			     cursor_on:1,
+			     cursor_blink:1,
+			     char_blink:1,
+			     aux_switch:1,
+			     backlight_timeout:8,
+			     char_reverse:1,
+			     char_underline:1,
+			     :14;
+	};
 } fpui_attr_t;
 
 /*
@@ -58,6 +64,7 @@ fpui_handle fpui_open( int flags, const char * regname );
 int fpui_open_config_window( int flags );
 int fpui_close( fpui_handle fd );
 int fpui_close_config_window( fpui_handle fd );
+int fpui_panel_present( fpui_handle fd );
 int fpui_get_window_size( fpui_handle fd, int * rows, int * columns );
 int fpui_get_focus( fpui_handle fd );
 int fpui_clear( fpui_handle fd );
@@ -70,24 +77,24 @@ int fpui_set_window_attr( fpui_handle fd, int attr );
 int fpui_get_window_attr( fpui_handle fd );
 /*int fpui_get_attributes( fpui_handle fd, int index );*/
 int fpui_set_character_blink( fpui_handle fd, bool state );
-bool  fpui_get_character_blink( fpui_handle fd );
+int fpui_get_character_blink( fpui_handle fd );
 int fpui_set_backlight( fpui_handle fd, bool state );
-bool  fpui_get_backlight( fpui_handle fd );
+int fpui_get_backlight( fpui_handle fd );
 int fpui_set_backlight_timeout( fpui_handle fd, int timeout );
 int fpui_set_cursor_blink( fpui_handle fd, bool state );
-bool  fpui_get_cursor_blink( fpui_handle fd );
+int fpui_get_cursor_blink( fpui_handle fd );
 int fpui_set_reverse_video( fpui_handle fd, bool state );
-bool  fpui_get_reverse_video( fpui_handle fd );
+int fpui_get_reverse_video( fpui_handle fd );
 int fpui_set_underline( fpui_handle fd, bool state );
-bool  fpui_get_underline( fpui_handle fd );
+int fpui_get_underline( fpui_handle fd );
 int fpui_set_auto_wrap( fpui_handle fd, bool state );
-bool  fpui_get_auto_wrap( fpui_handle fd );
+int fpui_get_auto_wrap( fpui_handle fd );
 int fpui_set_auto_repeat( fpui_handle fd, bool state );
-bool  fpui_get_auto_repeat( fpui_handle fd );
+int fpui_get_auto_repeat( fpui_handle fd );
 int fpui_set_cursor( fpui_handle fd, bool state );
-bool  fpui_get_cursor( fpui_handle fd );
+int fpui_get_cursor( fpui_handle fd );
 int fpui_set_auto_scroll( fpui_handle fd, bool state );
-bool  fpui_get_auto_scroll( fpui_handle fd );
+int fpui_get_auto_scroll( fpui_handle fd );
 int fpui_reset_all_attributes( fpui_handle fd );
 /*
 	Read Operators

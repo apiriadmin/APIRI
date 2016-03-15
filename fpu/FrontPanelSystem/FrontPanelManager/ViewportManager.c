@@ -51,22 +51,25 @@
 #define CHAR_ESC '\x1b'
 
 
-void set_focus( int);
-int get_focus( void );
-void send_to_current( char );
-void viewport_listener( char * );
+void set_focus(int);
+int get_focus(void);
+void send_to_current(char);
+void viewport_listener(char *);
+int parse_escape_seq(int, char *, int);
 
 
 int panel_fd = -1;
-
+bool display_present = false;
 extern void vt_lock( int );
 extern void load_screen( int, int );
 extern void vt_unlock( int );
 extern void tohex( char * );
-extern void routing_send_signal( int, int );
+extern void routing_send_signal( int );
 extern void routing_return(int, char *, char *s);
 extern int is_active( int );
 extern void virtual_terminal_return( int, char * );
+extern bool emergency_mode;
+bool emergency_flash = false;
 
 #define REGEX_INIT { .buffer = NULL }
 
@@ -82,13 +85,11 @@ struct {
 	{ ESC "[[]PU", REGEX_INIT },
 	{ ESC "[[][hl]R", REGEX_INIT },
 	{ ESC "[[][0-9]+;[0-9]+R", REGEX_INIT },
+	{ ESC "[[][hl];[hl];[hl];[hl];[0-9]+;[hl]R", REGEX_INIT },
 	{ ESC "[[][ABD]R", REGEX_INIT },
 };
 
-#undef AUX_ON
-#undef AUX_OFF
-
-typedef enum { ESC_KEY, AUX_ON, AUX_OFF, NXT_KEY, PWR_UP, AUX_STATE, CUR_POS, FP_TYPE } special_string_types;
+typedef enum { ESC_KEY, AUXSW_ON, AUXSW_OFF, NXT_KEY, PWR_UP, AUX_STATE, CUR_POS, STATUS, FP_TYPE } special_string_types;
 
 #define SPECIAL_STRING_SIZE ( sizeof( special_string ) / sizeof( special_string[0] ) )
 
@@ -97,16 +98,24 @@ int has_focus = MS_DEV;
 
 void set_focus( int term )
 {
-	//if( term != has_focus ) {
-		DBG("%s: setting focus to device %d\n", __func__, term );
-		// signal process has_focus
-		has_focus = term;
+	DBG("%s: setting focus to device %d\n", __func__, term );
+	// signal app losing focus
+	if (has_focus < APP_OPENS) {
+		routing_send_signal(has_focus);
+	}
+
+	// change focus window
+	has_focus = term;
 	
-		vt_lock( term );
-		load_screen( panel_fd, term );
-		vt_unlock( term );
-		// signal process has_focus
-	//}
+	// load virtual window screen to front panel
+	vt_lock( term );
+	load_screen( panel_fd, term );
+	vt_unlock( term );
+
+	// signal app gaining focus
+	if (has_focus < APP_OPENS) {
+		routing_send_signal(has_focus);
+	}
 }
 
 int get_focus( void )
@@ -114,12 +123,15 @@ int get_focus( void )
 	return has_focus;
 }
 
+bool panel_present( void )
+{
+	return display_present;
+}
 
-
-int screen_YY = 8;
+int screen_YY = 16;
 int screen_XX = 40;
 
-void check_screen_size( int fd )
+bool check_screen_size( int fd )
 {
 	int i, t, row, col;
 
@@ -129,7 +141,7 @@ void check_screen_size( int fd )
 	ufds.revents = 0;
 
 	// Set Default values
-	screen_YY = 8;
+	screen_YY = 16;
 	screen_XX = 40;
 
 	// to determine the screen size, one idea is to set the cursor position
@@ -153,10 +165,14 @@ void check_screen_size( int fd )
 		sprintf( outbuf, "%c[6n", CHAR_ESC );
 		write( fd, outbuf, strlen(outbuf) );
 		if(poll( &ufds, 1, 200) == 1) {
-			if( (i = read( fd, inbuf, 40 )) > 0 ) {
-				inbuf[i] = '\0';
-				i = sscanf( inbuf, ESC "[%d;%dR", &row, &col ); // read cursor position
+			if (((i = read(fd, inbuf, 1)) == 1)
+				&& (inbuf[0] == CHAR_ESC)) {
+				if (parse_escape_seq(fd, inbuf, sizeof(inbuf)) != CUR_POS)
+					return false;
+				sscanf(inbuf, ESC "[%d;%dR", &row, &col); // read cursor position
 			}
+		} else {
+			return false;
 		}
 
 		// check if cursor position matches
@@ -168,6 +184,7 @@ void check_screen_size( int fd )
 		}
 	}
 	DBG( "%s: i=%d, screen_YY=%d, screen_XX=%d\n", __func__, i, screen_YY, screen_XX );
+	return true;
 }
 
 int get_screen_type( char *type )
@@ -241,10 +258,14 @@ void viewport_cleanup( void *arg )
 }
 
 
-void parse_escape_seq( int fd, char *buf, int len )
+int parse_escape_seq(int fd, char *buf, int len)
 {
-	int  i  = 0;
+	int i = 0;
 	char ch = ' ';
+	struct pollfd ufds;
+	ufds.fd = fd;
+	ufds.events = POLLIN;
+	ufds.revents = 0;
 
 	// we have already received the escape character
 	// now we have to receive the rest.
@@ -260,27 +281,31 @@ void parse_escape_seq( int fd, char *buf, int len )
 	buf[3] = '\0';
 
 	if (buf[1] != '[')
-		return;
+		goto out;
 
 	switch (buf[2]) {
-	case 'A': case 'B': case 'D':
+	case 'A': case 'B': case 'C': case 'D':
+		if (poll(&ufds, 1, 0) != 1)
+			goto out;
 		read(fd,&ch,1);
 		if (ch == 'R') {
 			buf[3] = ch;
 			buf[4] = '\0';
-			return;
 		}
+		goto out;
 		break;
-	case 'P': case 'h': case 'l':
+	case 'P':
 		read(fd,&ch,1);
 		buf[3] = ch;
 		buf[4] = '\0';
-		return;
-	default:
+		goto out;
 		break;
-	}
-	if (!isdigit(buf[2])) {
-		return;
+	case 'h': case 'l':
+		break;
+	default:
+		if (!isdigit(buf[2]))
+			goto out;
+		break;
 	}
 
 	for( i = 3; (ch != 'R') && (i < (len-1)); i++ ) {
@@ -288,6 +313,15 @@ void parse_escape_seq( int fd, char *buf, int len )
 		buf[i] = ch;
 	}
 	buf[i] = '\0';
+out:
+	DBG("%s: %02x %02x %02x %02x\n", __func__, buf[0], buf[1], buf[2], buf[3]);
+	// compare the sequence to the list of special strings
+	for(i = 0; i<SPECIAL_STRING_SIZE; i++) {
+		if(regexec(&special_string[i].preg, buf, 0, NULL, 0) == REG_NOERROR) {
+			break;
+		}
+	}
+	return i;
 }
 
 
@@ -297,13 +331,12 @@ void parse_escape_seq( int fd, char *buf, int len )
 #define LONG_TIMEOUT  5000
 #define SHORT_TIMEOUT 1000
 
-static bool display_present = false;
 static bool ping   = false;
 
 void viewport_listener( char *filepath )
 {
 	char		ch = '\0';
-	char		buf[16];
+	char		buf[32];
 	int		fd = -1;
 	struct pollfd	ufds;
 	int 		state = 0;
@@ -318,7 +351,7 @@ void viewport_listener( char *filepath )
 	DBG( "%s: Starting on port %s\n", __func__, filepath );
 
 	// prepare the regular expression pattern buffers for the special strings.
-	for( i = 0; i < SPECIAL_STRING_SIZE; i++ ) {
+	for(i = 0; i < SPECIAL_STRING_SIZE; i++) {
 		if( (errcode = regcomp( &special_string[i].preg, special_string[i].pattern, REG_EXTENDED | REG_NOSUB )) != REG_NOERROR ) {
 			char errbuf[128];
 			regerror( errcode, &special_string[i].preg, errbuf, sizeof( errbuf ) );
@@ -346,12 +379,11 @@ void viewport_listener( char *filepath )
 		port_attr.c_oflag = OPOST|ONLCR;
 		port_attr.c_lflag = 0;
 		port_attr.c_cc[VTIME] = 0;
-		port_attr.c_cc[VMIN] = 0;
+		port_attr.c_cc[VMIN] = 1;
 		tcflush(fd,TCIFLUSH);
 		tcsetattr(fd,TCSANOW,&port_attr);
 
-		check_screen_size( fd );
-		display_present = true;
+		display_present = check_screen_size( fd );
 		
 		DBG( "%s listening on %s\n", __func__, filepath );
 
@@ -372,15 +404,17 @@ void viewport_listener( char *filepath )
 						// do 5 second things.
 						//
 						if( ping ) {	// did we send a ping and not get a response
+							//screen_YY = 0;
+							//screen_XX = 0;
 							if( display_present ) {
-								DBG( "%s: Display has been disconnected.\n", __func__ );
+								display_present = false;
+								/*DBG*/printf( "%s: Display has been disconnected.\n", __func__ );
 								// TODO we need to signal the change
+								routing_send_signal(FP_MAX_DEVS);
 							}
-							display_present = false;
-							screen_YY = 0;
-							screen_XX = 0;
 						}
-						write( fd, ESC "[6n", 4 );
+                                                // Send ping (now enquire AUX switch state)
+						write( fd, ESC "[An", 4 );
 						ping = true;
 					} else if( timeout == SHORT_TIMEOUT ) {
 						//
@@ -396,14 +430,25 @@ void viewport_listener( char *filepath )
 						// and hope that the operator eventually presses another key. But if there were a requirement
 						// NOTE: Comments on this have indicated a desire to implement a timeout between the second '*'
 						// and the <ESC> key.
-						if( state == 2 ) {							// did we get '**' and then timeout
+						if( state == 2 ) {						// did we get '**' and then timeout
 							sprintf( buf, "**" );					//   prepare a string buffer
-							virtual_terminal_return( has_focus, buf );			//   send the string to the virtual terminals
+							virtual_terminal_return( has_focus, buf );		//   send the string to the virtual terminals
 							state = 0;
 						}
+						if (/*(has_focus != MS_DEV) &&*/ emergency_mode) {
+							DBG("%s: emergency_flash %s\n", __func__, emergency_flash?"ON":"OFF");
+							// toggle backlight for window with focus to effect flash
+							sprintf( buf, ESC "[<5%c", emergency_flash?'h':'l');  
+							write( fd, buf, 5 );
+							emergency_flash = !emergency_flash;
+							timeout = SHORT_TIMEOUT;
+							break;
+						}
 					}
-					timeout = LONG_TIMEOUT;		
-
+					if (emergency_mode)
+						timeout = SHORT_TIMEOUT;
+					else
+						timeout = LONG_TIMEOUT;		
 					break;
 
 				default:	// this will probably be '1'
@@ -411,16 +456,20 @@ void viewport_listener( char *filepath )
 						break;
 					} else if( read(fd, &ch, 1) != 1 ) {		// get a character
 						fprintf( stderr, "%s: Fgetc EOF (%s)\n", __func__, strerror( errno ) );
+					} else if (!display_present) {
+						// Panel must be present now
+						/*DBG*/printf( "%s: Display has been reconnected.\n", __func__ );
+						display_present = true;
+						tcflush(fd,TCIFLUSH);
+						check_screen_size( fd );
+						set_focus(has_focus);
+						routing_send_signal(FP_MAX_DEVS);
+						ping = false;
+						break;
 					} else if( ch == CHAR_ESC ) {
 						// get as much of the escape sequence as we can recognize
-						parse_escape_seq( fd, buf, sizeof( buf ) );
-
-						// compare the sequence to the list of special strings
-						for( i = 0; i < SPECIAL_STRING_SIZE; i++ ) {
-							if( (errcode = regexec( &special_string[i].preg, buf, 0, NULL, 0 )) == REG_NOERROR ) {
-								break;
-							}
-						}
+						if ((i = parse_escape_seq(fd, buf, sizeof(buf))) < 0)
+							break;
 
 						// finally handle the special string, or pass any other string up thre channel.
 						switch( i ) {
@@ -458,25 +507,56 @@ void viewport_listener( char *filepath )
 									virtual_terminal_return( has_focus, buf );	//   send the string to the virtual terminals
 								}
 								break;
-							case AUX_ON:	// the AUX switch has been turned ON
-								routing_return( AUX_DEV, "ON", NULL );
+							case AUXSW_ON:	// the AUX switch has been turned ON
+							{
+								char tmpbuf[4];
+								tmpbuf[0] = AUX_SWITCH_ON; tmpbuf[1] = '\0';
+								routing_return( AUX_DEV, tmpbuf, NULL );
 								DBG( "%s: AUX ON sequence\n", __func__ );
-								sprintf( buf, ESC "OT" );
-								virtual_terminal_return( has_focus, buf );
+								//virtual_terminal_return( has_focus, buf );
 								break;
-							case AUX_OFF:	// the AUX switch has been turned OFF
-								routing_return( AUX_DEV, "OFF", NULL );
+							}
+							case AUXSW_OFF:	// the AUX switch has been turned OFF
+							{
+								char tmpbuf[4];
+								tmpbuf[0] = AUX_SWITCH_OFF; tmpbuf[1] = '\0';
+								routing_return( AUX_DEV, tmpbuf, NULL );
 								DBG( "%s: AUX OFF sequence\n", __func__ );
-								sprintf( buf, ESC "OU" );
-								virtual_terminal_return( has_focus, buf );
+								//virtual_terminal_return( has_focus, buf );
 								break;
+							}
 							case AUX_STATE: // response to a query for AUX switch state
-								DBG( "%s: AUX switch status sequence\n", __func__ );
-								virtual_terminal_return( has_focus, buf );
+								DBG("%s: AUX switch status sequence (ping=%d)\n", __func__, ping);
+								if( ping ) {
+									if( !display_present ) {
+										/*DBG*/printf( "%s: Display has been reconnected (ping).\n", __func__ );
+										// TODO we need to signal the change
+										display_present = true;
+										check_screen_size( fd );
+										routing_send_signal(FP_MAX_DEVS); //signal all
+										set_focus(has_focus);
+									}
+									ping = false;
+								}
+                                                                // read AUX switch state and send status packet to AUX_DEV
+                                                                if (buf[2] == 'h') {
+									char tmpbuf[4];
+									tmpbuf[0] = AUX_SWITCH_ON; tmpbuf[1] = '\0';
+									routing_return(AUX_DEV, tmpbuf, NULL);
+								} else if (buf[2] == 'l') {
+									char tmpbuf[4];
+									tmpbuf[0] = AUX_SWITCH_OFF; tmpbuf[1] = '\0';
+									routing_return(AUX_DEV, tmpbuf, NULL);
+								}									
+								//virtual_terminal_return( has_focus, buf );
 								break;
 							case PWR_UP:	// The UI powered up or reset
 								DBG( "%s: POWER UP sequence\n", __func__ );
 								virtual_terminal_return( has_focus, buf );
+								break;
+							case STATUS: //Status at cursor position
+								DBG( "%s: Status Cursor Position response\n", __func__);
+								routing_return( has_focus, NULL, buf );
 								break;
 							case FP_TYPE: //Panel Type Response
 								DBG( "%s: Front Panel Type sequence\n", __func__ );
@@ -484,19 +564,12 @@ void viewport_listener( char *filepath )
 								break;
 							case CUR_POS:	// the response to a 'get cursor position' inquiry.
 								DBG( "%s: CURSOR POS sequence\n", __func__ );
-								if( ping ) {
-									if( !display_present ) {
-										DBG( "%s: Display has been reconnected.\n", __func__ );
-										// TODO we need to signal the change
-										display_present = true;
-										check_screen_size( fd );
-									}
-									ping = false;
-									break;
-								}
-								// fall through
+								routing_return( has_focus, NULL, buf );
+								break;
 							default:
-								virtual_terminal_return( has_focus, buf );		//   send the string to the virtual terminals
+								DBG( "%s: Unrecognized sequence\n", __func__ );
+								// send the string to the virtual terminals
+								virtual_terminal_return( has_focus, buf );
 								break;
 						}
 						state = 0;
@@ -520,11 +593,14 @@ void viewport_listener( char *filepath )
 							sprintf( buf, "*%c", ch );		//   prepare a string buffer
 						} else if( state == 2 ) {			// we received a '**' followed by some other character
 							// if {**,[0-F]} then set focus to app?
-							if( isxdigit(ch) && is_active(ch-0x30) ) {
-								 set_focus(ch-0x30);
-								 break;
-							 }else
-								sprintf( buf, "**%c", ch );	// prepare a string buffer
+							if (isxdigit(ch)) {
+                                                                char item = isdigit(ch)?(ch-0x30):(toupper(ch)-55);
+                                                                if (is_active(item)) {
+                                                                        set_focus(item);
+                                                                        break;
+                                                                }
+                                                        }
+                                                        sprintf( buf, "**%c", ch );	// prepare a string buffer
 						} else {					// we received a character without any special meaning
 							sprintf( buf, "%c", ch );		//   prepare a string buffer
 						}
@@ -540,10 +616,10 @@ void viewport_listener( char *filepath )
 
 void viewport_copy_out( int term, char *s )
 {
-	//int fd = fileno(panel);
+	int ret = 0;
 	if( term == has_focus ) {
-		write( panel_fd, s, strlen(s)/*+1*/ );
-		DBG( "%s: done\n", __func__ );
+		ret = write( panel_fd, s, strlen(s)/*+1*/ );
+		DBG( "%s: copy %d bytes\n", __func__, ret );
 	} else {
 		DBG( "%s: Terminal %d does not have focus\n", __func__, term );
 	}

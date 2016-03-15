@@ -43,7 +43,7 @@ TEG - NO LOCKING IS IN PLACE.  THIS IS NOT AN ISSUE FOR INITIAL DEVELOPMENT
 
 /* Local includes. */
 #include	"fiomsg.h"		/* FIOMSG Definitions					*/
-
+#include        "fioman.h"
 
 /*  Definition section.
 -----------------------------------------------------------------------------*/
@@ -683,12 +683,25 @@ fiomsg_rx_add_frame
 
 /*****************************************************************************/
 
+void fiomsg_rx_notify( FIOMSG_RX_FRAME *frame, FIO_NOTIFY_INFO *notify_info )
+{
+        struct fasync_struct *fa = frame->notify_async_queue;
+        FIOMAN_PRIV_DATA *priv = (FIOMAN_PRIV_DATA *)fa->fa_file->private_data;
+        /* Add notify info to fifo for each member of queue */
+        while (fa) {
+                FIOMAN_FIFO_PUT(priv->frame_notification_fifo, notify_info, sizeof(FIO_NOTIFY_INFO));
+        }
+        /* Signal the queue */
+        kill_fasync(&frame->notify_async_queue, SIGIO, POLL_IN);
+
+        /* TBD:!!!Remove queue entry if one-shot */
+
+}
 /*****************************************************************************/
 /*
 This function is used to update a RX frame that was just received.
 */
 /*****************************************************************************/
-
 void
 fiomsg_rx_update_frame
 (
@@ -699,6 +712,7 @@ fiomsg_rx_update_frame
 {
 	struct list_head	*p_elem;		/* Ptr to list element being examined */
 	FIOMSG_RX_FRAME		*p_rx_elem;		/* Ptr to rx frame being examined */
+        FIO_NOTIFY_INFO         notify_info;
 
 	/* For each element in the list */
 	list_for_each( p_elem, &p_port->rx_fiod_list[ p_rx_pend->fiod.fiod ] )
@@ -709,48 +723,48 @@ fiomsg_rx_update_frame
 		/* See if current element frame no is what we are looking for */
 		if ( FIOMSG_PAYLOAD( p_rx_elem )->frame_no == p_rx_pend->frame_no )
 		{
-/* TEG DEL */
-/*pr_debug( KERN_ALERT "Copying read frame data, fiod(%d), frame(%d), len(%d)\n",
-	p_rx_pend->fiod, FIOMSG_PAYLOAD( p_rx_elem )->frame_no, p_rx_elem->len );*/
-/* TEG DEL */
+                        notify_info.rx_frame = p_rx_pend->frame_no;
 			if (!success) {
 				/* Just update error counts */
 				p_rx_elem->resp = false;
 				p_rx_elem->info.error_rx++;
 				if (p_rx_elem->info.error_last_10 < 10)
 					p_rx_elem->info.error_last_10++;
-				return;
-			}
+                                notify_info.status = FIO_FRAME_ERROR;
+			} else {
 
-			/* Copy data into frame list */
-			memcpy( FIOMSG_PAYLOAD( p_rx_elem ),
+                                /* Copy data into frame list */
+                                memcpy( FIOMSG_PAYLOAD( p_rx_elem ),
 					p_port->rx_buffer,
 					p_rx_elem->len );
 			
-			/* Update other information */
-			p_rx_elem->when = FIOMSG_CURRENT_TIME;
-			p_rx_elem->resp = true;
-			/* Increment frame sequence number */
-			p_rx_elem->info.last_seq++;
-			p_rx_elem->info.success_rx++;
-			if (p_rx_elem->info.error_last_10)
-				p_rx_elem->info.error_last_10--;
-
-			/* Let FIOMAN do its work, if needed */
-			if ( NULL != p_rx_elem->rx_func )
-			{
-				/* FIOMAN has work to do */
-				( *p_rx_elem->rx_func )( p_rx_elem );
-			}
-			/* Update notification info for this frame/fiod */
-			
-			/* signal any users in notification queue */
+                                /* Update other information */
+                                p_rx_elem->when = FIOMSG_CURRENT_TIME;
+                                p_rx_elem->resp = true;
+                                /* Increment frame sequence number */
+                                p_rx_elem->info.last_seq++;
+                                p_rx_elem->info.success_rx++;
+                                if (p_rx_elem->info.error_last_10)
+                                        p_rx_elem->info.error_last_10--;
+                                notify_info.status = FIO_FRAME_RECEIVED;
+                                notify_info.seq_number = p_rx_elem->info.last_seq;
+                                notify_info.count = p_rx_elem->len;
+                                /* TBD: find FIO_DEV_HANDLE from here? */
+                                /* NOTE: Could the API notify_info struct have FIO_IOC_FIOD type? */
+                                /* Let FIOMAN do its work, if needed */
+                                if ( NULL != p_rx_elem->rx_func ) {
+                                        /* FIOMAN has work to do */
+                                        (*p_rx_elem->rx_func)( p_rx_elem );
+                                }
+                        }
+                        /* Update notification info for this frame/fiod */			
+			/* and signal any users in notification queue */
 			if (p_rx_elem->notify_async_queue != NULL)
-				kill_fasync(&p_rx_elem->notify_async_queue, SIGIO, POLL_IN);
+                                fiomsg_rx_notify(p_rx_elem, &notify_info);
 			
-			/* TBD:!!!Remove entry if one-shot */
-			
-			
+                        /* Wake up any waiting reads */
+                        wake_up_interruptible(&p_port->read_wait);
+                        
 			return;
 		}
 	}
@@ -1106,6 +1120,27 @@ fiomsg_tx_update_frame
 	}
 }
 
+void fiomsg_tx_notify( FIOMSG_TX_FRAME *frame )
+{
+        FIO_NOTIFY_INFO notify_info;
+        struct fasync_struct *fa = frame->notify_async_queue;
+        FIOMAN_PRIV_DATA *priv = (FIOMAN_PRIV_DATA *)fa->fa_file->private_data;
+
+        notify_info.rx_frame = FIOMSG_PAYLOAD( frame )->frame_no;
+        notify_info.status = FIO_FRAME_RECEIVED;
+        notify_info.seq_number = 0; /* frame->seqno */
+        notify_info.count = frame->len;
+        
+        /* Add notify info to fifo for each member of queue */
+        while (fa) {
+                FIOMAN_FIFO_PUT(priv->frame_notification_fifo, &notify_info, sizeof(FIO_NOTIFY_INFO));
+        }
+        /* Signal the queue */
+        kill_fasync(&frame->notify_async_queue, SIGIO, POLL_OUT);
+
+        /* TBD:!!!Remove queue entry if one-shot */
+}
+
 /*****************************************************************************/
 
 /*****************************************************************************/
@@ -1408,6 +1443,8 @@ fiomsg_init
 		{
 			INIT_LIST_HEAD( &p_port->rx_fiod_list[jj] );
 		}
+                
+                init_waitqueue_head(&p_port->read_wait);
 
 		/* Open the port */
 		/*if ( ( p_port->port_opened = fiomsg_port_open( p_port ) ) )

@@ -99,7 +99,7 @@ int tod_set_timesrc(int timesrc);
 
 int tod_request_onchange_signal(int);
 
-int tod_cancel_onchange_signal(void);
+int tod_cancel_onchange_signal(int);
 
 int tod_request_tick_signal(int);
 

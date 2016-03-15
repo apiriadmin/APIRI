@@ -1,4 +1,4 @@
-SOURCES := atc_sc.c
+SOURCES := atc_sc.c crc_ccitt.c
 
 LIBRARIES := -L../libfpui -L../../../fio/src/fioapi -L../../../tod/src \
 		-lfpui -lfio -ltod -lpthread

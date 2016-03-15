@@ -160,7 +160,7 @@ typedef struct _sc_internal_data
 	pthread_t update_thread;	// thread to run update function for screen on display
 	int file_descr; // file descriptor used to communicate witht he screen manager
 	int crt_screen;	// current internal screen to be displayed on the external screen
-	sc_internal_screen screens[NO_INTERNAL_SCREENS]; //internal screens
+	sc_internal_screen *screens[MAX_SCREENS]; //internal screens
 	
 }sc_internal_data;
 

@@ -25,6 +25,7 @@
 #define ATC_SC_SCREEN_H
 
 // Internal and external screens max size info
+#define MAX_SCREENS 18
 #define EXTERNAL_SCREEN_X_SIZE 	40
 #define EXTERNAL_SCREEN_Y_SIZE 	16  // in reality its 8 but the last line is reserved for "Quick Help"
 
@@ -36,16 +37,17 @@
 
 
 // ID for the various internal screens
-#define NO_INTERNAL_SCREENS 	9
-#define MENU_SCREEN_ID      0
-#define TIME_SCREEN_ID		1
-#define ETH1_SCREEN_ID      2
-#define ETH2_SCREEN_ID      3
-#define SRVC_SCREEN_ID      4
-#define LNUX_SCREEN_ID      5
-#define APIV_SCREEN_ID      6
-#define EPRM_SCREEN_ID		7
-#define HELP_SCREEN_ID		8
+#define NO_INTERNAL_SCREENS     8
+#define TIME_SCREEN_ID          0
+#define ETH1_SCREEN_ID          1
+#define ETH2_SCREEN_ID          2
+#define SRVC_SCREEN_ID          3
+#define LNUX_SCREEN_ID          4
+#define APIV_SCREEN_ID          5
+#define EPRM_SCREEN_ID          6
+#define TSRC_SCREEN_ID          7
+#define MENU_SCREEN_ID          16
+#define HELP_SCREEN_ID          17
 
 // Sizes of various internal screens
 #define MENU_SCREEN_X_SIZE 	40
@@ -63,7 +65,7 @@
 #define SRVC_SCREEN_Y_SIZE 	 8
 #define SRVC_SCREEN_HEADER_SIZE	 2
 #define LNUX_SCREEN_X_SIZE 	40
-#define LNUX_SCREEN_Y_SIZE 	 8
+#define LNUX_SCREEN_Y_SIZE 	 7
 #define LNUX_SCREEN_HEADER_SIZE	 1
 #define APIV_SCREEN_X_SIZE 	40
 #define APIV_SCREEN_Y_SIZE 	 8
@@ -71,6 +73,9 @@
 #define EPRM_SCREEN_X_SIZE 	40
 #define EPRM_SCREEN_Y_SIZE 	 8
 #define EPRM_SCREEN_HEADER_SIZE	 1
+#define TSRC_SCREEN_X_SIZE 	40
+#define TSRC_SCREEN_Y_SIZE 	 8
+#define TSRC_SCREEN_HEADER_SIZE	 1
 #define HELP_SCREEN_X_SIZE 	40
 #define HELP_SCREEN_Y_SIZE 	 8
 #define HELP_SCREEN_HEADER_SIZE	 1
@@ -81,7 +86,7 @@
 #define LINE_0_MENU		"0 System Time       1 Ethernet 1 Config "
 #define LINE_1_MENU		"2 Ethernet 2 Config 3 System Services   "
 #define LINE_2_MENU		"4 Linux Info        5 API Info          "
-#define LINE_3_MENU		"6 Host EEPROM Info  7                   "
+#define LINE_3_MENU		"6 Host EEPROM Info  7 Time Source Config"
 #define LINE_4_MENU		"8                   9                   "
 #define LINE_5_MENU		"A                   B                   "
 #define LINE_6_MENU		"C                   D                   "
@@ -166,32 +171,43 @@
 #define LINE_0_LNUX		"Linux Release:                          "
 #define LINE_1_LNUX		"Linux Version:                          "
 #define LINE_2_LNUX		"Machine Hardware Type:                  "
-#define LINE_3_LNUX		"Total Memory:                           "
-#define LINE_4_LNUX		"Uptime:                                 "
+#define LINE_3_LNUX		"Memory Total:     MB Free:     MB       "
+#define LINE_4_LNUX		"Filesystem Total:     MB Free:     MB   "
 #define LINE_5_LNUX		"Load Average:                           "
-#define FOOTER_LINE_ETH 	"[UP/DN ARROW] [APPLY-ENT]  [QUIT-**NEXT]"
-#define LNX_UPT_LINE	4
+#define LINE_6_LNUX		"Uptime:                                 "
+#define FOOTER_LINE_LNUX 	"[UP/DN ARROW] [APPLY-ENT]  [QUIT-**NEXT]"
+#define LNX_MEM_LINE    3
+#define LNX_FS_LINE     4
 #define LNX_AVG_LINE	5
+#define LNX_UPT_LINE	6
 
 // Definitions for the API INFO screen
 #define HEADER_LINE_0_APIV	"            API INFORMATION             "
-#define LINE_0_APIV		"API Version:                            "
-#define LINE_1_APIV		"API Driver Version:                     "
-#define LINE_2_APIV		"API Version:                            "
-#define LINE_3_APIV		"API Driver Version:                     "
-#define LINE_4_APIV		"API Version:                            "
-#define LINE_5_APIV		"                                        "
+#define LINE_0_APIV		"FPUI Version: n/a                       "
+#define LINE_1_APIV		"FPUI LKM Version: n/a                   "
+#define LINE_2_APIV		"FIO Version: n/a                        "
+#define LINE_3_APIV		"FIO LKM Version: n/a                    "
+#define LINE_4_APIV		"TOD Version: n/a                        "
 #define FOOTER_LINE_APIV 	"[UP/DN ARROW] [APPLY-ENT]  [QUIT-**NEXT]"
 
 // Definitions for the HOST EEPROM screen
 #define HEADER_LINE_0_EPRM	"        HOST EEPROM INFORMATION         "
 #define LINE_0_EPRM		"Host EEPROM Version:                    "
 #define LINE_1_EPRM		"Host EEPROM Size (bytes):               "
-#define LINE_2_EPRM		"                                        "
-#define LINE_3_EPRM		"                                        "
-#define LINE_4_EPRM		"                                        "
-#define LINE_5_EPRM		"                                        "
 #define FOOTER_LINE_EPRM 	"[UP/DN ARROW] [APPLY-ENT]  [QUIT-**NEXT]"
+
+// Definitions for the TIME SOURCE screen
+#define HEADER_LINE_0_TSRC	"       TIME SOURCE CONFIGURATION        "
+#define LINE_0_TSRC		"TimeSource  NTP Peer IP Addr  GPS Port  "
+#define LINE_1_TSRC		"LINESYNC       .   .   .      N/A       "
+#define FOOTER_LINE_TSRC 	"[UP/DN ARROW] [APPLY-ENT]  [QUIT-**NEXT]"
+#define TSRC_TSRC_LINE  1
+#define TSRC_TSRC_FIELD 0
+#define TSRC_IPADDR1_FIELD 2
+#define TSRC_IPADDR2_FIELD 4
+#define TSRC_IPADDR3_FIELD 6
+#define TSRC_IPADDR4_FIELD 8
+#define TSRC_PORT_FIELD 10
 
 // Definitions for the HELP screen
 #define HEADER_LINE_0_HELP	"           HELP SCREEN                  "

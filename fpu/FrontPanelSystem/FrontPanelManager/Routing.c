@@ -60,11 +60,13 @@ static char *slot_to_string( int slot )
 #endif
 
 extern void set_focus( int );
+extern void set_emergency( int, int );
 extern void tohex( char * );
 extern void tohexn( char *, int );
 extern void virtual_terminal( int, char * );
-extern void create_virtual_terminal( int );
+extern void create_virtual_terminal( int, bool );
 extern void destroy_virtual_terminal( int );
+extern void refresh_virtual_terminal( int );
 extern int  is_active( int );
 
 
@@ -72,11 +74,11 @@ read_packet *make_packet( int command, int from, int to, char *s, char *t )
 {
 	int slen = 0, tlen = 0;
 	
-	if (s != NULL) {
+	if (s != NULL)
 		slen = strlen(s);
-		if (t != NULL)
-			tlen = strlen(t);
-	}
+		
+	if (t != NULL)
+		tlen = strlen(t);
 	
 	read_packet *rp = (read_packet *)calloc( 1, slen + tlen + sizeof(read_packet) );
 	if( rp == NULL ) return( NULL );
@@ -89,6 +91,7 @@ read_packet *make_packet( int command, int from, int to, char *s, char *t )
 		memcpy( (char *)rp->data, s, slen );
 	if (tlen)
 		memcpy( (char *)&rp->data[slen], t, tlen );
+
 	return( rp );
 }
 
@@ -142,7 +145,11 @@ void routing( int fd )
 				break;
 			case CREATE:
 				DBG("%s: CREATE from %s to %s\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to) );
-				create_virtual_terminal( rp->from );		// create the virtual terminal
+				create_virtual_terminal( rp->from, false );		// create the virtual terminal
+				break;
+			case DIRECT:
+				DBG("%s: DIRECT from %s to %s\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to) );
+				create_virtual_terminal( rp->from, true );		// create direct mode terminal
 				break;
 			case REGISTER:
 				DBG("%s: REGISTER from %s to %s (size=%ld)\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to), (long)rp->size );
@@ -155,8 +162,6 @@ void routing( int fd )
 				p_i = (unsigned int *)rp->data;
 				i = *p_i;
 				DBG("%s: FOCUS from %s to %s request to set %d\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to), i );
-
-
 				if( is_active( i ) ) {
 					set_focus( i );
 
@@ -179,6 +184,16 @@ void routing( int fd )
 				// int attr = get_attributes(display)
 				// routing_return(to, &attr, 0)
 				break;
+			case REFRESH:
+				DBG("%s: REFRESH from %s to %s (size=%ld)\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to), (long)rp->size );
+				refresh_virtual_terminal( rp->from );
+				break;
+			case EMERGENCY:
+				p_i = (unsigned int *)rp->data;
+				i = *p_i;
+				DBG("%s: EMERGENCY from %s to %s (size=%ld)\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to), (long)rp->size );
+				set_emergency(rp->from, i);
+				break;
 			default:
 				DBG("%s: Undefined from %s to %s\n", __func__, slot_to_string(rp->from), slot_to_string(rp->to) );
 				break;
@@ -194,28 +209,34 @@ void routing_return( int target, char *s, char *t )
 {
 	read_packet *rp = NULL;
 	
-	if (s == NULL)
+	if ((s == NULL) && (t == NULL))
 		return;
 	
 	rp = make_packet( DATA, FPM_DEV, target, s, t );
 
-	printf("%s: write combined mapped+raw response (%d bytes)\n", __func__, rp->size);
+	DBG("%s: write combined mapped+raw response (%d bytes)\n", __func__, rp->size);
 	if( write( fpm, rp, sizeof(read_packet) + rp->size ) < 0 ) {
-		printf("%s: Write error - %s\n", __func__, strerror( errno ) );
+		fprintf(stderr, "%s: Write error - %s\n", __func__, strerror( errno ) );
 	}
 	free_packet(rp);
 
-	printf("%s: write to fpm\n", __func__ );
+	DBG("%s: write to %s\n", __func__, slot_to_string(target) );
 }
 
-void routing_send_signal( int to, int sig )
+void routing_send_signal( int to )
 {
-	read_packet *rp = make_packet( sig, FPM_DEV, to, NULL, NULL );
+	read_packet *rp = NULL;
+	
+	if (to == FP_MAX_DEVS)
+		rp = make_packet( SIGNAL_ALL, FPM_DEV, to, NULL, NULL );
+	else
+		rp = make_packet( SIGNAL, FPM_DEV, to, NULL, NULL );
 
-	if( write( fpm, rp, sizeof( read_packet ) ) < 0 ) {
+	printf("%s: write signal packet (%d bytes)\n", __func__, rp->size);
+	if( write( fpm, rp, sizeof(read_packet) + rp->size ) < 0 ) {
 		fprintf(stderr, "%s: Write error - %s\n", __func__, strerror( errno ) );
 	}
-    free_packet(rp);
+	free_packet(rp);
 }
 
 

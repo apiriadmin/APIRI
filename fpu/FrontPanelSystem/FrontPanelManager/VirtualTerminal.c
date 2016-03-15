@@ -44,6 +44,7 @@ static FILE *log = NULL;
 #define DBG(x...)           do{}while(0)
 #endif
 
+#define CHAR_BEL    0x07
 #define CHAR_BS     0x08
 #define CHAR_HT	    0x09
 #define CHAR_LF	    0x0a
@@ -68,6 +69,8 @@ extern int xprintf( int fd, const char * fmt, ... );
 extern  void routing_return( int, char *, char *s );
 extern int get_screen_type(char *);
 extern int get_focus( void );
+extern void set_focus( int );
+extern bool panel_present( void );
 extern int screen_XX;
 extern int screen_YY;
 
@@ -75,7 +78,7 @@ void virtual_terminal_return( int , char* );
 
 
 typedef struct display_s {			// this structure encapsulates the entire virtual display
-
+	int		is_direct;
 	unsigned int	majic;			// majic number tu indicate this display structure is valid.
 	pthread_mutex_t lock;
 	pthread_cond_t  update;
@@ -101,11 +104,12 @@ typedef struct display_s {			// this structure encapsulates the entire virtual d
 	} screen;
 
 	unsigned char	tab_stops[16];		// array of tab stop column positions
-	unsigned char	special_chars[8][8];	// storage for up to 8 special characters (each cell is 8x8 pixels)
+	unsigned char	special_chars[8][9];	// storage for up to 8 special characters (each cell is 8x8 pixels)
 
 	int		underline_active;	// the last state of the underline attribute
 	int		blink_active;		// the last state of the blink attribute
 	int		reverse_active;		// the last state of the reverse video attribute
+	int		emergency;
 
 	struct onechar {			// this structure represents a single character
 		char	underline:1,		// this character is underlined
@@ -121,12 +125,13 @@ typedef struct display_s {			// this structure encapsulates the entire virtual d
 	} keycode_map[16];			// allow up to 16 keys to be mapped.
 } display_t;
 
-
 display_t *display[FP_MAX_DEVS];		// array of pointers to virtual terminals
+int direct_term[FP_MAX_DEVS] = {0};		// array of flags indicating if term is open in direct mode
 
 void cursor_position( display_t *, int, int[] );
 void character( display_t *, int, int[] );
 void screen( display_t *, int, int[] );
+void inquiry( display_t *, int, int[] );
 void other( display_t *, int, int[] );
 
 #define ESC "\x1b"
@@ -141,7 +146,7 @@ typedef enum { CLEAR, SOFT_RESET, BACKLIGHT_ON, BACKLIGHT_OFF, AUTO_WRAP_ON, AUT
 		AUTO_REPEAT_OFF, CURSOR_ON, CURSOR_OFF, AUTO_SCROLL_ON, AUTO_SCROLL_OFF, BACKLIGHT_TIMEOUT,
 		INQUIRE_ATTRIBUTES } screen_types;
 
-typedef enum { POWER_UP, INQUIRE_AUX, INQUIRE_HEATER, INQUIRE_TYPE, INQUIRE_FOCUS } other_types;
+typedef enum { POWER_UP, INQUIRE_AUX, INQUIRE_HEATER, INQUIRE_TYPE, INQUIRE_FOCUS, PANEL_PRESENT } other_types;
 
 
 // #define REGEX_INIT { NULL, 0, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 0 }
@@ -156,55 +161,55 @@ typedef enum { POWER_UP, INQUIRE_AUX, INQUIRE_HEATER, INQUIRE_TYPE, INQUIRE_FOCU
 */
 
 static struct command_table_s {
-	char    * pattern;
-	regex_t   preg;
+	char	*pattern;
+	regex_t	preg;
+	int	argc;
 	void	(*func)( display_t *, int, int[] );
 	int	type;
 } cmd_tab[] = {
-/*	{ "\t",				REGEX_INIT, cursor_position,	TAB },
-	{ "\r",				REGEX_INIT, cursor_position,	RETURN },
-	{ "\n",				REGEX_INIT, cursor_position,	NEWLINE },
-	{ "\b",				REGEX_INIT, cursor_position,	BACKSPACE },*/
-	{ "^" ESC "[[][0-9]+;[0-9]+f", 	REGEX_INIT, cursor_position,	ABSOLUTE },
-	{ "^" ESC "[[][0-9]+A",		REGEX_INIT, cursor_position,	UP },
-	{ "^" ESC "[[][0-9]+B",		REGEX_INIT, cursor_position,	DOWN },
-	{ "^" ESC "[[][0-9]+C",		REGEX_INIT, cursor_position,	RIGHT },
-	{ "^" ESC "[[][0-9]+D",		REGEX_INIT, cursor_position,	LEFT },
-	{ "^" ESC "[[]H",		REGEX_INIT, cursor_position,	HOME },
-	{ "^" ESC "[[]2J",		REGEX_INIT, screen,		CLEAR },
-	{ "^" ESC "c",			REGEX_INIT, screen,		SOFT_RESET },
-	{ "^" ESC "P[0-9]+[[]",//[0-9]+;[0-9]+;[0-9]+;[0-9]+;[0-9];[0-9]+f"
-					REGEX_INIT, character,		COMPOSE_SPECIAL },
-	{ "^" ESC "[[]<[0-9]+V",	REGEX_INIT, character,		DISPLAY_SPECIAL },
-	{ "^" ESC "[[]25h",		REGEX_INIT, character,		BLINK_ON },
-	{ "^" ESC "[[]25l",		REGEX_INIT, character,		BLINK_OFF },
-	{ "^" ESC "[[]<5h",		REGEX_INIT, screen,		BACKLIGHT_ON },
-	{ "^" ESC "[[]<5l",		REGEX_INIT, screen,		BACKLIGHT_OFF },
-	{ "^" ESC "[[]33h",		REGEX_INIT, character,		CURSOR_BLINK_ON },
-	{ "^" ESC "[[]33l",		REGEX_INIT, character,		CURSOR_BLINK_OFF },
-	{ "^" ESC "[[]27h",		REGEX_INIT, character,		REVERSE_VIDEO_ON },
-	{ "^" ESC "[[]27l",		REGEX_INIT, character,		REVERSE_VIDEO_OFF },
-	{ "^" ESC "[[]24h",		REGEX_INIT, character,		UNDERLINE_ON },
-	{ "^" ESC "[[]24l",		REGEX_INIT, character,		UNDERLINE_OFF },
-	{ "^" ESC "[[]0m",		REGEX_INIT, character,		ALL_ATTRIBUTES_OFF },
-	{ "^" ESC "H",			REGEX_INIT, cursor_position,	SET_TAB },
-	{ "^" ESC "[[][0-9]+g",		REGEX_INIT, cursor_position,	CLEAR_TAB },
-	{ "^" ESC "[[][?]7h",		REGEX_INIT, screen,		AUTO_WRAP_ON },
-	{ "^" ESC "[[][?]7l",		REGEX_INIT, screen,		AUTO_WRAP_OFF },
-	{ "^" ESC "[[][?]8h",		REGEX_INIT, screen,		AUTO_REPEAT_ON },
-	{ "^" ESC "[[][?]8l",		REGEX_INIT, screen,		AUTO_REPEAT_OFF },
-	{ "^" ESC "[[][?]25h",		REGEX_INIT, screen,		CURSOR_ON },
-	{ "^" ESC "[[][?]25l",		REGEX_INIT, screen,		CURSOR_OFF },
-	{ "^" ESC "[[]<47h",		REGEX_INIT, screen,		AUTO_SCROLL_ON },
-	{ "^" ESC "[[]<47l",		REGEX_INIT, screen,		AUTO_SCROLL_OFF },
-	{ "^" ESC "[[]<[0-9]+S",	REGEX_INIT, screen,		BACKLIGHT_TIMEOUT },
-	{ "^" ESC "[[]PU",		REGEX_INIT, other,		POWER_UP },
-	{ "^" ESC "[[]6n",		REGEX_INIT, cursor_position,	INQUIRE_POSITION },
-	{ "^" ESC "[[]Bn",		REGEX_INIT, screen,		INQUIRE_ATTRIBUTES },
-	{ "^" ESC "[[]An",		REGEX_INIT, other,		INQUIRE_AUX },
-	{ "^" ESC "[[]hn",		REGEX_INIT, other,		INQUIRE_HEATER },
-	{ "^" ESC "[[]c",		REGEX_INIT, other,		INQUIRE_TYPE },
-	{ "^" ESC "[[]Fn",		REGEX_INIT, other,              INQUIRE_FOCUS },
+/*	{ "\t",				REGEX_INIT, 0, cursor_position,	TAB },
+	{ "\r",				REGEX_INIT, 0, cursor_position,	RETURN },
+	{ "\n",				REGEX_INIT, 0, cursor_position,	NEWLINE },
+	{ "\b",				REGEX_INIT, 0, cursor_position,	BACKSPACE },*/
+	{ "^" ESC "[[][0-9]+;[0-9]+f", 	REGEX_INIT, 2, cursor_position,	ABSOLUTE },
+	{ "^" ESC "[[][0-9]+A",		REGEX_INIT, 1, cursor_position,	UP },
+	{ "^" ESC "[[][0-9]+B",		REGEX_INIT, 1, cursor_position,	DOWN },
+	{ "^" ESC "[[][0-9]+C",		REGEX_INIT, 1, cursor_position,	RIGHT },
+	{ "^" ESC "[[][0-9]+D",		REGEX_INIT, 1, cursor_position,	LEFT },
+	{ "^" ESC "[[]H",		REGEX_INIT, 0, cursor_position,	HOME },
+	{ "^" ESC "[[]2J",		REGEX_INIT, 0, screen,		CLEAR },
+	{ "^" ESC "c",			REGEX_INIT, 0, screen,		SOFT_RESET },
+	{ "^" ESC "P[1-8][[]"/*([0-9]+[;])+[0-9]+f*/, REGEX_INIT, 7, character, COMPOSE_SPECIAL },
+	{ "^" ESC "[[]<[0-9]+V",	REGEX_INIT, 1, character,	DISPLAY_SPECIAL },
+	{ "^" ESC "[[]25h",		REGEX_INIT, 0, character,	BLINK_ON },
+	{ "^" ESC "[[]25l",		REGEX_INIT, 0, character,	BLINK_OFF },
+	{ "^" ESC "[[]<5h",		REGEX_INIT, 0, screen,		BACKLIGHT_ON },
+	{ "^" ESC "[[]<5l",		REGEX_INIT, 0, screen,		BACKLIGHT_OFF },
+	{ "^" ESC "[[]33h",		REGEX_INIT, 0, character,	CURSOR_BLINK_ON },
+	{ "^" ESC "[[]33l",		REGEX_INIT, 0, character,	CURSOR_BLINK_OFF },
+	{ "^" ESC "[[]27h",		REGEX_INIT, 0, character,	REVERSE_VIDEO_ON },
+	{ "^" ESC "[[]27l",		REGEX_INIT, 0, character,	REVERSE_VIDEO_OFF },
+	{ "^" ESC "[[]24h",		REGEX_INIT, 0, character,	UNDERLINE_ON },
+	{ "^" ESC "[[]24l",		REGEX_INIT, 0, character,	UNDERLINE_OFF },
+	{ "^" ESC "[[]0m",		REGEX_INIT, 0, character,	ALL_ATTRIBUTES_OFF },
+	{ "^" ESC "H",			REGEX_INIT, 0, cursor_position,	SET_TAB },
+	{ "^" ESC "[[][0-9]+g",		REGEX_INIT, 1, cursor_position,	CLEAR_TAB },
+	{ "^" ESC "[[][?]7h",		REGEX_INIT, 0, screen,		AUTO_WRAP_ON },
+	{ "^" ESC "[[][?]7l",		REGEX_INIT, 0, screen,		AUTO_WRAP_OFF },
+	{ "^" ESC "[[][?]8h",		REGEX_INIT, 0, screen,		AUTO_REPEAT_ON },
+	{ "^" ESC "[[][?]8l",		REGEX_INIT, 0, screen,		AUTO_REPEAT_OFF },
+	{ "^" ESC "[[][?]25h",		REGEX_INIT, 0, screen,		CURSOR_ON },
+	{ "^" ESC "[[][?]25l",		REGEX_INIT, 0, screen,		CURSOR_OFF },
+	{ "^" ESC "[[]<47h",		REGEX_INIT, 0, screen,		AUTO_SCROLL_ON },
+	{ "^" ESC "[[]<47l",		REGEX_INIT, 0, screen,		AUTO_SCROLL_OFF },
+	{ "^" ESC "[[]<[0-9]+S",	REGEX_INIT, 1, screen,		BACKLIGHT_TIMEOUT },
+	{ "^" ESC "[[]6n",		REGEX_INIT, 0, inquiry,         INQUIRE_POSITION },
+	{ "^" ESC "[[]Bn",		REGEX_INIT, 0, inquiry,         INQUIRE_ATTRIBUTES },
+	{ "^" ESC "[[]An",		REGEX_INIT, 0, inquiry,         INQUIRE_AUX },
+	{ "^" ESC "[[]hn",		REGEX_INIT, 0, inquiry,         INQUIRE_HEATER },
+	{ "^" ESC "[[]c",		REGEX_INIT, 0, inquiry,         INQUIRE_TYPE },
+	{ "^" ESC "[[]Fn",		REGEX_INIT, 0, other,           INQUIRE_FOCUS },
+	{ "^" ESC "[[]5n",		REGEX_INIT, 0, other,           PANEL_PRESENT },
 };
 
 #define CMD_TAB_SIZE ( sizeof( cmd_tab ) / sizeof( cmd_tab[0]) )
@@ -212,7 +217,7 @@ static struct command_table_s {
 void clear_screen( display_t * );
 
 static char return_buffer[128];
-
+bool emergency_mode = false;
 
 typedef struct {
 	char	cmd;
@@ -279,11 +284,11 @@ void vt_wait_for_update( int term )
 }
 
 
-int create_virtual_terminal( int term )
+int create_virtual_terminal( int term, bool direct_mode )
 {
 	int i;
 
-	printf("%s: term=%d\n", __func__, term );
+	printf("%s: term=%d %s\n", __func__, term, direct_mode?"direct mode":"" );
 
 #ifdef DEBUG
 	if (log == NULL) {
@@ -293,11 +298,18 @@ int create_virtual_terminal( int term )
 	}
 #endif
 
-	if( (term < 0) || (term >= FP_MAX_DEVS) ) {
+	if ((term < 0) || (term >= FP_MAX_DEVS)) {
 		return( -EINVAL );
 	}
-	if( display[term] != NULL ) {
+	
+	if (display[term] != NULL) {
 		return( -EINVAL );
+	}
+
+	if (direct_mode) {
+		direct_term[term] = true;
+	} else {
+		direct_term[term] = false;
 	}
 	
 	display[term] = calloc( 1, sizeof( display_t ) );
@@ -344,7 +356,11 @@ void destroy_virtual_terminal( int term )
 	if( ! is_active( term ) ) {
 		return;
 	}
-	
+
+	if (get_focus() == term) {
+		// destroyed window has focus, so revert to MS_DEV
+		set_focus( MS_DEV );
+	}
 	pthread_mutex_destroy( &display[term]->lock );
 	pthread_cond_destroy( &display[term]->update );
 	memset( display[term], 0, sizeof( display_t ) );
@@ -352,6 +368,14 @@ void destroy_virtual_terminal( int term )
 	display[term] = NULL;
 }
 
+void refresh_virtual_terminal(int term)
+{
+	printf("%s: term=%d\n", __func__, term );
+	if (get_focus() == term) {
+		// redraw virtual display to panel
+		set_focus(term);
+	}
+}
 
 int getterm( display_t * disp )
 {
@@ -364,6 +388,25 @@ int getterm( display_t * disp )
 	return( -1 );
 }
 
+void set_emergency(int term, int state)
+{
+	int i;
+	
+	if (get_focus() == term)
+		state = 0;
+		
+	display[term]->emergency = state;
+	// set global emergency condition
+	for (i=0; i<FP_MAX_DEVS; i++) {
+		if ((display[i] != NULL) && (display[i]->majic == TUI_MAJIC)) {
+			if (display[i]->emergency) {
+				emergency_mode = true;				
+				return;
+			}
+		}
+	}
+	emergency_mode = false;
+}
 
 //
 // Cursor control routines
@@ -543,7 +586,6 @@ void cursor_position( display_t * disp, int type, int args[] )
 #ifdef DEBUG
 	int term = getterm( disp );
 #endif
-	char buf[32];
 	int row;
 	int column;
 
@@ -612,11 +654,6 @@ void cursor_position( display_t * disp, int type, int args[] )
 		case CLEAR_TAB:
 			DBG( "%s(%d): CHT \n", __func__, term );
 			break;
-		case INQUIRE_POSITION:
-			get_cursor( disp, &row, &column );
-			sprintf( buf, "\x1b[%d;%dR", row+1, column+1 );
-			routing_return( getterm( disp ), buf, NULL );
-			break;
 	}
 }
 
@@ -633,9 +670,10 @@ void character( display_t *disp, int type, int args[] )
 	switch( type ) {
 		case COMPOSE_SPECIAL:
 			DBG( "%s(%d): SPC @ %d\n", __func__, term, args[0] );
-			for( i = 0; i < 6/*8*/; i++ ) {
-				disp->special_chars[args[0]][i] = args[1+i];
+			for( i = 1; i < 7/*8*/; i++ ) {
+				disp->special_chars[args[0]][i] = args[i];
 			}
+			disp->special_chars[args[0]][0] = 1; //indicate configured
 			break;
 		case DISPLAY_SPECIAL:
 			DBG( "%s(%d): SPD @ %d\n", __func__, term, args[0]);
@@ -688,7 +726,6 @@ void screen( display_t * disp, int type, int args[] )
 #ifdef DEBUG
 	int term = getterm( disp );
 #endif
-	char buf[32];
 	int row;
 	int column;
 
@@ -747,31 +784,42 @@ void screen( display_t * disp, int type, int args[] )
 			DBG( "%s(%d): SBTO  (%d)\n", __func__, term, args[0] );
 			disp->screen.backlight_timeout = args[0];
 			break;
+	}
+}
+
+
+void inquiry( display_t *disp, int type, int args[] )
+{
+	int term = getterm( disp );
+	char buf[32];
+	int row;
+	int column;
+
+	switch( type ) {
+		case INQUIRE_POSITION:
+			DBG( "%s(%d): [CURSOR POS] \n", __func__, term );
+			get_cursor( disp, &row, &column );
+			sprintf( buf, "\x1b[%d;%dR", row+1, column+1 );
+			routing_return( getterm( disp ), buf, NULL );
+			break;
 		case INQUIRE_ATTRIBUTES:
-			DBG( "%s(%d): ATT \n", __func__, term );
-			sprintf( buf, "\x1b[%c;%c;%c;%c;%d;%cR",
+			DBG( "%s(%d): [ATTR] \n", __func__, term );
+			sprintf( buf, "\x1b[%c;%c;%c;%c;%d;%c;%c;%c;%c;%c;%cR",
 				hl( disp->screen.auto_wrap ),
 				hl( disp->screen.auto_scroll ),
 				hl( disp->screen.auto_repeat ),
 				hl( disp->screen.backlight ),
 				disp->screen.backlight_timeout,
-				hl( disp->screen.aux_switch) );
+				hl(disp->screen.aux_switch),
+				hl(disp->cursor.visible),
+				hl(disp->cursor.blink),
+				hl(disp->terminal[disp->cursor.row][disp->cursor.column].blink),
+				hl(disp->terminal[disp->cursor.row][disp->cursor.column].reverse),
+				hl(disp->terminal[disp->cursor.row][disp->cursor.column].underline));
 			routing_return( getterm( disp ), buf, NULL );
 			break;
-	}
-}
-
-
-void other( display_t *disp, int type, int args[] )
-{
-	int term = getterm( disp );
-	char buf[32];
-
-	switch( type ) {
-		case POWER_UP:
-			break;
 		case INQUIRE_AUX:
-			DBG( "%s(%d): AUX \n", __func__, term );
+			DBG( "%s(%d): [AUX] \n", __func__, term );
 			if (get_focus() == term) {
 				sprintf( buf, "\x1b[An");
 				viewport_copy_out( term, buf );
@@ -781,30 +829,43 @@ void other( display_t *disp, int type, int args[] )
 			}
 			break;
 		case INQUIRE_HEATER:
-			DBG( "%s(%d): HEATER \n", __func__, term );
+			DBG( "%s(%d): [HEATER] \n", __func__, term );
 			break;
 		case INQUIRE_TYPE: {
-			char screen_type;
-			if (get_screen_type(&screen_type) != -1) {
-				DBG( "%s(%d): TYPE %c\n", __func__, term, screen_type );
-				sprintf( buf, "\x1b[%cR", screen_type );
-				routing_return( term, buf, NULL );
-			} else {
-				DBG("%s(%d): get_screen_type error\n", __func__, term);
-			}
+			char screen_type = 'B';
+			get_screen_type(&screen_type);
+			DBG( "%s(%d): [TYPE %c]\n", __func__, term, screen_type );
+			sprintf( buf, "\x1b[%cR", screen_type );
+			routing_return( term, buf, NULL );
 			break;
-                case INQUIRE_FOCUS: {
-			DBG( "%s(%d): [FOCUS] \n", __func__, term );
-                        sprintf( buf, "\x1b[%cR", (get_focus()==term)?'h':'l');
-                        routing_return( term, buf, NULL );
-                        }
-                        break;
 		}
 	}
 }
 
+/*
+ * These inquiry sequences are handled here and not copied out to actual
+ * front panel display.
+ */
+void other( display_t *disp, int type, int args[] )
+{
+	int term = getterm( disp );
+	char buf[32];
 
-
+	switch( type ) {
+                case INQUIRE_FOCUS: {
+			DBG( "%s(%d): [FOCUS] \n", __func__, term );
+                        sprintf( buf, "\x1b[%cR", (get_focus()==term)?'h':'l');
+                        routing_return( term, buf, buf );
+                        }
+                        break;
+                case PANEL_PRESENT: {
+			DBG( "%s(%d): [PRESENCE] \n", __func__, term );
+                        sprintf( buf, "\x1b[%cn", panel_present()?'0':'3');
+                        routing_return( term, buf, buf );
+                        }
+                        break;
+	}
+}
 
 
 //
@@ -843,11 +904,13 @@ int parse_arg_list( char *s, int args[], int argc )
 
 
 //
-// this routine parses and executes the escape sequence pointed to
+// This routine parses and executes the escape sequence pointed to
 // by 's'. Undefined or unsupported sequences are simply skipped
-// over. The number of characters parsed out of the string is returned.
+// over. The 'skip' boolean is returned true for those sequences which
+// are not to be copied out to the physical front panel. The number of
+// characters parsed out of the string is returned.
 //
-int parse_escape_request( display_t *disp, char *s )
+int parse_escape_request( display_t *disp, char *s, bool *skip )
 {
 	int i;
 	int errcode;
@@ -874,10 +937,13 @@ int parse_escape_request( display_t *disp, char *s )
 			// pmatch[0].rm_eo == byte offset of last character in 's' that matches pattern.
 			DBG( "%s: match on cmd_tab[%d] @%d for %d = <ESC>%s\n", __func__, i, pmatch[0].rm_so, pmatch[0].rm_eo - pmatch[0].rm_so, &cmd_tab[i].pattern[2] );
 			// memmove( s[pmatch[0].rm_so], s[pmatch[0].rm_eo+1], pmatch[0].rm_eo - pmatch[0].rm_so );
-			// TODO add a field to cmd_tab with number of args expected, and pass to parse_arg_list
-			parse_arg_list( s, args, 16 );		// decode any numbers that are part of the command
+
+			parse_arg_list( s, args, cmd_tab[i].argc ); // decode any numbers that are part of the command
 
 			cmd_tab[i].func( disp, cmd_tab[i].type, args );	// call the operational routine for this command
+			if (cmd_tab[i].func == other) {
+				*skip = true;
+			}
 
 			return( pmatch[0].rm_eo - pmatch[0].rm_so );	// return the number of characters consumed by this command
 		} else if( errcode != REG_NOMATCH ) {
@@ -889,8 +955,6 @@ int parse_escape_request( display_t *disp, char *s )
 	// If we can't parse the escape return 2 bytes as consumed so we continue past the calling loop
 	return 2;
 }
-
-
 
 //
 // This is the main controlling routine for the virtual terminal.
@@ -907,9 +971,11 @@ void virtual_terminal( int terminal, char *s )
 {
 	int i;
 	int j;
+	int len;
 	display_t *disp = display[terminal];
 	keymap_t  *km;
-
+	char *sub = strdup(s);
+	bool skip = false;
 
 	if( disp == NULL ) {
 		printf("%s: term %d No display device exists!\n", __func__, terminal );
@@ -920,12 +986,82 @@ void virtual_terminal( int terminal, char *s )
 
 	pthread_mutex_lock( &disp->lock );		// lock this terminal while updating it
 
-	for( i = 0; s[i]; i++ ) {
+	i = 0;
+	sub[0] = '\0';
+	while (s[i] != '\0') {
+	//for( i = 0; s[i]; i++ ) {
 		// handle any escape sequences 
 	    	if( s[i] == CHAR_ESCAPE ) {
-			i += parse_escape_request( disp, &s[i] ) - 1;
+			skip = false;
+			len = parse_escape_request( disp, &s[i], &skip );
+			if (skip == false)
+				strncat(sub, &s[i], len);
+			i += len;
 			continue;
 		}
+
+		// handle any internal control characters
+		switch( s[i] ) {
+			case CHAR_DC1:	// add a keycode mapping
+				km = (keymap_t *)&s[i];
+				DBG( "%s(%d)   [KeyMapSet][key=%02x][seq=%02x%02x%02x%02x]\n", __func__, terminal,
+					km->key, km->seq[0], km->seq[1], km->seq[2], km->seq[3]);
+				for( j = 0; j < 16; j++) {
+					if( disp->keycode_map[j].key == '\0' ) {
+						memmove( disp->keycode_map[j].code, km->seq, 7);
+						disp->keycode_map[j].key = km->key;
+						break;
+					}
+				}
+				i += sizeof(keymap_t);	// skip over the bytes that make up  this operation
+				qsort( disp->keycode_map, 16, sizeof( struct keycode_s ), keycomp );
+				continue;
+			case CHAR_DC2:	// read back a keycode mapping
+				km = (keymap_t *)&s[i];
+				DBG( "%s(%d)   [KeyMapGet][key=%02x]\n", __func__, terminal, km->key);
+				char key = km->key;
+				for( j = 0; j < 16; j++) {
+					if( disp->keycode_map[j].key == key ) {
+						break;
+					}
+				}
+				km = (keymap_t *)return_buffer;
+				km->cmd = CHAR_DC2;
+				km->key = key;
+				if (j<16)
+					memcpy(km->seq, disp->keycode_map[j].code, 7);
+				else
+					km->key = 0;
+				routing_return(terminal, (char *)km, NULL);					
+				i += 2;
+				continue;
+			case CHAR_DC3:	// delete a keycode mapping
+				DBG( "%s(%d)   [KeyMapDel]\n", __func__, terminal);
+				km = (keymap_t *)&s[i];
+				for( j = 0; j < 16; j++) {
+					if( disp->keycode_map[j].key == km->key ) {
+						memset( disp->keycode_map[j].code, 0, 8 );
+						break;
+					}
+				}
+				i += 2;	// skip over the key byte used in this operation
+				qsort( disp->keycode_map, 16, sizeof( struct keycode_s ), keycomp );
+				continue;
+			case CHAR_DC4:	// reset the entire keycode mapping table
+				km = (keymap_t *)&s[i];
+				DBG( "%s(%d)   [KeyMapReset][%c]\n", __func__, terminal, km->key);
+				if( km->key == '0' ) {	// clear the entire map
+					for( j = 0; j < 16; j++) {
+						disp->keycode_map[j].key = 0;
+					}
+				} else if( km->key == '1' ) {	// restore the default values.
+					for( j = 0; j < DEFAULT_KEYMAP_SIZE; j++ ) {
+						disp->keycode_map[j] = default_keymap[j];
+					}
+				}
+				i += 2;
+				continue;
+			}
 
 		// the rest should be normal characters
 		switch( s[i] ) {
@@ -958,7 +1094,6 @@ void virtual_terminal( int terminal, char *s )
 						disp->cursor.row--;		// move the cursor up one line
 					}
 				}
-				
 				break;
 			case CHAR_FF:	// Form Feed
 				clear_screen( disp );				// clear the entire screen
@@ -968,66 +1103,18 @@ void virtual_terminal( int terminal, char *s )
 			case CHAR_HT:	// Horizontal Tab
 				disp->cursor.column = find_next_tab( disp );	// move the cursor to the next tab stop
 				break;
-			case CHAR_DC1:	// add a keycode mapping
-				km = (keymap_t *)&s[i];
-				for( j = 0; j < 16; j++) {
-					if( disp->keycode_map[j].key == '\0' ) {
-						memmove( disp->keycode_map[j].code, km->seq, 7);
-						disp->keycode_map[j].key = km->key;
-						break;
-					}
-				}
-				i += 8;	// skip over the 8 bytes that make up  this operation
-				qsort( disp->keycode_map, 16, sizeof( struct keycode_s ), keycomp );
-				goto clean_up;
-				break;
-			case CHAR_DC2:	// read back a keycode mapping
-				km = (keymap_t *)&s[i];
-				for( j = 0; j < 16; j++) {
-					if( disp->keycode_map[j].key == km->key ) {
-						km = (keymap_t *)return_buffer;
-						km->cmd = CHAR_DC2;
-						km->key = disp->keycode_map[j].key;
-						memmove( km->seq, disp->keycode_map[j].code, 7 );
-						virtual_terminal_return( terminal, (char *)km );
-						break;
-					}
-				}
-				i += 1;
-				goto clean_up;
-				break;
-			case CHAR_DC3:	// delete a keycode mapping
-				km = (keymap_t *)&s[i];
-				for( j = 0; j < 16; j++) {
-					if( disp->keycode_map[j].key == km->key ) {
-						memset( disp->keycode_map[j].code, 0, 8 );
-						break;
-					}
-				}
-				i += 1;	// skip over the key byte used in this operation
-				qsort( disp->keycode_map, 16, sizeof( struct keycode_s ), keycomp );
-				goto clean_up;
-				break;
-			case CHAR_DC4:	// reset the entire keycode mapping table
-				km = (keymap_t *)&s[i];
-				if( km->key == '0' ) {	// clear the entire map
-					for( j = 0; j < 16; j++) {
-						disp->keycode_map[j].key = 0;
-					}
-				} else if( km->key == '1' ) {	// restore the default values.
-					for( j = 0; j < DEFAULT_KEYMAP_SIZE; j++ ) {
-						disp->keycode_map[j] = default_keymap[j];
-					}
-				}
-				i += 1;
-				goto clean_up;
+			case CHAR_BEL:  // Bell
 				break;
 			case '\0':	// End of string??
 				// should never get here, but the line if done.
-				break;
+				continue;
 			default:
 				// skip any non-printable (control) characters we don't support
-				if( ! isprint( s[i] ) ) continue;
+				if(!isprint(s[i])) {
+					printf("%s: skipping char %02X\n", __func__, s[i]);
+					i++;
+					continue;
+				}
 
 				DBG( "%s(%d) %c [0x%2.2x] @ (%d,%d)\n", __func__, terminal, s[i], s[i], disp->cursor.row, disp->cursor.column );
 				// write the character at the current location of the cursor
@@ -1080,11 +1167,15 @@ void virtual_terminal( int terminal, char *s )
 				    }
 				break;
 		    }
+		    strncat(sub, &s[i], 1);
+		    i++;
 	    }
 
-	viewport_copy_out( terminal, s );
+	if (strlen(s) != strlen(sub))
+		printf("%s: skipped %d chars \n", __func__, strlen(s)-strlen(sub));
+	viewport_copy_out( terminal, sub );
 
-clean_up:
+	free(sub);
 	pthread_cond_signal( &disp->update );		// signal that the display has updated.
 	pthread_mutex_unlock( &disp->lock );		// lock this terminal while updateing it
 }
@@ -1103,6 +1194,10 @@ void load_screen( int fd, int term )
 	if (!is_active( term ))
 		return;
 
+	set_emergency(term, 0);
+		
+	disp->screen.columns = screen_XX;
+	disp->screen.rows = screen_YY;
 	DBG("%s: fd=%d, term=%d (%d:%d)\n", __func__, fd, term, disp->screen.rows, disp->screen.columns );
 
 	// clear screen
@@ -1122,16 +1217,21 @@ void load_screen( int fd, int term )
 	xprintf( fd, ESC "[25l" );	// Turn blink off
 	xprintf( fd, ESC "[27l" );	// Turn reverse video off
 
+	// If this term is opened in direct mode, do not load text to panel
+	if (direct_term[term])
+		return;
 
 	DBG("%s: attributes set, loading text\n", __func__ );
 	
-	// send the special character definitions
+	// send the special character definitions, if configured
 	for( i = 0; i < 8; i++ ) {
-		xprintf( fd, ESC "[P%d[%d", i+1, disp->special_chars[i][0] );
-		for( j = 1; j < 8; j++ ) {
-			xprintf( fd, ";%d", disp->special_chars[i][j] );
+		if (disp->special_chars[i][0] != 0) {
+			xprintf( fd, ESC "P%d[%d", i+1, disp->special_chars[i][0] );
+			for( j = 1; j < 8; j++ ) {
+				xprintf( fd, ";%d", disp->special_chars[i][j] );
+			}
+			xprintf( fd, "f" );
 		}
-		xprintf( fd, "f" );
 	}
 
 	for( r = 0; r < disp->screen.rows; r++ ) {
@@ -1182,7 +1282,7 @@ void load_screen( int fd, int term )
 	xprintf( fd, ESC "[33%c",  hl( disp->cursor.blink ) );
 	// xprintf( fd, "", hl( disp->cursor.underline ) );
 	xprintf( fd, ESC "[%d;%df",  disp->cursor.row+1, disp->cursor.column+1 );
-
+	
 	DBG("%s: Text loaded\n", __func__ );
 }
 
@@ -1210,6 +1310,9 @@ void virtual_terminal_return( int term, char *s )
 	// mapped response. These MUST be paired.
 
 	strcpy( raw, s );
+	DBG("%s:(%d)(%d), slen=%d %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		__func__, term, get_focus(), strlen(s),
+		raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7]  );
 
 	for( i = 0; (i < 16) && (display[term]->keycode_map[i].key != 0); i++ ) {
 		if( (t = strstr( s, display[term]->keycode_map[i].code)) != NULL ) {
@@ -1219,7 +1322,6 @@ void virtual_terminal_return( int term, char *s )
 			i = -1;							// restart search in case of multiple hits.
 		}
 	}
-	DBG("%s: call routing_return()\n", __func__ );
 
 	routing_return( term, s, raw );
 }

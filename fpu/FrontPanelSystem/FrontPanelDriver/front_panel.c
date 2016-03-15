@@ -48,8 +48,7 @@
 //#define CONFIG_FP_PROC_FS
 // #define CONFIG_FP_DEV_FS
 
-#define FP_VERSION_STR "Intelight, 1.0, 2.17"
-unsigned long fp_version = 0x00000001L;
+#define FP_VERSION_STR "APIRI, 1.1, 2.17"
 
 
 
@@ -96,7 +95,7 @@ typedef struct fp_device_s {                      /* holds the state of each act
 	int		   last_slot;		/* the most recent slot used by the same process that is using this slot. */
 	enum { CLOSED=0x00, VR_OPEN=0x01, VW_OPEN=0x02, DR_OPEN=0x04, DW_OPEN=0x08 } open_flags;
 	char               fp_debug;            /* 0->off, 1->sense, 9->dump dev, 10-> all devs */
-	bool		   state;		/* used by AUX Switch interface to store it's current state */
+	int		   aux_state;		/* used by AUX Switch interface to store it's current state */
 } fp_device_t;
 
 #define V_MASK	(0x03)
@@ -419,7 +418,9 @@ int fp_open(struct inode *inode, struct file *filp)
 
 				if( slot >= APP_OPENS )	 {
 					return( -EMFILE );
-				} else if( send_packet( CREATE, slot, FPM_DEV, NULL, 0 ) == NULL ) {
+				}
+				// Create the virtual or direct mode terminal
+				if( send_packet((flags & O_SYNC)?DIRECT:CREATE, slot, FPM_DEV, NULL, 0) == NULL) {
 					return( -ENOMEM );
 				}
 				this_slot = slot;
@@ -509,7 +510,8 @@ int fp_open(struct inode *inode, struct file *filp)
 					}
 				}
 			}
-			printk("%s: APP(%d) is open %s\n", __func__, fp_dev->slot, (flags&O_SYNC)?"DIRECT":"" );
+			printk("%s: APP(%d) is open flags=0x%x %s\n",
+				__func__, fp_dev->slot, flags, (flags&O_SYNC)?"(DIRECT)":"" );
 			break;
 	    	case 1:		// Master Selection interface
 			fp_dev = &fp_devtab[MS_DEV];
@@ -718,7 +720,9 @@ int aux_state_to_user( fp_device_t * dev, char __user * buf, size_t count )
 {
 	size_t i;
 	size_t res = 0;
-	char token = (dev->state)? AUX_ON : AUX_OFF;
+	char token = (dev->aux_state)? AUX_SWITCH_ON : AUX_SWITCH_OFF;
+
+	pr_debug("%s: Slot=%s, Aux=%d\n", __func__, slot_to_string(dev->slot), token );
 
 	for( i = 0; i < count; i++ ) {
 		res += copy_to_user( &buf[i], &token, 1 );
@@ -870,8 +874,9 @@ ssize_t fp_read(struct file *filp, char __user *buf, size_t count, loff_t *fpos)
 				fp_dev->active_record = NULL;				// clear the reference so we can fetch a new record
 			}
 			break;
-		//case AUX_DEV:	// return the last enqueued packet as latest AUX switch state
-		//	break;
+		case AUX_DEV:	// return the last enqueued packet as latest AUX switch state
+			res = aux_state_to_user( fp_dev, buf, count );
+			break;
 		default:	// the remaining devices may read only part of a record.
 			data_len = rptr->size;
 			data_ptr = rptr->data;
@@ -958,7 +963,8 @@ ssize_t fp_write(struct file *filp, const char __user *buf, size_t count, loff_t
 	// command, from, to, buf, count
 	// we need to find the source instance of this request in order to route it properly.
 	switch( fp_dev->slot ) {
-	    	case FPM_DEV:	// these preformatted packets go to one of the application interfaces
+	    	case FPM_DEV:
+			// these preformatted packets go to one of the application interfaces
 			if( (lptr = send_packet( NOOP, FPM_DEV, 0, buf, count ) ) != NULL ) {
 				res = lptr->packet.size;
 			} else {
@@ -1097,6 +1103,41 @@ fp_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 			}
 #endif
 			break;
+		case FP_IOC_REFRESH:
+			pr_debug("%s: FP_IOC_REFRESH\n", __func__ );
+			if( fp_devtab[FPM_DEV].open_flags == CLOSED ){
+				printk("%s: FP_IOC_REFRESH - FPM_DEV(0x%x) not available\n", __func__, fp_devtab[FPM_DEV].open_flags);
+				return( -EAGAIN );					// return error if not.
+			} else if( (_IOC_DIR( cmd_in ) & _IOC_READ) != 0 ) {		// Check for an illegal read request
+				return( -EFAULT );
+			} else if( (fp_dev->slot < 0)  || (fp_dev->slot >= APP_OPENS) )	 { // Only Apps can issue this Ioctl
+				return( -EFAULT );
+			}
+			
+			if( send_packet( REFRESH, fp_dev->slot, FPM_DEV, s, 0 ) != NULL ) {
+				res = 0;
+			} else {
+				res = -EFAULT;
+			}
+			break;
+		case FP_IOC_EMERGENCY:
+			pr_debug("%s: FP_IOC_EMERGENCY\n", __func__ );
+			if( fp_devtab[FPM_DEV].open_flags == CLOSED ){
+				printk("%s: FP_IOC_EMERGENCY - FPM_DEV(0x%x) not available\n", __func__, fp_devtab[FPM_DEV].open_flags);
+				return( -EAGAIN );					// return error if not.
+			} else if( (_IOC_DIR( cmd_in ) & _IOC_READ) != 0 ) {		// Check for an illegal read request
+				return( -EFAULT );
+			} else if( (fp_dev->slot < 0)  || (fp_dev->slot >= APP_OPENS) )	 { // Only Apps can issue this Ioctl
+				return( -EFAULT );
+			}
+			s = (char *)&arg;
+			if( (send_packet(EMERGENCY, fp_dev->slot, FPM_DEV, (char *)&arg, _IOC_SIZE(cmd_in)) == NULL)
+				|| (send_packet(EMERGENCY, fp_dev->slot, MS_DEV, s, _IOC_SIZE(cmd_in)) == NULL) ) {
+				res = -EFAULT;
+			}
+			
+			break;
+			
 		default:
 			pr_debug("%s: Undefined Ioctl Command - 0x%x\n", __func__, cmd_in );
 			res = -ENOTTY;
@@ -1176,8 +1217,10 @@ void send_signal( int pid, int sig )
 list_packet *send_packet( int command, int from, int to, const char __user *buf, size_t count )
 {
 	fp_device_t	*to_dev = NULL;
-	list_packet	*lptr   = NULL;
+	list_packet	*lptr = NULL, *llptr = NULL;
 	read_packet	*rptr   = NULL;
+	struct list_head *node = NULL;
+	struct list_head *next = NULL;
 	size_t          len    = 0;
 	size_t	        res    = 0;
 	int	        i;
@@ -1207,64 +1250,80 @@ list_packet *send_packet( int command, int from, int to, const char __user *buf,
 		rptr->from    = from;						// load the originating device
 		rptr->to      = to;						// load the destination device
 
-		if( count > 0 )
-			if( (res = copy_from_user( &rptr->data, buf, count ) ) < 0 ) {	// copy data from user space to payload area
-				kfree( lptr );
-				return( NULL );
+		if (count > 0) {
+			if (access_ok(VERIFY_READ, (void __user *)buf, count)) {
+				if( (res = copy_from_user( &rptr->data, buf, count ) ) < 0 ) {
+					kfree( lptr );
+					return( NULL );
+				}
+				rptr->size  = count - res;	// copy_from_user returns number of bytes NOT transfered
+			} else {
+				memcpy(&rptr->data, buf, count);
+				rptr->size = count;
 			}
-		rptr->size  = count - res;					// copy_from_user returns number of bytes NOT transfered
+		}
 	}
 
 	pr_debug("%s: from=%s, to=%s, size=%d, data=%p, total=%d, cmd=%d\n", __func__,
 		slot_to_string(lptr->packet.from), slot_to_string(lptr->packet.to),
-		lptr->packet.size, lptr->packet.data, len, rptr->command );
+		lptr->packet.size, lptr->packet.data, len, rptr->command);
 
-	to_dev = &fp_devtab[ rptr->to ];
+	if (rptr->to < FP_MAX_DEVS) {
+		to_dev = &fp_devtab[ rptr->to ];
 
-	if( down_interruptible( &to_dev->sem ) ) {
-		//return( -ERESTARTSYS );
-		return( NULL );
+		if( down_interruptible( &to_dev->sem ) ) {
+			//return( -ERESTARTSYS );
+			return( NULL );
+		}
 	}
 
 	// separate out signaling commands from the rest and handle them
 	switch( rptr->command ) {
 		case SIGNAL_ALL:
-			for( i = 0; i < FP_MAX_DEVS; i++ ) {
+			pr_debug("%s: SIGNAL_ALL packet\n", __func__);
+			for( i = 0; i < FPM_DEV; i++ ) {
 				// if the pid is set, send SIGWINCH to it.
-				if( fp_devtab[i].pid > 1 ) {
+				if( (fp_devtab[i].open_flags != CLOSED) && (fp_devtab[i].pid > 1) ) {
 					send_signal( fp_devtab[i].pid, SIGWINCH );
 				}
 			}
 			kfree( lptr );
 			break;
 		case SIGNAL:
-			if( fp_devtab[rptr->to].pid > 0 ) {
+			pr_debug("%s: SIGNAL packet to %s\n", __func__, slot_to_string(lptr->packet.to));
+			if( (fp_devtab[rptr->to].open_flags != CLOSED) && (fp_devtab[rptr->to].pid > 0) ) {
 				send_signal( fp_devtab[rptr->to].pid, SIGWINCH );
 			}
 			kfree( lptr );
 			break;
 		case DATA:
+			// Check here for AUX switch status packet
+			// Update AUX device status
+			if (rptr->to == AUX_DEV) {
+				pr_debug("%s: AUX status update packet %02x\n", __func__, rptr->data[0]);
+				if (rptr->data[0] == AUX_SWITCH_ON)
+					fp_devtab[AUX_DEV].aux_state = AUX_SWITCH_ON;
+				else if (rptr->data[0] == AUX_SWITCH_OFF)
+					fp_devtab[AUX_DEV].aux_state = AUX_SWITCH_OFF;
+				// Delete any earlier status packets from queue
+				list_for_each_safe( node, next, &to_dev->vroot ) {
+					llptr = container_of( node, list_packet, links );
+					list_del( &llptr->links );		// unlink this structure from the list
+					kfree( llptr ); 				// free this record
+				}
+			}
+			// If raw-only packet, and to_dev is not open direct mode, discard
+			if ((rptr->to < APP_OPENS) && (rptr->raw_offset == 0) && !(to_dev->open_flags & DR_OPEN)) {
+				kfree(lptr);
+				lptr = NULL;
+				break;
+			}
+
 			list_add_tail( &lptr->links, &to_dev->vroot );				// load onto queue for the FPM
 			wake_up_interruptible( &to_dev->wait );					// wake up any blocked processes waiting on this queue
 			break;
-		case DIRECT:
-			// make sure associated virtual packet has not already been consumed
-			//if (!list_empty(&to_dev->vroot)) {
-				// get the last record off the virtual list
-				//lpptr = list_entry( to_dev->vroot.prev, list_packet, links );
-				//if (lpptr->packet.sequence == rptr->sequence) {
-					//pr_debug("direct packet, matching virtual #%d!\n",rptr->sequence);
-					//list_add_tail( &lptr->links, &to_dev->droot );		// load onto queue for the FPM
-					//wake_up_interruptible( &to_dev->wait );			// wake up any blocked processes waiting on this queue
-					//break;
-				//}
-			//}
-			//pr_debug("direct packet with no matching virtual!\n");
-			//kfree( lptr );
-
-			break;
 		case FOCUS:
-			printk("Setting Focus to %x %x %x %x\n",
+			pr_debug("Setting Focus to %x %x %x %x\n",
 					lptr->packet.data[0], lptr->packet.data[1],
 					lptr->packet.data[2], lptr->packet.data[3] );
 			list_add_tail( &lptr->links, &to_dev->vroot );				// load onto queue for the FPM
@@ -1276,7 +1335,8 @@ list_packet *send_packet( int command, int from, int to, const char __user *buf,
 			break;
 	}
 
-	up( &to_dev->sem );
+	if (to_dev != NULL)
+		up( &to_dev->sem );
 
 	return( lptr );
 }

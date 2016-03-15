@@ -12,7 +12,9 @@ fpu/FrontPanelSystem/fpuiexec \
 fpu/FrontPanelSystem/FrontPanelManager \
 fpu/FrontPanelSystem/MasterSelection \
 fpu/FrontPanelSystem/SampleApplication \
-fpu/FrontPanelSystem/SystemConfiguration
+fpu/FrontPanelSystem/SystemConfiguration \
+apps \
+utils/timesrc
 
 # kernel modules:
 # must define LINUX_DIR specifying linux build dir,
