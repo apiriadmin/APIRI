@@ -199,7 +199,7 @@ typedef enum fio_color  FIO_COLOR;
 struct fio_channel_map
 {
     unsigned int    output_point;
-    FIO_DEV_HANDLE  dev_handle;
+    FIO_DEV_HANDLE  fiod;
     unsigned int    channel;
     FIO_COLOR       color;
 };

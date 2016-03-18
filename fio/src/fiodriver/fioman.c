@@ -385,7 +385,12 @@ fioman_add_frame
                         txframe = fioman_ready_frame_67( p_sys_fiod );
                         rxframe = fioman_ready_frame_195( p_sys_fiod );
                 }
-                case 61: case 65: default:
+                case 61:
+                {
+                        txframe = fioman_ready_frame_61( p_sys_fiod );
+                        rxframe = fioman_ready_frame_189( p_sys_fiod );
+                }
+                case 65: default:
                         break;
                 }
                 break;
@@ -674,7 +679,7 @@ fioman_add_def_fiod_frames
 			if (rx_frame)
 				list_add_tail( &((FIOMSG_RX_FRAME *)(rx_frame))->elem, rx_frames );
 
-#if 0
+#if 1
 			/* Indicate other valid frames not sent by default (FIO332,FIOTS1,FIOINSIU,FIOOUTSIU) */
 			p_fiod->frame_frequency_table[60] = FIO_HZ_0;
 			p_fiod->frame_frequency_table[61] = FIO_HZ_0;
@@ -1031,8 +1036,8 @@ fioman_add_def_fiod_frames
 				break;
 			}
 			
-			/* Ready frame 52 for this device */
-			tx_frame = fioman_ready_frame_52( p_fiod );
+			/* Ready frame 53 for this device */
+			tx_frame = fioman_ready_frame_53( p_fiod );
 
 			/* Make sure frame was created */
 			/* If not system will fail */
@@ -1042,7 +1047,7 @@ fioman_add_def_fiod_frames
 			}
 
 			/* Ready corresponding response frame */
-			rx_frame = fioman_ready_frame_180( p_fiod );
+			rx_frame = fioman_ready_frame_181( p_fiod );
 
 			/* Make sure frame was created */
 			/* If not, user can never access frame */
@@ -1062,7 +1067,7 @@ fioman_add_def_fiod_frames
 #if 1
 			/* Indicate other valid frames not sent by default (FIO332,FIOTS1,FIOINSIU,FIOOUTSIU) */
 			p_fiod->frame_frequency_table[51] = FIO_HZ_0;
-			p_fiod->frame_frequency_table[53] = FIO_HZ_0;
+			p_fiod->frame_frequency_table[52] = FIO_HZ_0;
 			p_fiod->frame_frequency_table[54] = FIO_HZ_0;
 			p_fiod->frame_frequency_table[60] = FIO_HZ_0;
 #endif
@@ -2089,7 +2094,7 @@ fioman_channel_map_set
 			return (-EINVAL);
 		if ( FIO_BIT_TEST(p_app_fiod->channels_reserved, channel) == 0 )
 			return (-EPERM);
-		if ((p_app_ref_fiod = fioman_find_dev(p_priv, mappings[ii].dev_handle)) == NULL )
+		if ((p_app_ref_fiod = fioman_find_dev(p_priv, mappings[ii].fiod)) == NULL )
 			return (-EINVAL);
 		if( FIO_BIT_TEST(p_app_ref_fiod->outputs_reserved, output) == 0 )
 			return (-EPERM);
@@ -2117,7 +2122,7 @@ fioman_channel_map_set
 	{
 		channel = mappings[ii].channel;
 		output = mappings[ii].output_point;
-		p_app_ref_fiod = fioman_find_dev(p_priv, mappings[ii].dev_handle);
+		p_app_ref_fiod = fioman_find_dev(p_priv, mappings[ii].fiod);
 		p_sys_ref_fiod = p_app_ref_fiod->p_sys_fiod;
 		switch( mappings[ii].color ) {
 		case FIO_GREEN:
@@ -2197,7 +2202,7 @@ fioman_channel_map_get
 						continue;
 					}
 					mappings[count].channel = ii;
-					mappings[count].dev_handle = p_sys_fiod->dev_handle;
+					mappings[count].fiod = p_sys_fiod->dev_handle;
 					count++;
 				}
 			}
@@ -2224,7 +2229,7 @@ fioman_channel_map_get
 						continue;
 					}
 					mappings[count].channel = ii;
-					mappings[count].dev_handle = p_sys_fiod->dev_handle;
+					mappings[count].fiod = p_sys_fiod->dev_handle;
 					count++;
 				}
 			}
@@ -3417,6 +3422,14 @@ int fioman_frame_schedule_get
 		return ( -EFAULT );
 	}
 
+	/* VALIDATE array for valid frame number!!!*/
+	for (i=0; i<p_arg->count; i++) {
+		if (frame_schd[i].req_frame > 127) {
+pr_debug("fioman_frame_schedule_get: item:%d frame:%d invalid\n", i,
+		frame_schd[i].req_frame);
+			return( -EINVAL );
+                }
+	}
 	/* Is system view or app view requested? */
 	if (p_arg->view == FIO_VIEW_SYSTEM) {
 		p_sys_fiod = p_app_fiod->p_sys_fiod;
@@ -3426,7 +3439,7 @@ int fioman_frame_schedule_get
 				frame_schd[i].frequency = FIO_HZ_0;
 			else
 				frame_schd[i].frequency = freq;
-		} 
+		}
 	} else if (p_arg->view == FIO_VIEW_APP) {
 		for (i=0; i<p_arg->count; i++) {
 			frame_schd[i].frequency

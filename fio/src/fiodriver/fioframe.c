@@ -111,6 +111,16 @@ static FIOMSG_TX_FRAME frame_55_init =
 	.len		= FIOMAN_FRAME_NO_55_SIZE
 };
 
+/* Frame 61: Switch Pack Drivers/CMU Status Request */
+static FIOMSG_TX_FRAME frame_61_init =
+{
+	.def_freq	= FIO_HZ_10,
+	.cur_freq	= FIO_HZ_10,
+	.tx_func	= fioman_tx_frame_61,
+	.resp		= true,
+	.len		= FIOMAN_FRAME_NO_61_SIZE
+};
+
 /* Frame 62: Set Outputs Command */
 static FIOMSG_TX_FRAME frame_62_init =
 {
@@ -914,6 +924,110 @@ fioman_tx_frame_55
 
 /*****************************************************************************/
 /*
+This function is used to ready request frame 61 to be placed into the
+request frame queue for transmission, for one port
+*/
+/*****************************************************************************/
+
+void *
+fioman_ready_frame_61
+(
+	FIOMAN_SYS_FIOD	*p_sys_fiod		/* FIOD of destined frame */
+)
+{
+	FIOMSG_TX_FRAME	*p_tx;		/* Ptr of frame buffer */
+
+	/* kalloc the actual frame 61 for this port */
+	/* -1 is for the one byte of frame payload defined in FIOMSG_TX_FRAME */
+	if ( ( p_tx = (FIOMSG_TX_FRAME *)kmalloc( sizeof( FIOMSG_TX_FRAME ) - 1	+ FIOMAN_FRAME_NO_61_SIZE, GFP_KERNEL ) ) )
+	{
+		/* kmalloc succeeded, therefore init buffer */
+		memcpy( p_tx, &frame_61_init, sizeof( frame_61_init ) );
+		FIOMSG_PAYLOAD( p_tx )->frame_addr = 15;
+		FIOMSG_PAYLOAD( p_tx )->frame_ctrl = 0x83;
+		FIOMSG_PAYLOAD( p_tx )->frame_no = FIOMAN_FRAME_NO_61;
+		INIT_LIST_HEAD( &p_tx->elem );
+		p_tx->when = FIOMSG_CURRENT_TIME;		/* Set when to send frame */
+		p_tx->fioman_context = (void *)p_sys_fiod;
+		p_tx->fiod = p_sys_fiod->fiod;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_61] == -1)
+			p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_61] = p_tx->cur_freq;
+	}
+	else
+	{
+		/* Could not kalloc */
+		return ( ERR_PTR( -ENOMEM ) );
+	}
+
+	/* Return what we prepared */
+	return ( (void *)p_tx );
+}
+
+/*****************************************************************************/
+/*
+This function is called when a frame 61 is to be TX'ed.
+*/
+/*****************************************************************************/
+
+void
+fioman_tx_frame_61
+(
+	FIOMSG_TX_FRAME		*p_tx_frame		/* Frame about to be sent */
+)
+{
+	struct list_head	*p_sys_elem;	/* Element from FIOMAN FIOD list */
+	struct list_head	*p_next;		/* Temp for loop */
+	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* FIOD of destined frame */
+	FIO_DEVICE_TYPE		fiod;
+	int ii, output;
+	unsigned long flags;
+/* TEG DEL */
+/*pr_debug( "UPDATING Frame 61\n" );*/
+/* TEG DEL */
+	/* Fill in payload with channel status */
+	memset(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, 0, (FIOMAN_FRAME_NO_61_SIZE-3));
+	list_for_each_safe( p_sys_elem, p_next, &fioman_fiod_list )
+	{
+		/* Get a ptr to this list entry */
+		p_sys_fiod = list_entry( p_sys_elem, FIOMAN_SYS_FIOD, elem );
+		for (fiod=FIOOUT6SIU1;fiod<=FIOOUT14SIU2;fiod++) {
+			if (p_sys_fiod->fiod.fiod == fiod) {
+				/* Add channel states for this device */
+				spin_lock_irqsave(&p_sys_fiod->lock, flags);
+				for(ii=0; ii<FIO_CHANNELS; ii++) {
+					if ( (output = p_sys_fiod->channel_map_green[ii]) > 0 ) {
+						if (FIO_BIT_TEST(p_sys_fiod->outputs_plus, (output-1)))
+							FIOMSG_PAYLOAD(p_tx_frame)->frame_info[8+ii/8] |= (0x1<<(ii%8));
+					}
+					if ( (output = p_sys_fiod->channel_map_yellow[ii]) > 0 ) {
+						if (FIO_BIT_TEST(p_sys_fiod->outputs_plus, (output-1)))
+							FIOMSG_PAYLOAD(p_tx_frame)->frame_info[4+ii/8] |= (0x1<<(ii%8));
+					}
+					if ( (output = p_sys_fiod->channel_map_red[ii]) > 0 ) {
+						if (FIO_BIT_TEST(p_sys_fiod->outputs_plus, (output-1)))
+							FIOMSG_PAYLOAD(p_tx_frame)->frame_info[ii/8] |= (0x1<<(ii%8));
+					}
+				}
+				spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
+			}
+		}
+	}
+	/* Add Dark Channel Map Selection */
+	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_tx_frame->fioman_context;
+	spin_lock_irqsave(&p_sys_fiod->lock, flags);
+	FIOMSG_PAYLOAD(p_tx_frame)->frame_info[12] = p_sys_fiod->cmu_mask;
+	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
+/*	printk( KERN_ALERT "UPDATING Frame 61: %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
+			p_tx_frame->frame[3], p_tx_frame->frame[4], p_tx_frame->frame[5],
+			p_tx_frame->frame[6], p_tx_frame->frame[7], p_tx_frame->frame[8],
+			p_tx_frame->frame[9], p_tx_frame->frame[10], p_tx_frame->frame[11],
+			p_tx_frame->frame[12], p_tx_frame->frame[13], p_tx_frame->frame[14],
+			p_tx_frame->frame[15] );*/
+
+}
+
+/*****************************************************************************/
+/*
 This function is used to ready request frame 62 to be placed into the
 request frame queue for transmission, for one port
 */
@@ -943,7 +1057,7 @@ fioman_ready_frame_62
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
                 if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_62] == -1)
-		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_62] = p_tx->cur_freq;
+			p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_62] = p_tx->cur_freq;
 	}
 	else
 	{
@@ -1118,7 +1232,7 @@ fioman_tx_frame_67
 /*pr_debug( "UPDATING Frame 67\n" );*/
 /* TEG DEL */
 	/* Fill in payload with channel status */
-	memset(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, 0, (FIOMAN_FRAME_NO_0_SIZE-3));
+	memset(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, 0, (FIOMAN_FRAME_NO_67_SIZE-3));
 	list_for_each_safe( p_sys_elem, p_next, &fioman_fiod_list )
 	{
 		/* Get a ptr to this list entry */
@@ -2097,7 +2211,7 @@ fioman_ready_frame_182
 {
 	FIOMSG_RX_FRAME	*p_rx;		/* Ptr of frame buffer */
 
-	/* kalloc the actual frame 181 for this port */
+	/* kalloc the actual frame 182 for this port */
 	/* -1 is for the one byte of frame payload defined in FIOMSG_RX_FRAME */
 	if ( ( p_rx = (FIOMSG_RX_FRAME *)kzalloc( sizeof( FIOMSG_RX_FRAME ) - 1 + FIOMAN_FRAME_NO_182_SIZE, GFP_KERNEL ) ) )
 	{
@@ -2156,6 +2270,42 @@ fioman_ready_frame_183
 }
 
 /*****************************************************************************/
+/*****************************************************************************/
+/*
+This function is used to ready response frame 189 to be placed into the
+response frame list for this fiod for this port.
+*/
+/*****************************************************************************/
+
+void *
+fioman_ready_frame_189
+(
+	FIOMAN_SYS_FIOD	*p_sys_fiod		/* FIOD of destined frame */
+)
+{
+	FIOMSG_RX_FRAME	*p_rx;		/* Ptr of frame buffer */
+
+	/* kalloc the actual frame 189 for this port */
+	/* -1 is for the one byte of frame payload defined in FIOMSG_RX_FRAME */
+	if ( ( p_rx = (FIOMSG_RX_FRAME *)kzalloc( sizeof( FIOMSG_RX_FRAME ) - 1
+		+ FIOMAN_FRAME_NO_189_SIZE, GFP_KERNEL ) ) )
+	{
+		/* kmalloc succeeded, therefore init buffer */
+		fioman_rx_frame_init(p_sys_fiod, p_rx);
+		FIOMSG_PAYLOAD( p_rx )->frame_no = FIOMAN_FRAME_NO_189;
+		p_rx->rx_func = &fioman_rx_frame_189;
+		p_rx->len = FIOMAN_FRAME_NO_189_SIZE;
+	}
+	else
+	{
+		/* Could not kalloc */
+		return ( ERR_PTR( -ENOMEM ) );
+	}
+
+	/* Return what we prepared */
+	return ( (void *)p_rx );
+}
+
 /*****************************************************************************/
 /*
 This function is used to ready response frame 190 to be placed into the
@@ -2712,6 +2862,32 @@ fioman_rx_frame_183
 }
 
 /*****************************************************************************/
+/*****************************************************************************/
+/*
+This function is called when a frame 189 is RX'ed.
+*/
+/*****************************************************************************/
+
+void
+fioman_rx_frame_189
+(
+	FIOMSG_RX_FRAME		*p_rx_frame		/* Frame received */
+)
+{
+	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* For access to System info */
+	unsigned long flags;
+
+	/* Get access to system info */
+	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;
+
+	/* Save data into FIOD System buffers */
+	spin_lock_irqsave(&p_sys_fiod->lock, flags);
+	if (FIOMSG_PAYLOAD(p_rx_frame)->frame_info[30] & 0x1) {
+		p_sys_fiod->cmu_config_change_count++;
+	}
+	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
+}
+
 /*****************************************************************************/
 /*
 This function is called when a frame 195 is RX'ed.
