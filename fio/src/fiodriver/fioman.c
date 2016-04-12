@@ -1538,6 +1538,7 @@ fioman_reserve_set
 	u8			reserve[ FIO_OUTPUT_POINTS_BYTES ] = {0};
 	u8			relinquish[ FIO_OUTPUT_POINTS_BYTES ] = {0};
 	int			ii;				/* Loop variable */
+	unsigned long		flags;
 
 	/* Find this APP registeration */
 	p_app_fiod = fioman_find_dev( p_priv, p_arg->dev_handle );
@@ -1581,6 +1582,7 @@ fioman_reserve_set
 	}
 
 	/* Set the masks accordingly */
+	spin_lock_irqsave(&p_sys_fiod->lock, flags);
 	for ( ii = 0; ii < sizeof( reserve ); ii++ )
 	{
 		/* OR on bits in FIOMAN list */
@@ -1594,7 +1596,14 @@ fioman_reserve_set
 		/* Turn off bits in APP and FIOMAN lists now */
 		p_app_fiod->outputs_reserved[ ii ] &= ~( relinquish[ ii ] );
 		p_sys_fiod->outputs_reserved[ ii ] &= ~( relinquish[ ii ] );
+		
+		/* Ensure relinquished outputs are reset */
+		p_app_fiod->outputs_plus[ ii ]  &= ~( relinquish[ ii ] );
+		p_app_fiod->outputs_minus[ ii ] &= ~( relinquish[ ii ] );
+		p_sys_fiod->outputs_plus[ ii ]  &= ~( relinquish[ ii ] );
+		p_sys_fiod->outputs_minus[ ii ] &= ~( relinquish[ ii ] );
 	}
+	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 
 	/* return success */
 	return ( 0 );
