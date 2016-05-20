@@ -1087,6 +1087,21 @@ fioman_add_def_fiod_frames
 
 /*****************************************************************************/
 
+bool fiod_conflict_check( FIO_DEVICE_TYPE a, FIO_DEVICE_TYPE b)
+{
+	if ((a > FIO332) && (a < FIOCMU)) {
+		if ((b < FIOTS1) || (b > FIOTF8))
+			return true;
+	} else if (a > FIOTF8) {
+		if (b < FIOCMU)
+			return true;
+	} else if (b != FIO332) {
+		return true;
+	}
+	
+	return false;
+}
+
 /*****************************************************************************/
 /*
 Function to allow registration of a FIOD on a port.
@@ -1139,15 +1154,16 @@ fioman_reg_fiod
 		/* Get a ptr to this list entry */
 		p_sys_fiod = list_entry( p_sys_elem, FIOMAN_SYS_FIOD, elem );
 
-		/* See if this is what we are looking for */
-		if (   ( fiod->fiod == p_sys_fiod->fiod.fiod )
-			&& ( fiod->port == p_sys_fiod->fiod.port ) )
-		{
-			/* YES, already exists -- don't re-add */
-			break;
+		/* Check if fiod on same port */
+		if (fiod->port == p_sys_fiod->fiod.port) {
+			if (fiod->fiod == p_sys_fiod->fiod.fiod) {
+				/* already exists -- don't re-add */
+				break;
+			}
+			/* Check for conflicts */
+			if (fiod_conflict_check(p_sys_fiod->fiod.fiod, fiod->fiod) == true)
+				return (FIO_DEV_HANDLE)(-ECONNREFUSED);
 		}
-
-		/* TEG - TODO, add code to check for conflicts */
 
 		/* Ready for next loop */
 		p_sys_fiod = NULL;		/* Show not seen yet */
