@@ -2825,21 +2825,22 @@ This function is used to get the fiod status.
 int
 fioman_fiod_status_get
 (
-	struct file					*filp,	/* File Pointer */
-	FIO_IOC_FIOD_STATUS	__user	*p_arg	/* Arguments to process */
+	struct file                *filp, /* File Pointer */
+	FIO_IOC_FIOD_STATUS        __user *p_arg /* Arguments to process */
 )
 {
-	FIOMAN_PRIV_DATA		*p_priv = filp->private_data;	/* Access Apps data */
-	FIOMAN_APP_FIOD			*p_app_fiod;	/* Ptr to app fiod structure */
-	FIOMAN_SYS_FIOD			*p_sys_fiod;	/* Ptr to FIOMAN fiod structure */
-	FIOMSG_PORT				*p_port;
-	FIO_FIOD_STATUS __user	*p_usr_status = p_arg->status;
-	FIO_FRAME_INFO __user	*p_usr_info = p_usr_status->frame_info;
-	struct list_head		*p_elem;		/* Ptr to list element */
-	struct list_head		*p_next;		/* Temp for safe loop */
-	FIOMSG_RX_FRAME			*p_rx_frame;	/* Ptr to rx frame being examined */
-	unsigned int			index = 0;
-
+	FIOMAN_PRIV_DATA      *p_priv = filp->private_data; /* Access Apps data */
+	FIOMAN_APP_FIOD       *p_app_fiod;	/* Ptr to app fiod structure */
+	FIOMAN_SYS_FIOD       *p_sys_fiod;	/* Ptr to FIOMAN fiod structure */
+	FIOMSG_PORT           *p_port;
+	FIO_FIOD_STATUS       __user *p_usr_status = p_arg->status;
+	FIO_FRAME_INFO        __user *p_usr_info = p_usr_status->frame_info;
+	struct list_head      *p_elem;		/* Ptr to list element */
+	struct list_head      *p_next;		/* Temp for safe loop */
+	FIOMSG_RX_FRAME       *p_rx_frame;	/* Ptr to rx frame being examined */
+	unsigned int          index = 0;
+	uint32_t              success_rx = 0, error_rx = 0;
+	
 	/* Find this APP registration */
 	p_app_fiod = fioman_find_dev( p_priv, p_arg->dev_handle );
 	/* See if we found the dev_handle */
@@ -2852,9 +2853,6 @@ fioman_fiod_status_get
 		return (-EINVAL);
 
 	p_sys_fiod = p_app_fiod->p_sys_fiod;
-	put_user(p_app_fiod->enabled, &p_usr_status->comm_enabled);
-	put_user(p_sys_fiod->success_rx, &p_usr_status->success_rx);
-	put_user(p_sys_fiod->error_rx, &p_usr_status->error_rx);
 
 	/* For each element in the list */
 	p_port = FIOMSG_P_PORT( p_sys_fiod->fiod.port );
@@ -2863,16 +2861,24 @@ fioman_fiod_status_get
 		/* Get the response frame for this queue element */
 		p_rx_frame = list_entry( p_elem, FIOMSG_RX_FRAME, elem );
 
+		/* Update fiod cummulative totals */
+		success_rx += p_rx_frame->info.success_rx;
+		error_rx += p_rx_frame->info.error_rx;
+		
 		/* Update corresponding frame info in response */
 		index = FIOMSG_PAYLOAD( p_rx_frame )->frame_no - 128;
 		pr_debug( "fiod_status_get: fiod(%d), frame(%d), seq(%u), err(%u)(%u)\n",
-				p_sys_fiod->fiod.fiod, index+128, p_rx_frame->info.last_seq,
-				p_rx_frame->info.error_rx, p_rx_frame->info.error_last_10);
+			p_sys_fiod->fiod.fiod, index+128, p_rx_frame->info.last_seq,
+			p_rx_frame->info.error_rx, p_rx_frame->info.error_last_10);
 		if (copy_to_user(&p_usr_info[index], &p_rx_frame->info,	sizeof(FIO_FRAME_INFO))) {
 			/* Could not copy for some reason */
 			return ( -EFAULT );
 		}
 	}
+	put_user(p_app_fiod->enabled, &p_usr_status->comm_enabled);
+	put_user(success_rx, &p_usr_status->success_rx);
+	put_user(error_rx, &p_usr_status->error_rx);
+
 	/* Show success */
 	return ( 0 );
 }
