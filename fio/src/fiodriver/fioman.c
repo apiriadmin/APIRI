@@ -168,6 +168,22 @@ fioman_do_disable_fiod
 	FIOMAN_APP_FIOD	*p_app_fiod	/* Ptr to APP FIOD */
 )
 {
+	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* Ptr to FIOMAN fiod structure */
+	int			ii;				/* Loop variable */
+	unsigned long		flags;
+	
+	/* Set app outputs to off state on disable */
+	/* For each plus / minus byte */
+	p_sys_fiod = p_app_fiod->p_sys_fiod;
+	spin_lock_irqsave(&p_sys_fiod->lock, flags);
+	for (ii = 0; ii < FIO_OUTPUT_POINTS_BYTES; ii++)
+	{
+		/* Turn off all bits we are allowed to touch */
+                p_sys_fiod->outputs_plus[ii]  &=~(p_app_fiod->outputs_reserved[ii]);
+                p_sys_fiod->outputs_minus[ii] &=~(p_app_fiod->outputs_reserved[ii]);
+	}
+	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
+	 
 	/* Show comm being disabled */
 	p_app_fiod->enabled = false;
 
