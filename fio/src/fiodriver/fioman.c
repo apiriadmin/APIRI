@@ -1566,10 +1566,12 @@ fioman_reserve_set
 	FIOMAN_PRIV_DATA	*p_priv = filp->private_data;	/* Access Apps data */
 	FIOMAN_APP_FIOD		*p_app_fiod;	/* Ptr to app fiod structure */
 	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* Ptr to FIOMAN fiod structure */
-						/* Kernel buffers to use */
+	FIOMAN_SYS_FIOD		*p_sys_ref_fiod; /* Ptr to referenced sys fiod */
+	struct list_head	*p_sys_elem;	/* Element from FIOMAN FIOD list */
+	struct list_head	*p_next;        /* Temp for loop */
 	u8			reserve[ FIO_OUTPUT_POINTS_BYTES ] = {0};
 	u8			relinquish[ FIO_OUTPUT_POINTS_BYTES ] = {0};
-	int			ii;				/* Loop variable */
+	int			ii, jj;         /* Loop variables */
 	unsigned long		flags;
 
 	/* Find this APP registeration */
@@ -1634,9 +1636,28 @@ fioman_reserve_set
 		p_app_fiod->outputs_minus[ ii ] &= ~( relinquish[ ii ] );
 		p_sys_fiod->outputs_plus[ ii ]  &= ~( relinquish[ ii ] );
 		p_sys_fiod->outputs_minus[ ii ] &= ~( relinquish[ ii ] );
+
 	}
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 
+	/* Also clear any channel mappings associated with relinquished outputs */
+	for (ii = 0; ii < (FIO_OUTPUT_POINTS_BYTES*8); ii++) {
+		if (FIO_BIT_TEST(relinquish,ii)) {
+			/* Search each sys_fiod for mappings for this output point */
+			list_for_each_safe (p_sys_elem, p_next, &fioman_fiod_list) {
+				/* Get a ptr to this list entry */
+				p_sys_ref_fiod = list_entry( p_sys_elem, FIOMAN_SYS_FIOD, elem );
+				for (jj = 0; jj < FIO_CHANNELS; jj++) {
+					if (p_sys_ref_fiod->channel_map_green[jj] == (ii+1))
+						p_sys_ref_fiod->channel_map_green[jj] = 0;
+					else if (p_sys_ref_fiod->channel_map_yellow[jj] == (ii+1))
+						p_sys_ref_fiod->channel_map_yellow[jj] = 0;
+					else if (p_sys_ref_fiod->channel_map_red[jj] == (ii+1))
+						p_sys_ref_fiod->channel_map_red[jj] = 0;
+				}
+			}
+		}
+	}
 	/* return success */
 	return ( 0 );
 }
@@ -2309,6 +2330,9 @@ fioman_channel_map_count
 	FIOMAN_PRIV_DATA	*p_priv = filp->private_data;	/* Access Apps data */
 	FIOMAN_APP_FIOD		*p_app_fiod;	/* Ptr to app fiod structure */
 	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* Ptr to FIOMAN fiod structure */
+	FIOMAN_SYS_FIOD		*p_sys_ref_fiod; /* Ptr to referenced sys fiod */
+	struct list_head	*p_sys_elem;	/* Element from FIOMAN FIOD list */
+	struct list_head	*p_next;		/* Temp for loop */
 	unsigned int		ii, count = 0;
 
 	/* Find this APP registration */
@@ -2325,15 +2349,39 @@ fioman_channel_map_count
 
 	/* Is system view or app view requested? */
 	if (p_arg->view == FIO_VIEW_SYSTEM) {
-		p_sys_fiod = p_app_fiod->p_sys_fiod;
+		p_sys_ref_fiod = p_app_fiod->p_sys_fiod;
 		for (ii = 0; ii < FIO_CHANNELS; ii++) {
-			if (FIO_BIT_TEST(p_sys_fiod->channels_reserved, ii))
-				count++;
+			if (FIO_BIT_TEST(p_sys_ref_fiod->channels_reserved, ii)) {
+				/*if mapped*/
+				list_for_each_safe( p_sys_elem, p_next, &fioman_fiod_list )
+				{
+					/* Get a ptr to this list entry */
+					p_sys_fiod = list_entry( p_sys_elem, FIOMAN_SYS_FIOD, elem );
+					if (p_sys_fiod->channel_map_green[ii] > 0)
+						count++;
+					if (p_sys_fiod->channel_map_yellow[ii] > 0)
+						count++;
+					if (p_sys_fiod->channel_map_red[ii] > 0)
+						count++;
+				}
+			}
 		}
 	} else if (p_arg->view == FIO_VIEW_APP) {
 		for (ii = 0; ii < FIO_CHANNELS; ii++) {
-			if (FIO_BIT_TEST(p_app_fiod->channels_reserved, ii))
-				count++;
+			if (FIO_BIT_TEST(p_app_fiod->channels_reserved, ii)) {
+				/*if mapped*/
+				list_for_each_safe( p_sys_elem, p_next, &fioman_fiod_list )
+				{
+					/* Get a ptr to this list entry */
+					p_sys_fiod = list_entry( p_sys_elem, FIOMAN_SYS_FIOD, elem );
+					if (p_sys_fiod->channel_map_green[ii] > 0)
+						count++;
+					if (p_sys_fiod->channel_map_yellow[ii] > 0)
+						count++;
+					if (p_sys_fiod->channel_map_red[ii] > 0)
+						count++;
+				}
+			}
 		}
 	} else {
 		/* error, invalid view specified */
