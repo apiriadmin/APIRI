@@ -3598,11 +3598,17 @@ pr_debug("fioman_inputs_filter_set: item:%d ip:%d lead:%d trail:%d invalid\n",
 		if (filter.leading < p_sys_fiod->input_filters_leading[filter.input_point]) {
 			p_sys_fiod->input_filters_leading[filter.input_point] = filter.leading;
 			update_fiod = true;
+		} else {
+			filter.leading = p_sys_fiod->input_filters_leading[filter.input_point];
 		}
 		if (filter.trailing < p_sys_fiod->input_filters_trailing[filter.input_point]) {
 			p_sys_fiod->input_filters_trailing[filter.input_point] = filter.trailing;
 			update_fiod = true;
+		} else {
+			filter.trailing = p_sys_fiod->input_filters_trailing[filter.input_point];
 		}
+		/* Return system view values to user */
+		copy_to_user(&p_arg->input_filter[i], &filter, sizeof(FIO_INPUT_FILTER));
 	}
 
 	/* If any sys_fiod filter values have changed, we must schedule frame #51 */
