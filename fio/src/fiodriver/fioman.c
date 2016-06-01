@@ -3443,7 +3443,7 @@ pr_debug("fioman_frame_schedule_set: item:%d frame:%d freq:%d(%d) invalid\n",
 		unsigned int frame = frame_schd[i].req_frame;
 		FIO_HZ new_freq = frame_schd[i].frequency;
 		p_app_fiod->frame_frequency_table[frame] = new_freq;
-		if (p_sys_fiod->frame_frequency_table[frame] != new_freq) {
+		if ((p_sys_fiod->frame_frequency_table[frame] != new_freq) || (new_freq == FIO_HZ_ONCE)) {
 			/* Set current frame frequency to highest setting of all apps */
 			p_sys_fiod->frame_frequency_table[frame] = new_freq;
 			list_for_each( p_app_elem, &p_sys_fiod->app_fiod_list ) {
