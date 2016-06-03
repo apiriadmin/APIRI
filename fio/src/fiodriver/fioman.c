@@ -499,7 +499,13 @@ fioman_add_frame
                         rxframe = fioman_ready_frame_183(p_sys_fiod);
                         break;
                 }
-                case 60: default:
+                case 60: 
+                {
+                        txframe = fioman_ready_frame_60(p_sys_fiod);
+                        rxframe = fioman_ready_frame_188(p_sys_fiod);
+                        break;
+                }
+                default:
                         break;
                 }
                 break;
