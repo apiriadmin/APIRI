@@ -1286,6 +1286,9 @@ fioman_reg_fiod
 	INIT_LIST_HEAD( &p_app_fiod->sys_elem );
 	p_app_fiod->fiod = *fiod;
 	p_app_fiod->dev_handle = p_sys_fiod->dev_handle;
+	for (i=0; i<128; i++) {
+		p_app_fiod->frame_frequency_table[i] = p_sys_fiod->frame_frequency_table[i];
+	}
 	p_app_fiod->fm_state = p_sys_fiod->fm_state;
 	p_app_fiod->vm_state = p_sys_fiod->vm_state;
 	p_app_fiod->cmu_fsa = p_sys_fiod->cmu_fsa;
@@ -4005,10 +4008,8 @@ fioman_wd_heartbeat
 	FIO_BIT_CLEAR(p_sys_fiod->outputs_plus, p_sys_fiod->watchdog_output);
 	FIO_BIT_CLEAR(p_sys_fiod->outputs_minus, p_sys_fiod->watchdog_output);
 	if (p_sys_fiod->watchdog_state) {
-		FIO_BIT_SET(p_sys_fiod->outputs_plus, p_sys_fiod->watchdog_output);
-		if ((p_sys_fiod->fiod.fiod > FIOTS2) && (p_sys_fiod->fiod.fiod < FIOCMU))
-			/* NEMA type */
-			FIO_BIT_SET(p_sys_fiod->outputs_minus, p_sys_fiod->watchdog_output);
+		FIO_BIT_SET(p_sys_fiod->outputs_plus, p_sys_fiod->watchdog_output);	
+		FIO_BIT_SET(p_sys_fiod->outputs_minus, p_sys_fiod->watchdog_output);
 	}
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 pr_debug( "fioman_wd_heartbeat: plus:%x %x %x %x %x %x %x %x %x %x %x %x %x\n",
