@@ -1234,6 +1234,7 @@ fioman_reg_fiod
 		p_sys_fiod->cmu_config_change_count = 0;
 		p_sys_fiod->watchdog_output = -1;
 		p_sys_fiod->watchdog_state = false;
+		p_sys_fiod->watchdog_trigger_condition = false;
 		for (i=0; i<128; i++) {
 			/* Indicate invalid frame by default */
 			p_sys_fiod->frame_frequency_table[i] = -1;
@@ -3987,6 +3988,10 @@ fioman_wd_heartbeat
 
 	p_app_fiod->watchdog_toggle_pending = true;
 	
+	/* Don't toggle output if set outputs frame has not yet been sent */
+	if (p_sys_fiod->watchdog_trigger_condition == true)
+		return 0;
+		
 	/* Check toggle pending status of all watchdog clients for this fiod */
 	/* if all have toggled, change watchdog state, then clear all pending flags */
 	p_app_fiod = NULL;
@@ -4003,8 +4008,9 @@ fioman_wd_heartbeat
 		}
 	}
 	/* All apps have toggled watchdog */
-	p_sys_fiod->watchdog_state = !p_sys_fiod->watchdog_state;
 	spin_lock_irqsave(&p_sys_fiod->lock, flags);
+	p_sys_fiod->watchdog_trigger_condition = true;
+	p_sys_fiod->watchdog_state = !p_sys_fiod->watchdog_state;
 	FIO_BIT_CLEAR(p_sys_fiod->outputs_plus, p_sys_fiod->watchdog_output);
 	FIO_BIT_CLEAR(p_sys_fiod->outputs_minus, p_sys_fiod->watchdog_output);
 	if (p_sys_fiod->watchdog_state) {

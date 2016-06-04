@@ -907,17 +907,10 @@ fioman_tx_frame_55
 				FIO_BIT_CLEAR(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, 79);
 		}
 	}
-#if 0
-// Watchdog output now passed in outputs array
-	/* Check for watchdog output pin toggle */
-	if (p_sys_fiod->watchdog_output >= 0) {
-		FIO_BIT_CLEAR(&FIOMSG_PAYLOAD(p_tx_frame)->frame_info[count], p_sys_fiod->watchdog_output);
-		if (p_sys_fiod->watchdog_state)
-			FIO_BIT_SET(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, p_sys_fiod->watchdog_output);
-		else
-			FIO_BIT_CLEAR(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, p_sys_fiod->watchdog_output);
-	}		
-#endif
+
+	/* Clear the trigger condition now that the watchdog output is sent */
+	p_sys_fiod->watchdog_trigger_condition = false;
+	
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 	pr_debug( "UPDATING Frame 55: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
 		p_tx_frame->frame[3], p_tx_frame->frame[4], p_tx_frame->frame[5],
