@@ -1,8 +1,8 @@
 SOURCES := timesrc.c
 
-LIBRARIES := -latc -L../../lib
+LIBRARIES :=
 
-INCLUDES := -I../../include
+INCLUDES := -I. -I../../include
 
 OBJECTS := $(SOURCES:.c=.o)
 
@@ -15,7 +15,7 @@ TARGET := timesrc
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) -O2 -o $@ $(OBJECTS) $(LIBRARIES)
+	$(CC) -O2 $(INCLUDES) $(LIBRARIES)-o $@ $(OBJECTS)
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)

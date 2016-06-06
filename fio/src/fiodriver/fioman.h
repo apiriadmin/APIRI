@@ -123,6 +123,7 @@ struct fioman_sys_fiod
 	u32	cmu_config_change_count;
 	int 	watchdog_output;
 	bool	watchdog_state;
+	bool	watchdog_trigger_condition;
 	u32	success_rx;					/* Cumulative count of successful responses */
 	u32	error_rx;					/* Cumulative count of response errors */
 };

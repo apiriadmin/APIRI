@@ -111,6 +111,15 @@ static FIOMSG_TX_FRAME frame_55_init =
 	.len		= FIOMAN_FRAME_NO_55_SIZE
 };
 
+/* Frame 60: Module Identification */
+static FIOMSG_TX_FRAME frame_60_init =
+{
+	.def_freq	= FIO_HZ_ONCE,
+	.cur_freq	= FIO_HZ_ONCE,
+	.resp		= true,
+	.len		= FIOMAN_FRAME_NO_60_SIZE
+};
+
 /* Frame 61: Switch Pack Drivers/CMU Status Request */
 static FIOMSG_TX_FRAME frame_61_init =
 {
@@ -898,17 +907,10 @@ fioman_tx_frame_55
 				FIO_BIT_CLEAR(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, 79);
 		}
 	}
-#if 0
-// Watchdog output now passed in outputs array
-	/* Check for watchdog output pin toggle */
-	if (p_sys_fiod->watchdog_output >= 0) {
-		FIO_BIT_CLEAR(&FIOMSG_PAYLOAD(p_tx_frame)->frame_info[count], p_sys_fiod->watchdog_output);
-		if (p_sys_fiod->watchdog_state)
-			FIO_BIT_SET(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, p_sys_fiod->watchdog_output);
-		else
-			FIO_BIT_CLEAR(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, p_sys_fiod->watchdog_output);
-	}		
-#endif
+
+	/* Clear the trigger condition now that the watchdog output is sent */
+	p_sys_fiod->watchdog_trigger_condition = false;
+	
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 	pr_debug( "UPDATING Frame 55: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
 		p_tx_frame->frame[3], p_tx_frame->frame[4], p_tx_frame->frame[5],
@@ -918,6 +920,51 @@ fioman_tx_frame_55
 		p_tx_frame->frame[15], p_tx_frame->frame[16], p_tx_frame->frame[17],
 		p_tx_frame->frame[18] );
 
+}
+
+/*****************************************************************************/
+
+/*****************************************************************************/
+/*
+This function is used to ready request frame 60 to be placed into the
+request frame queue for transmission, for one port
+*/
+/*****************************************************************************/
+
+void *
+fioman_ready_frame_60
+(
+	FIOMAN_SYS_FIOD	*p_sys_fiod		/* FIOD of destined frame */
+)
+{
+	FIOMSG_TX_FRAME	*p_tx;		/* Ptr of frame buffer */
+
+	/* kalloc the actual frame 60 for this port */
+	/* -1 is for the one byte of frame payload defined in FIOMSG_TX_FRAME */
+	if ( ( p_tx = (FIOMSG_TX_FRAME *)kmalloc( sizeof( FIOMSG_TX_FRAME ) - 1
+			+ FIOMAN_FRAME_NO_60_SIZE, GFP_KERNEL ) ) )
+	{
+		/* kmalloc succeeded, therefore init buffer */
+		memcpy( p_tx, &frame_60_init, sizeof( frame_60_init ) );
+		FIOMSG_PAYLOAD( p_tx )->frame_addr = device_to_addr(p_sys_fiod->fiod.fiod);
+		FIOMSG_PAYLOAD( p_tx )->frame_ctrl = 0x83;
+		FIOMSG_PAYLOAD( p_tx )->frame_no = FIOMAN_FRAME_NO_60;
+
+		INIT_LIST_HEAD( &p_tx->elem );
+		p_tx->when = FIOMSG_CURRENT_TIME;		/* Set when to send frame */
+		p_tx->fioman_context = (void *)p_sys_fiod;
+		p_tx->fiod = p_sys_fiod->fiod;
+                if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_60] == -1)
+		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_60] = p_tx->cur_freq;
+	}
+	else
+	{
+		/* Could not kalloc */
+		return ( ERR_PTR( -ENOMEM ) );
+	}
+
+	/* Return what we prepared */
+	return ( (void *)p_tx );
 }
 
 /*****************************************************************************/
@@ -2272,6 +2319,43 @@ fioman_ready_frame_183
 /*****************************************************************************/
 /*****************************************************************************/
 /*
+This function is used to ready response frame 188 to be placed into the
+response frame list for this fiod for this port.
+*/
+/*****************************************************************************/
+
+void *
+fioman_ready_frame_188
+(
+	FIOMAN_SYS_FIOD	*p_sys_fiod		/* FIOD of destined frame */
+)
+{
+	FIOMSG_RX_FRAME	*p_rx;		/* Ptr of frame buffer */
+
+	/* kalloc the actual frame 188 for this port */
+	/* -1 is for the one byte of frame payload defined in FIOMSG_RX_FRAME */
+	if ( ( p_rx = (FIOMSG_RX_FRAME *)kzalloc( sizeof( FIOMSG_RX_FRAME ) - 1
+		+ FIOMAN_FRAME_NO_188_SIZE, GFP_KERNEL ) ) )
+	{
+		/* kmalloc succeeded, therefore init buffer */
+		fioman_rx_frame_init(p_sys_fiod, p_rx);
+		FIOMSG_PAYLOAD( p_rx )->frame_no = FIOMAN_FRAME_NO_188;
+		p_rx->rx_func = &fioman_rx_frame_188;
+		p_rx->len = FIOMAN_FRAME_NO_188_SIZE;
+	}
+	else
+	{
+		/* Could not kalloc */
+		return ( ERR_PTR( -ENOMEM ) );
+	}
+
+	/* Return what we prepared */
+	return ( (void *)p_rx );
+}
+
+/*****************************************************************************/
+/*****************************************************************************/
+/*
 This function is used to ready response frame 189 to be placed into the
 response frame list for this fiod for this port.
 */
@@ -2821,9 +2905,9 @@ fioman_rx_frame_182
                                                 p_app_fiod->transition_status = FIO_TRANS_APP_OVERRUN;
                                 } else {
                                         FIOMAN_FIFO_PUT(p_app_fiod->transition_fifo, &entry, sizeof(FIO_TRANS_BUFFER));
-                                        /*pr_debug("fioman_rx_frame_182:transition:ip=%d state=%d time=%d:fifo@%p=%d, st=%d\n",
+                                        pr_debug("fioman_rx_frame_182:transition:ip=%d state=%d time=%d:fifo@%p=%d, st=%d\n",
                                                 entry.input_point, entry.state, entry.timestamp, &p_app_fiod->transition_fifo,
-                                                kfifo_len(&p_app_fiod->transition_fifo), p_app_fiod->transition_status);*/
+                                                kfifo_len(&p_app_fiod->transition_fifo), p_app_fiod->transition_status);
                                 }
                         }
                 }
@@ -2857,6 +2941,30 @@ fioman_rx_frame_183
 	
 /* TEG DEL */
 /*pr_debug( "UPDATING Frame 183\n" );*/
+/* handle status bits from response frame */
+/* TEG DEL */
+}
+
+/*****************************************************************************/
+/*****************************************************************************/
+/*
+This function is called when a frame 188 is RX'ed.
+*/
+/*****************************************************************************/
+
+void
+fioman_rx_frame_188
+(
+	FIOMSG_RX_FRAME		*p_rx_frame		/* Frame received */
+)
+{
+	/*FIOMAN_SYS_FIOD		*p_sys_fiod;*/	/* For access to System info */
+
+	/* Get access to system info */
+	/*p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;*/
+	
+/* TEG DEL */
+/*pr_debug( "UPDATING Frame 188\n" );*/
 /* handle status bits from response frame */
 /* TEG DEL */
 }

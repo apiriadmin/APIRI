@@ -32,7 +32,7 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
-#include "atc.h"
+#include <atc.h>
 #include "tod.h"
 
 #ifndef __isdigit_char
@@ -591,13 +591,14 @@ int tod_set_dst_state(int state)
 
 int tod_get(struct timeval *tv, int *tzsec_off, int *dst_off)
 {
-	struct tm *p_localtime;
+	struct tm local_time;
 	struct timeval utc;
 	
-	gettimeofday(&utc, NULL);;
-	p_localtime = localtime(&utc.tv_sec);
+	gettimeofday(&utc, NULL);
+	tzset();
+	localtime_r(&utc.tv_sec, &local_time);
 	if (tv != NULL) {
-		tv->tv_sec = utc.tv_sec - timezone + ((daylight && p_localtime->tm_isdst)?3600:0);
+		tv->tv_sec = utc.tv_sec - timezone + ((daylight && local_time.tm_isdst)?3600:0);
                 tv->tv_usec = utc.tv_usec;
 	}
 	if (tzsec_off != NULL) {
@@ -605,7 +606,7 @@ int tod_get(struct timeval *tv, int *tzsec_off, int *dst_off)
 	}
 	if (dst_off != NULL) {
 		/* Correct for all but the 360 residents of Lord Howe Island! */
-		*dst_off = ((daylight && p_localtime->tm_isdst)?3600:0);
+		*dst_off = ((daylight && local_time.tm_isdst)?3600:0);
 	}
 
 	return 0;
