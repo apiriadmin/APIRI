@@ -3059,8 +3059,8 @@ int fioman_fiod_frame_read
                                 if (ret == 0)
                                         return -ETIMEDOUT;
                         }
-                        count = (p_rx_frame->len < p_arg->count) ? p_rx_frame->len : p_arg->count;
-                        if (copy_to_user(p_arg->buf, FIOMSG_PAYLOAD( p_rx_frame )->frame_info, count )) {
+                        count = ((p_rx_frame->len - 2) < p_arg->count) ? (p_rx_frame->len - 2) : p_arg->count;
+                        if (copy_to_user(p_arg->buf, &FIOMSG_PAYLOAD(p_rx_frame)->frame_no, count )) {
                                 /* Could not copy for some reason */
                                 return ( -EFAULT );
                         }
@@ -3171,9 +3171,11 @@ fioman_fiod_frame_size
 				&& (p_rx_frame->resp == true) )
 		{
 			/* Update other frame info in response */
-			if (NULL != p_arg->seq_number)
-				put_user(p_rx_frame->info.last_seq, p_arg->seq_number);
-			return (p_rx_frame->len);
+			if (p_rx_frame->len >= 3) {
+				if (NULL != p_arg->seq_number)
+					put_user(p_rx_frame->info.last_seq, p_arg->seq_number);
+				return (p_rx_frame->len - 2);
+			}
 		}
 	}
 
