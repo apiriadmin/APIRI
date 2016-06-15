@@ -3578,7 +3578,8 @@ int fioman_inputs_filter_set
 	FIO_INPUT_FILTER	filter;
 	int			i;
 	bool update_fiod = false;
-
+	unsigned long flags;
+	
 	/* Find this APP registration */
 	p_app_fiod = fioman_find_dev( p_priv, p_arg->dev_handle );
 	/* See if we found the dev_handle */
@@ -3601,6 +3602,7 @@ pr_debug("fioman_inputs_filter_set: item:%d ip:%d lead:%d trail:%d invalid\n",
 	}
 
 	p_sys_fiod = p_app_fiod->p_sys_fiod;
+	spin_lock_irqsave(&p_sys_fiod->lock, flags);
 	for (i=0; i<p_arg->count; i++) {
 		__copy_from_user(&filter, &p_arg->input_filter[i], sizeof(FIO_INPUT_FILTER));
 		/* Save app-based values */
@@ -3622,6 +3624,7 @@ pr_debug("fioman_inputs_filter_set: item:%d ip:%d lead:%d trail:%d invalid\n",
 		/* Return system view values to user */
 		copy_to_user(&p_arg->input_filter[i], &filter, sizeof(FIO_INPUT_FILTER));
 	}
+	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 
 	/* If any sys_fiod filter values have changed, we must schedule frame #51 */
 	if (update_fiod) {
