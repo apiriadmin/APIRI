@@ -262,6 +262,9 @@ fioman_do_dereg_fiod
 	list_del_init(&p_app_fiod->elem);
 	/* Clean up the Sys list */
 	list_del_init(&p_app_fiod->sys_elem);
+	/* Clean up the transition app transition fifo */
+	FIOMAN_FIFO_FREE(p_app_fiod->transition_fifo);
+	
 	kfree( p_app_fiod );
 	
 	/* See if this is the last registration */
