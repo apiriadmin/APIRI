@@ -1226,6 +1226,7 @@ fioman_reg_fiod
 		p_sys_fiod->fiod = *fiod;
 		spin_lock_init(&p_sys_fiod->lock);
 		p_sys_fiod->app_reg = 1;
+		p_sys_fiod->status_reset = 0xff;
 		p_sys_fiod->dev_handle = fioman_fiod_dev_next++;
 		p_sys_fiod->fm_state = FIO_TS_FM_ON;
 		p_sys_fiod->vm_state = FIO_TS1_VM_ON;
