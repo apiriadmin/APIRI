@@ -686,15 +686,32 @@ fiomsg_rx_add_frame
 void fiomsg_rx_notify( FIOMSG_RX_FRAME *frame, FIO_NOTIFY_INFO *notify_info )
 {
         struct fasync_struct *fa = frame->notify_async_queue;
-        FIOMAN_PRIV_DATA *priv = (FIOMAN_PRIV_DATA *)fa->fa_file->private_data;
-        /* Add notify info to fifo for each member of queue */
-        while (fa) {
-                FIOMAN_FIFO_PUT(priv->frame_notification_fifo, notify_info, sizeof(FIO_NOTIFY_INFO));
-        }
+        FIOMAN_PRIV_DATA *priv;
+	struct list_head	*p_app_elem;	/* Ptr to app element being examined */
+	FIOMAN_APP_FIOD		*p_app_fiod;	/* Ptr to app fiod structure */
+
         /* Signal the queue */
         kill_fasync(&frame->notify_async_queue, SIGIO, POLL_IN);
 
-        /* TBD:!!!Remove queue entry if one-shot */
+        /* Add notify info to fifo for each member of queue */
+        while (fa) {
+		priv = (FIOMAN_PRIV_DATA *)fa->fa_file->private_data;
+		/* Search list of app_fiods for this user to find FIO_DEV_HANDLE */
+		list_for_each( p_app_elem, &priv->fiod_list ) {
+			/* Get a ptr to this list entry */
+			p_app_fiod = list_entry( p_app_elem, FIOMAN_APP_FIOD, elem );
+			if (p_app_fiod->fiod.fiod == frame->fiod) {
+				notify_info->fiod = p_app_fiod->dev_handle;
+				break;
+			}
+		}
+                FIOMAN_FIFO_PUT(priv->frame_notification_fifo, notify_info, sizeof(FIO_NOTIFY_INFO));
+                /* remove from fasync queue if one-shot notify type */
+                if (!FIO_BIT_TEST(p_app_fiod->frame_notify_type, notify_info->rx_frame))
+			fasync_helper(0, fa->fa_file, 0, &frame->notify_async_queue);
+		if (fa)
+			fa = fa->fa_next;
+        }
 
 }
 /*****************************************************************************/
@@ -1122,7 +1139,7 @@ void fiomsg_tx_notify( FIOMSG_TX_FRAME *frame )
 {
         FIO_NOTIFY_INFO notify_info;
         struct fasync_struct *fa = frame->notify_async_queue;
-        FIOMAN_PRIV_DATA *priv = (FIOMAN_PRIV_DATA *)fa->fa_file->private_data;
+        FIOMAN_PRIV_DATA *priv;
 
         notify_info.rx_frame = FIOMSG_PAYLOAD( frame )->frame_no;
         notify_info.status = FIO_FRAME_RECEIVED;
@@ -1131,7 +1148,9 @@ void fiomsg_tx_notify( FIOMSG_TX_FRAME *frame )
         
         /* Add notify info to fifo for each member of queue */
         while (fa) {
+		priv = (FIOMAN_PRIV_DATA *)fa->fa_file->private_data;
                 FIOMAN_FIFO_PUT(priv->frame_notification_fifo, &notify_info, sizeof(FIO_NOTIFY_INFO));
+                fa = fa->fa_next;
         }
         /* Signal the queue */
         kill_fasync(&frame->notify_async_queue, SIGIO, POLL_OUT);

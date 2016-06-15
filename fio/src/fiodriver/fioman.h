@@ -155,7 +155,7 @@ struct fioman_app_fiod
 	u8	input_transition_map[ FIO_INPUT_POINTS_BYTES ];
 	FIOMAN_FIFO             transition_fifo;
         FIO_TRANS_STATUS        transition_status;
-
+	u8	frame_notify_type[32];
 	u8	channels_reserved[ FIO_CHANNEL_BYTES ];
 	FIO_HZ	frame_frequency_table[128];
 	FIO_MMU_FLASH_BIT	flash_bit;

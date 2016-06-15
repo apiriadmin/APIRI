@@ -3226,6 +3226,9 @@ fioman_fiod_frame_notify_register
                         p_tx_frame = list_entry( p_elem, FIOMSG_TX_FRAME, elem );
                         /* See if current element frame no is what we are looking for */
                         if (FIOMSG_PAYLOAD( p_tx_frame )->frame_no == p_arg->rx_frame) {
+				/* indicate if repeated signal required */
+				if (p_arg->notify == FIO_NOTIFY_ALWAYS)
+					FIO_BIT_SET(p_app_fiod->frame_notify_type, p_arg->rx_frame);
                                 /* add signal request to queue */
                                 f_setown(filp, current->pid, 1);
                                 filp->f_owner.signum = FIO_SIGIO;
@@ -3240,6 +3243,9 @@ fioman_fiod_frame_notify_register
                         p_rx_frame = list_entry( p_elem, FIOMSG_RX_FRAME, elem );
                         /* See if current element frame no is what we are looking for */
                         if (FIOMSG_PAYLOAD( p_rx_frame )->frame_no == p_arg->rx_frame) {
+				/* indicate if repeated signal required */
+				if (p_arg->notify == FIO_NOTIFY_ALWAYS)
+					FIO_BIT_SET(p_app_fiod->frame_notify_type, p_arg->rx_frame);
                                 /* add signal request to queue */
                                 f_setown(filp, current->pid, 1);
                                 filp->f_owner.signum = FIO_SIGIO;
@@ -3293,6 +3299,7 @@ fioman_fiod_frame_notify_deregister
                         if (FIOMSG_PAYLOAD( p_tx_frame )->frame_no == p_arg->rx_frame) {
                                 /* remove signal request from queue */
                                 fasync_helper(0, filp, 0, &p_tx_frame->notify_async_queue);
+                                FIO_BIT_CLEAR(p_app_fiod->frame_notify_type, p_arg->rx_frame);
                                 return 0;
                         }
                 }
@@ -3304,6 +3311,7 @@ fioman_fiod_frame_notify_deregister
                         if (FIOMSG_PAYLOAD( p_rx_frame )->frame_no == p_arg->rx_frame) {
                                 /* remove signal request from queue */
                                 fasync_helper(0, filp, 0, &p_rx_frame->notify_async_queue);
+                                FIO_BIT_CLEAR(p_app_fiod->frame_notify_type, p_arg->rx_frame);
                                 return 0;
                         }
                 }
@@ -4266,6 +4274,9 @@ fioman_open
         p_priv->hm_timeout = 0;
         p_priv->hm_fault = false;
         p_priv->transaction_in_progress = false;
+        
+        /* Initialize frame notification fifo */
+        FIOMAN_FIFO_ALLOC(p_priv->frame_notification_fifo, sizeof(FIO_NOTIFY_INFO)*8, GFP_KERNEL);
 
 	/* Save ptr so that fio_api calls have access */
 	filp->private_data = p_priv;
@@ -4312,6 +4323,9 @@ pr_debug("fioman_release: cancel hm timer for app %p\n", p_priv);
 		fioman_do_dereg_fiod( p_app_fiod );
 	}
 
+        /* Free frame notification fifo */
+	FIOMAN_FIFO_FREE(p_priv->frame_notification_fifo);
+	
 	/* free allocated memory */
 	kfree( filp->private_data );
 
