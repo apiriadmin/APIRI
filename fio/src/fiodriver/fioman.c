@@ -262,6 +262,9 @@ fioman_do_dereg_fiod
 	list_del_init(&p_app_fiod->elem);
 	/* Clean up the Sys list */
 	list_del_init(&p_app_fiod->sys_elem);
+	/* Clean up the transition app transition fifo */
+	FIOMAN_FIFO_FREE(p_app_fiod->transition_fifo);
+	
 	kfree( p_app_fiod );
 	
 	/* See if this is the last registration */
@@ -1226,6 +1229,7 @@ fioman_reg_fiod
 		p_sys_fiod->fiod = *fiod;
 		spin_lock_init(&p_sys_fiod->lock);
 		p_sys_fiod->app_reg = 1;
+		p_sys_fiod->status_reset = 0xff;
 		p_sys_fiod->dev_handle = fioman_fiod_dev_next++;
 		p_sys_fiod->fm_state = FIO_TS_FM_ON;
 		p_sys_fiod->vm_state = FIO_TS1_VM_ON;
@@ -3059,8 +3063,8 @@ int fioman_fiod_frame_read
                                 if (ret == 0)
                                         return -ETIMEDOUT;
                         }
-                        count = (p_rx_frame->len < p_arg->count) ? p_rx_frame->len : p_arg->count;
-                        if (copy_to_user(p_arg->buf, FIOMSG_PAYLOAD( p_rx_frame )->frame_info, count )) {
+                        count = ((p_rx_frame->len - 2) < p_arg->count) ? (p_rx_frame->len - 2) : p_arg->count;
+                        if (copy_to_user(p_arg->buf, &FIOMSG_PAYLOAD(p_rx_frame)->frame_no, count )) {
                                 /* Could not copy for some reason */
                                 return ( -EFAULT );
                         }
@@ -3171,9 +3175,11 @@ fioman_fiod_frame_size
 				&& (p_rx_frame->resp == true) )
 		{
 			/* Update other frame info in response */
-			if (NULL != p_arg->seq_number)
-				put_user(p_rx_frame->info.last_seq, p_arg->seq_number);
-			return (p_rx_frame->len);
+			if (p_rx_frame->len >= 3) {
+				if (NULL != p_arg->seq_number)
+					put_user(p_rx_frame->info.last_seq, p_arg->seq_number);
+				return (p_rx_frame->len - 2);
+			}
 		}
 	}
 
@@ -3220,6 +3226,9 @@ fioman_fiod_frame_notify_register
                         p_tx_frame = list_entry( p_elem, FIOMSG_TX_FRAME, elem );
                         /* See if current element frame no is what we are looking for */
                         if (FIOMSG_PAYLOAD( p_tx_frame )->frame_no == p_arg->rx_frame) {
+				/* indicate if repeated signal required */
+				if (p_arg->notify == FIO_NOTIFY_ALWAYS)
+					FIO_BIT_SET(p_app_fiod->frame_notify_type, p_arg->rx_frame);
                                 /* add signal request to queue */
                                 f_setown(filp, current->pid, 1);
                                 filp->f_owner.signum = FIO_SIGIO;
@@ -3234,6 +3243,9 @@ fioman_fiod_frame_notify_register
                         p_rx_frame = list_entry( p_elem, FIOMSG_RX_FRAME, elem );
                         /* See if current element frame no is what we are looking for */
                         if (FIOMSG_PAYLOAD( p_rx_frame )->frame_no == p_arg->rx_frame) {
+				/* indicate if repeated signal required */
+				if (p_arg->notify == FIO_NOTIFY_ALWAYS)
+					FIO_BIT_SET(p_app_fiod->frame_notify_type, p_arg->rx_frame);
                                 /* add signal request to queue */
                                 f_setown(filp, current->pid, 1);
                                 filp->f_owner.signum = FIO_SIGIO;
@@ -3287,6 +3299,7 @@ fioman_fiod_frame_notify_deregister
                         if (FIOMSG_PAYLOAD( p_tx_frame )->frame_no == p_arg->rx_frame) {
                                 /* remove signal request from queue */
                                 fasync_helper(0, filp, 0, &p_tx_frame->notify_async_queue);
+                                FIO_BIT_CLEAR(p_app_fiod->frame_notify_type, p_arg->rx_frame);
                                 return 0;
                         }
                 }
@@ -3298,6 +3311,7 @@ fioman_fiod_frame_notify_deregister
                         if (FIOMSG_PAYLOAD( p_rx_frame )->frame_no == p_arg->rx_frame) {
                                 /* remove signal request from queue */
                                 fasync_helper(0, filp, 0, &p_rx_frame->notify_async_queue);
+                                FIO_BIT_CLEAR(p_app_fiod->frame_notify_type, p_arg->rx_frame);
                                 return 0;
                         }
                 }
@@ -3576,7 +3590,8 @@ int fioman_inputs_filter_set
 	FIO_INPUT_FILTER	filter;
 	int			i;
 	bool update_fiod = false;
-
+	unsigned long flags;
+	
 	/* Find this APP registration */
 	p_app_fiod = fioman_find_dev( p_priv, p_arg->dev_handle );
 	/* See if we found the dev_handle */
@@ -3599,6 +3614,7 @@ pr_debug("fioman_inputs_filter_set: item:%d ip:%d lead:%d trail:%d invalid\n",
 	}
 
 	p_sys_fiod = p_app_fiod->p_sys_fiod;
+	spin_lock_irqsave(&p_sys_fiod->lock, flags);
 	for (i=0; i<p_arg->count; i++) {
 		__copy_from_user(&filter, &p_arg->input_filter[i], sizeof(FIO_INPUT_FILTER));
 		/* Save app-based values */
@@ -3620,6 +3636,7 @@ pr_debug("fioman_inputs_filter_set: item:%d ip:%d lead:%d trail:%d invalid\n",
 		/* Return system view values to user */
 		copy_to_user(&p_arg->input_filter[i], &filter, sizeof(FIO_INPUT_FILTER));
 	}
+	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 
 	/* If any sys_fiod filter values have changed, we must schedule frame #51 */
 	if (update_fiod) {
@@ -4257,6 +4274,9 @@ fioman_open
         p_priv->hm_timeout = 0;
         p_priv->hm_fault = false;
         p_priv->transaction_in_progress = false;
+        
+        /* Initialize frame notification fifo */
+        FIOMAN_FIFO_ALLOC(p_priv->frame_notification_fifo, sizeof(FIO_NOTIFY_INFO)*8, GFP_KERNEL);
 
 	/* Save ptr so that fio_api calls have access */
 	filp->private_data = p_priv;
@@ -4303,6 +4323,9 @@ pr_debug("fioman_release: cancel hm timer for app %p\n", p_priv);
 		fioman_do_dereg_fiod( p_app_fiod );
 	}
 
+        /* Free frame notification fifo */
+	FIOMAN_FIFO_FREE(p_priv->frame_notification_fifo);
+	
 	/* free allocated memory */
 	kfree( filp->private_data );
 

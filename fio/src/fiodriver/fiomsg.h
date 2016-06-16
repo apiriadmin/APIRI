@@ -139,6 +139,7 @@ typedef unsigned long			fiomsg_timer_callback_arg;
 struct fiomsg_rx_pending
 {
 	u8			frame_no;		/* Expected response frame */
+	int                     frame_len;              /* Length of frame received */
 	FIO_IOC_FIOD		fiod;			/* FIOD that should respond */
 
 	FIOMSG_TIMER		rx_timer;		/* RX Timer for pending resp */

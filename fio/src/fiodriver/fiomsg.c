@@ -68,6 +68,7 @@ int fio_port[] =
 fiomsg_timer_callback_rtn fiomsg_tx_task( fiomsg_timer_callback_arg );
 fiomsg_timer_callback_rtn fiomsg_rx_task( fiomsg_timer_callback_arg );
 
+void fiomsg_tx_set_timer(FIOMSG_PORT *,	FIOMSG_TIME);
 bool fiomsg_port_open( FIOMSG_PORT * );
 
 /* ATC standard low-level driver functions */
@@ -132,6 +133,10 @@ fiomsg_tx_add_frame
 	}
 	/* New element belongs at end of queue */
 	list_add_tail( &p_tx_frame->elem, &p_port->tx_queue );
+	/* If newly added tx frame is only frame, and comm enabled, may need timer starting */
+	if (p_port->comm_enabled)
+		fiomsg_tx_set_timer( p_port, p_tx_frame->when );
+
 }
 
 /*****************************************************************************/
@@ -686,15 +691,32 @@ fiomsg_rx_add_frame
 void fiomsg_rx_notify( FIOMSG_RX_FRAME *frame, FIO_NOTIFY_INFO *notify_info )
 {
         struct fasync_struct *fa = frame->notify_async_queue;
-        FIOMAN_PRIV_DATA *priv = (FIOMAN_PRIV_DATA *)fa->fa_file->private_data;
-        /* Add notify info to fifo for each member of queue */
-        while (fa) {
-                FIOMAN_FIFO_PUT(priv->frame_notification_fifo, notify_info, sizeof(FIO_NOTIFY_INFO));
-        }
+        FIOMAN_PRIV_DATA *priv;
+	struct list_head	*p_app_elem;	/* Ptr to app element being examined */
+	FIOMAN_APP_FIOD		*p_app_fiod;	/* Ptr to app fiod structure */
+
         /* Signal the queue */
         kill_fasync(&frame->notify_async_queue, SIGIO, POLL_IN);
 
-        /* TBD:!!!Remove queue entry if one-shot */
+        /* Add notify info to fifo for each member of queue */
+        while (fa) {
+		priv = (FIOMAN_PRIV_DATA *)fa->fa_file->private_data;
+		/* Search list of app_fiods for this user to find FIO_DEV_HANDLE */
+		list_for_each( p_app_elem, &priv->fiod_list ) {
+			/* Get a ptr to this list entry */
+			p_app_fiod = list_entry( p_app_elem, FIOMAN_APP_FIOD, elem );
+			if (p_app_fiod->fiod.fiod == frame->fiod) {
+				notify_info->fiod = p_app_fiod->dev_handle;
+				break;
+			}
+		}
+                FIOMAN_FIFO_PUT(priv->frame_notification_fifo, notify_info, sizeof(FIO_NOTIFY_INFO));
+                /* remove from fasync queue if one-shot notify type */
+                if (!FIO_BIT_TEST(p_app_fiod->frame_notify_type, notify_info->rx_frame))
+			fasync_helper(0, fa->fa_file, 0, &frame->notify_async_queue);
+		if (fa)
+			fa = fa->fa_next;
+        }
 
 }
 /*****************************************************************************/
@@ -705,9 +727,9 @@ This function is used to update a RX frame that was just received.
 void
 fiomsg_rx_update_frame
 (
-	FIOMSG_PORT			*p_port,	/* Port RX frame was recieved on */
-	FIOMSG_RX_PENDING	*p_rx_pend,	/* Pending structure utitlized */
-	bool				success		/* Indicates rx success or error */
+	FIOMSG_PORT             *p_port,        /* Port RX frame was recieved on */
+	FIOMSG_RX_PENDING       *p_rx_pend,     /* Pending structure utitlized */
+	bool                    success         /* Indicates rx success or error */
 )
 {
 	struct list_head	*p_elem;		/* Ptr to list element being examined */
@@ -732,11 +754,11 @@ fiomsg_rx_update_frame
 					p_rx_elem->info.error_last_10++;
                                 notify_info.status = FIO_FRAME_ERROR;
 			} else {
-
                                 /* Copy data into frame list */
                                 memcpy( FIOMSG_PAYLOAD( p_rx_elem ),
 					p_port->rx_buffer,
-					p_rx_elem->len );
+					p_rx_pend->frame_len );
+				p_rx_elem->len = p_rx_pend->frame_len;
 			
                                 /* Update other information */
                                 p_rx_elem->when = FIOMSG_CURRENT_TIME;
@@ -748,9 +770,7 @@ fiomsg_rx_update_frame
                                         p_rx_elem->info.error_last_10--;
                                 notify_info.status = FIO_FRAME_RECEIVED;
                                 notify_info.seq_number = p_rx_elem->info.last_seq;
-                                notify_info.count = p_rx_elem->len;
-                                /* TBD: find FIO_DEV_HANDLE from here? */
-                                /* NOTE: Could the API notify_info struct have FIO_IOC_FIOD type? */
+                                notify_info.count = (p_rx_elem->len - 2);
                                 /* Let FIOMAN do its work, if needed */
                                 if ( NULL != p_rx_elem->rx_func ) {
                                         /* FIOMAN has work to do */
@@ -1124,7 +1144,7 @@ void fiomsg_tx_notify( FIOMSG_TX_FRAME *frame )
 {
         FIO_NOTIFY_INFO notify_info;
         struct fasync_struct *fa = frame->notify_async_queue;
-        FIOMAN_PRIV_DATA *priv = (FIOMAN_PRIV_DATA *)fa->fa_file->private_data;
+        FIOMAN_PRIV_DATA *priv;
 
         notify_info.rx_frame = FIOMSG_PAYLOAD( frame )->frame_no;
         notify_info.status = FIO_FRAME_RECEIVED;
@@ -1133,7 +1153,9 @@ void fiomsg_tx_notify( FIOMSG_TX_FRAME *frame )
         
         /* Add notify info to fifo for each member of queue */
         while (fa) {
+		priv = (FIOMAN_PRIV_DATA *)fa->fa_file->private_data;
                 FIOMAN_FIFO_PUT(priv->frame_notification_fifo, &notify_info, sizeof(FIO_NOTIFY_INFO));
+                fa = fa->fa_next;
         }
         /* Signal the queue */
         kill_fasync(&frame->notify_async_queue, SIGIO, POLL_OUT);
@@ -1286,18 +1308,18 @@ A return value of true indicates a frame was read, otherwise false is returned.
 */
 /*****************************************************************************/
 
-bool
+int
 fiomsg_rx_read_frame
 (
 	FIOMSG_PORT	*p_port		/* Port to read from */
 )
 {
-	/* TEG - TODO, When SDLC Driver is available */
+	int len = 0;
 
-	if( sdlc_kernel_read( p_port->context, p_port->rx_buffer, sizeof( p_port->rx_buffer) ) <= 0 )
-		return false;
+	if ((len = sdlc_kernel_read(p_port->context, p_port->rx_buffer, sizeof(p_port->rx_buffer))) <= 0)
+		return 0;
 	
-	return ( true );		/* Show read */
+	return (len);		/* Show read */
 }
 
 /*****************************************************************************/
@@ -1323,6 +1345,7 @@ fiomsg_timer_callback_rtn fiomsg_rx_task( fiomsg_timer_callback_arg arg )
 	FIOMSG_PORT		*p_port;
 	FIOMSG_RX_PENDING	*p_rx_pend;	/* Which RX Buffer to use */
 	int			frames_read = 0;
+	int                     len = 0;
 	/* Awoken, timer has fired */
 
 	/* Lock resources */
@@ -1340,7 +1363,7 @@ fiomsg_timer_callback_rtn fiomsg_rx_task( fiomsg_timer_callback_arg arg )
 	/* TEG DEL */
 
 	/* Read frame if present */
-	while ( fiomsg_rx_read_frame( p_port ) )
+	while ( (len = fiomsg_rx_read_frame(p_port)) )
 	{
 		/* We read a frame.  Make sure it is the frame we are expecting */
 		FIOMSG_FRAME	*rx_frame = (FIOMSG_FRAME *)(p_port->rx_buffer);
@@ -1349,6 +1372,7 @@ fiomsg_timer_callback_rtn fiomsg_rx_task( fiomsg_timer_callback_arg arg )
 		if ( rx_frame->frame_no == p_rx_pend->frame_no )
 		{
 			/* We got the frame we wanted */
+			p_rx_pend->frame_len = len;
 			/*pr_debug( KERN_ALERT "Got RX frame(%llu) #%d\n", FIOMSG_CURRENT_TIME.tv64, rx_frame->frame_no);*/
 			/* Now copy into the appropriate RX frame list */
 			fiomsg_rx_update_frame( p_port, p_rx_pend, true );

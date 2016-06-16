@@ -48,6 +48,7 @@ extern struct list_head	fioman_fiod_list;
 extern int fiomsg_get_hertz(FIO_HZ freq);
 extern FIOMSG_TIME fiomsg_tx_frame_when(FIO_HZ freq, bool align);
 extern int local_time_offset;
+extern FIOMSG_PORT	fio_port_table[ FIO_PORTS_MAX ];
 
 /*  Global section.
 -----------------------------------------------------------------------------*/
@@ -474,7 +475,6 @@ fioman_ready_frame_49
 		p_tx->when = FIOMSG_CURRENT_TIME;		/* Set when to send frame */
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
-		p_sys_fiod->status_reset = 0xff;	/* initially clear status bits */
                 if (p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_49] == -1)
 		p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_49] = p_tx->cur_freq;
 	}
@@ -2731,9 +2731,19 @@ fioman_rx_frame_177
 	/* timestamp */
 
 	/* reset status error flags */
-	if (p_sys_fiod->status & 0xc1)	/* P, E or W bits */
-		p_sys_fiod->status_reset = 0xc1;
-	else
+pr_debug("fioman_rx_frame_177: status=%x\n", p_sys_fiod->status);
+	if (p_sys_fiod->status & 0xc1) {/* P, E or W bits */
+		p_sys_fiod->status_reset = p_sys_fiod->status & 0xc1;
+		/* reset input point filters to defaults */
+		memset(p_sys_fiod->input_filters_leading, FIO_FILTER_DEFAULT, (FIO_INPUT_POINTS_BYTES*8));
+		memset(p_sys_fiod->input_filters_trailing, FIO_FILTER_DEFAULT, (FIO_INPUT_POINTS_BYTES*8));
+                /* reset input transition monitoring to defaults */
+                memset(p_sys_fiod->input_transition_map, 0, FIO_INPUT_POINTS_BYTES);
+                /* also reset p_app_fiod-> structures */
+                /* schedule frames to update fio module? */
+		/*fiomsg_tx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), fioman_ready_frame_51(p_sys_fiod));
+                fiomsg_rx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), fioman_ready_frame_179(p_sys_fiod));*/
+	} else
 		p_sys_fiod->status_reset = 0;
 
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
