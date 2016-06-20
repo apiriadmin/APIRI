@@ -570,18 +570,42 @@ int tod_get_dst_state(void)
 
 int tod_set_dst_state(int state)
 {
+	struct stat sb;
+	char buf[64+TZ_BUFLEN] = {'T','Z','i','f','2', 0};
+	char *tzstr = &buf[54];
+	int fd;
+
 	// if we enable dst, where do we get the rules from?
 	// if we disable dst, where do we store the rules?
 	
 	tzset();
 	if (!state != !daylight) {
-		// action required
-		if (state) {
-			// enable DST (what rule?)
-		} else {
-			// disable DST
-			// rewrite tzfile with no rule
-			// try moving the trailing '\n' delimiter and preserving any DST rule after it?
+		// We must set or remove the DST rule but preserve any existing timezone
+		// is /etc/localtime present?
+		if (stat("/etc/localtime", &sb) == 0) {
+			// Fill std offset from "timezone" global
+			tzstr += sprintf(tzstr, "\nATCST%2.2ld:%2.2ld:%2.2ld",
+				timezone/3600, (timezone%3600)/60, (timezone%3600)%60);
+
+			if (state) {
+				// use USA rule (from Energy Policy Act of 2005)
+				tzstr += sprintf(tzstr, "ATCDT,M3.2.0,M11.1.0");
+			}
+			*tzstr++ = '\n';
+			// Write to temp file
+			fd = open("/etc/localtime~", O_RDWR|O_CREAT|O_TRUNC);
+			if (fd >= 0) {
+				write(fd, buf, (tzstr-buf));
+				fsync(fd);
+				close(fd);
+			} else {
+				return -1;
+			}
+			// Rename to actual filename (or move to /usr/share/zoneinfo and link?)
+			if (rename("/etc/localtime~", "/etc/localtime") == -1)
+				return -1;			
+			// Update globals with new timezone
+			tzset();
 		}
 	}
 	
