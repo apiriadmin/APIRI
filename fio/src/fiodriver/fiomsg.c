@@ -744,7 +744,8 @@ fiomsg_rx_update_frame
 			if (!success) {
 				/* Just update error counts */
 				p_rx_elem->resp = false;
-				p_rx_elem->info.error_rx++;
+				if (p_rx_elem->info.error_rx < 4294967295L)
+					p_rx_elem->info.error_rx++;
 				if (p_rx_elem->info.error_last_10 < 10)
 					p_rx_elem->info.error_last_10++;
                                 notify_info.status = FIO_FRAME_ERROR;
@@ -760,7 +761,8 @@ fiomsg_rx_update_frame
                                 p_rx_elem->resp = true;
                                 /* Increment frame sequence number */
                                 p_rx_elem->info.last_seq++;
-                                p_rx_elem->info.success_rx++;
+                                if (p_rx_elem->info.success_rx < 4294967295L)
+					p_rx_elem->info.success_rx++;
                                 if (p_rx_elem->info.error_last_10)
                                         p_rx_elem->info.error_last_10--;
                                 notify_info.status = FIO_FRAME_RECEIVED;
