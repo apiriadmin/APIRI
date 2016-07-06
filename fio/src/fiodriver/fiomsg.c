@@ -68,7 +68,6 @@ int fio_port[] =
 fiomsg_timer_callback_rtn fiomsg_tx_task( fiomsg_timer_callback_arg );
 fiomsg_timer_callback_rtn fiomsg_rx_task( fiomsg_timer_callback_arg );
 
-void fiomsg_tx_set_timer(FIOMSG_PORT *,	FIOMSG_TIME);
 bool fiomsg_port_open( FIOMSG_PORT * );
 
 /* ATC standard low-level driver functions */
@@ -133,10 +132,6 @@ fiomsg_tx_add_frame
 	}
 	/* New element belongs at end of queue */
 	list_add_tail( &p_tx_frame->elem, &p_port->tx_queue );
-	/* If newly added tx frame is only frame, and comm enabled, may need timer starting */
-	if (p_port->comm_enabled)
-		fiomsg_tx_set_timer( p_port, p_tx_frame->when );
-
 }
 
 /*****************************************************************************/
@@ -749,7 +744,8 @@ fiomsg_rx_update_frame
 			if (!success) {
 				/* Just update error counts */
 				p_rx_elem->resp = false;
-				p_rx_elem->info.error_rx++;
+				if (p_rx_elem->info.error_rx < 4294967295L)
+					p_rx_elem->info.error_rx++;
 				if (p_rx_elem->info.error_last_10 < 10)
 					p_rx_elem->info.error_last_10++;
                                 notify_info.status = FIO_FRAME_ERROR;
@@ -765,7 +761,8 @@ fiomsg_rx_update_frame
                                 p_rx_elem->resp = true;
                                 /* Increment frame sequence number */
                                 p_rx_elem->info.last_seq++;
-                                p_rx_elem->info.success_rx++;
+                                if (p_rx_elem->info.success_rx < 4294967295L)
+					p_rx_elem->info.success_rx++;
                                 if (p_rx_elem->info.error_last_10)
                                         p_rx_elem->info.error_last_10--;
                                 notify_info.status = FIO_FRAME_RECEIVED;

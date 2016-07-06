@@ -2940,8 +2940,15 @@ fioman_fiod_status_get
 		p_rx_frame = list_entry( p_elem, FIOMSG_RX_FRAME, elem );
 
 		/* Update fiod cummulative totals */
-		success_rx += p_rx_frame->info.success_rx;
-		error_rx += p_rx_frame->info.error_rx;
+		if (success_rx < (424294967295L - p_rx_frame->info.success_rx))
+			success_rx += p_rx_frame->info.success_rx;
+		else
+			success_rx = 424294967295L;
+			
+		if (error_rx < (424294967295L - p_rx_frame->info.error_rx))
+			error_rx += p_rx_frame->info.error_rx;
+		else
+			error_rx = 424294967295L;
 		
 		/* Update corresponding frame info in response */
 		index = FIOMSG_PAYLOAD( p_rx_frame )->frame_no - 128;
