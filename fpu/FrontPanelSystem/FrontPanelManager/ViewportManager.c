@@ -128,7 +128,7 @@ bool panel_present( void )
 	return display_present;
 }
 
-int screen_YY = 16;
+int screen_YY = 8;
 int screen_XX = 40;
 
 bool check_screen_size( int fd )
@@ -141,7 +141,7 @@ bool check_screen_size( int fd )
 	ufds.revents = 0;
 
 	// Set Default values
-	screen_YY = 16;
+	screen_YY = 8;
 	screen_XX = 40;
 
 	// to determine the screen size, one idea is to set the cursor position
@@ -285,7 +285,7 @@ int parse_escape_seq(int fd, char *buf, int len)
 
 	switch (buf[2]) {
 	case 'A': case 'B': case 'C': case 'D':
-		if (poll(&ufds, 1, 0) != 1)
+		if (poll(&ufds, 1, 10) != 1)
 			goto out;
 		read(fd,&ch,1);
 		if (ch == 'R') {
