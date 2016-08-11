@@ -913,6 +913,7 @@ pr_debug("fiomsg_port_enable: opening port %d\n", p_port->port);
 			/* Port was not opened */
 			return ( -ENODEV );
 		}
+                p_port->tx_use_pend = p_port->rx_use_pend = 0;
 		/* Set the start timestamp for this port */
 		p_port->start_time = FIOMSG_CURRENT_TIME;
 		printk( KERN_ALERT "FIOMSG Task port(%d) -> opened (%lu)\n", p_port->port, 
