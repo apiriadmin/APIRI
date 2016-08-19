@@ -46,6 +46,8 @@
 #include <linux/sockios.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <libgen.h>
+#include <sys/wait.h>
 
 #include <fpui.h>
 #include <fio.h>
@@ -78,8 +80,9 @@ void process_cmd(sc_cmd_struct *pCmd);
   * This data is accessed directly by the procedures from the SC module.
   */
 static sc_internal_data	display_data;
+static char *external_screen[MAX_SCREENS];
 int g_rows = 4, g_cols = 40;
-bool panel_change = false;
+bool panel_change_sig = false;
 
 
  /*
@@ -99,8 +102,8 @@ int ipow(int base, int exp)
 
 void signal_handler( int arg )
 {
-	fprintf( stderr, "SIGWINCH\n" );
-	panel_change = true;
+	fprintf( stderr, "SIGWINCH:%d\n", display_data.crt_screen );
+	panel_change_sig = true;
 }
 
  int main()
@@ -118,7 +121,8 @@ void signal_handler( int arg )
  	/* Buffers used to store the current command */
 	unsigned char cmd_buffer[MAX_CMD_BUFFER_SIZE];
 	sc_cmd_struct crt_cmd;
-
+	bool panel_present = true;
+	
 	memset(&act, 0, sizeof(act));
 	act.sa_handler = signal_handler;
 	act.sa_flags = 0;
@@ -148,18 +152,31 @@ void signal_handler( int arg )
 	/* Stay in the infinite loop read/parse/process command */
 	while (1)
 	{
-		if (panel_change) {
-			if (fpui_panel_present(display_data.file_descr)
-				&& (fpui_get_window_size(display_data.file_descr, &g_rows, &g_cols) != 0)) {
-				g_rows = EXTERNAL_SCREEN_Y_SIZE;
-				g_cols = EXTERNAL_SCREEN_X_SIZE;
+		if (panel_change_sig) {
+			panel_change_sig = false;
+			if (!fpui_panel_present(display_data.file_descr)) {
+				/* panel disconnect */
+				panel_present = false;
+			} else if (!panel_present) {
+				/* panel reconnect */
+				panel_present = true;
+				if (fpui_get_window_size(display_data.file_descr, &g_rows, &g_cols) != 0) {
+					g_rows = EXTERNAL_SCREEN_Y_SIZE;
+					g_cols = EXTERNAL_SCREEN_X_SIZE;
+				}
+			} else {
+				/* focus change */
+				if (display_data.crt_screen != MENU_SCREEN_ID) {
+					/* kill thread of any submenu display */
+					pthread_cancel(display_data.update_thread);
+					display_screen(MENU_SCREEN_ID);
+				}
 			}
-			display_screen(display_data.crt_screen);
-			panel_change = false;
 		}
-		read_cmd(cmd_buffer);
-		parse_cmd(cmd_buffer, &crt_cmd);
-		process_cmd(&crt_cmd);
+		if (read_cmd(cmd_buffer) > 0) {
+			parse_cmd(cmd_buffer, &crt_cmd);
+			process_cmd(&crt_cmd);
+		}
 	}
 	fpui_close_config_window(display_data.file_descr);
  }
@@ -299,6 +316,8 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 	
 	/* Lock the mutex protecting the variable part of the screens. */
 	pthread_mutex_lock(&display_data.screen_mutex);
+
+	display_data.update_thread = 0;
 
  	/* Initialize the Menu screen */
 printf("atc_sc: initialize Menu Screen\n");
@@ -990,26 +1009,34 @@ printf("atc_sc: initialize Help Screen\n");
 void init_external_screens(void)
 {
 	FILE *fp = NULL;
-	char appName[32], appPath[128];
-	int screen_id = NO_INTERNAL_SCREENS;
-	int conv = 0, line = 0, col = 0;
+	char linestr[255];
+	char *appName, *appPath;
+	int i, screen, line = 0, col = 0;
+
+	for (i=0;i<MAX_SCREENS;i++) {
+		external_screen[i] = NULL;
+	}
 	
 	if ((fp = fopen(ATC_CONFIG_MENU_FILE, "r")) == NULL) {
 		printf("atc_sc: could not open %s\n", ATC_CONFIG_MENU_FILE);
 		return;
 	}
 	/* Process entries and add to menu */
-	while (!feof(fp)) {
-		if ((conv = fscanf(fp, "%[^','],%s", appName, appPath)) != 2) {
-			printf("atc_sc: conv=%d\n", conv);
+	for (i=0,screen=NO_INTERNAL_SCREENS;
+		(screen<(MAX_SCREENS-2))&&(fgets(linestr, sizeof(linestr), fp) != NULL);
+		i++,screen++) {
+		if ((external_screen[i] = calloc(1, PATH_MAX)) == NULL) {
+			printf("atc_sc: could not allocate memory for external app #%d pathname\n", i);
 			break;
 		}
-		printf("atc_sc: init screen %d for %s, %s, %d\n",
-				screen_id, appName, appPath, sizeof(sc_internal_screen));
-		line = screen_id / 2;
-		col = ((screen_id % 2)*20) + 2;
+		appName = strtok(linestr, ",");
+		appPath = strtok(NULL, "\n");
+		printf("atc_sc: init screen %d for %s, %s\n", screen, appName, appPath);
+		line = screen / 2;
+		col = ((screen % 2)*20) + 2;
 		memcpy(&display_data.screens[MENU_SCREEN_ID]->screen_lines[line].line[col],
 			appName, strlen(appName));
+		memcpy(external_screen[i], appPath, strlen(appPath));
 	}
 	fclose(fp);
 }
@@ -1022,13 +1049,48 @@ void display_screen(int screen_no)
  	sc_screen_line *pCrt_line = NULL; /* Current line pointer */
  	int line = 0;
  	int crt_cursor_y = 0;
-
-	if ((screen_no >= NO_INTERNAL_SCREENS) && (screen_no < MENU_SCREEN_ID)) {
-		/* External screen, try to exec application */
-		/* Should external app use stdin/out for front panel i/o */
-		/* or close /dev/sci to allow external app to open? */
-		return;
+printf("atc_sc: display_screen (%d)\n", screen_no);
+	if (screen_no >= NO_INTERNAL_SCREENS) {
+		if (screen_no < MENU_SCREEN_ID) {
+			screen_no = screen_no - NO_INTERNAL_SCREENS;
+			if (external_screen[screen_no] != NULL) {
+				/* External screen, try to exec application */
+				pid_t pid;
+				
+				printf("atc_sc: external screen #%d starting app %s\n",
+					screen_no, external_screen[screen_no]);
+				printf("atc_sc: closing config window\n");
+				fpui_close_config_window(display_data.file_descr);
+				if ((pid = fork()) < 0) {
+					/* Error forking */
+					return;
+				} else if (pid == 0) {
+					/* child process */
+					char *pname = strdup(external_screen[screen_no]);
+					char *argv[] = {basename(pname), NULL};
+					execvp(external_screen[screen_no], argv);
+				} else {
+					/* parent process */
+					/* close /dev/sci to allow external app to open */
+					/* (child should use fpui_open_config_window()) */
+					printf("atc_sc: waiting for forked utility\n");
+					waitpid(pid, 0, 0);
+					/* re-acquire the window handle and continue */
+					printf("atc_sc: re-opening config window\n");
+					while ((display_data.file_descr = fpui_open_config_window(O_RDWR|O_EXCL)) < 0) {
+						sleep(1);
+					};
+					/* re-display menu screen */
+					pCrt_screen = display_data.screens[MENU_SCREEN_ID];
+					screen_no = MENU_SCREEN_ID;
+				}
+			} else {
+				printf("atc_sc: no such external screen (%d)\n", screen_no);
+				return;
+			}
+		}
 	}
+
 	/* Lock the screens and call send_display_change with NO_SCREEN_LOCK as a parameter. */
 	pthread_mutex_lock(&display_data.screen_mutex);
 	/*printf("%s: screen #%d, y-dim=%d, y-offset=%d\n", __func__, screen_no,
@@ -3424,20 +3486,7 @@ void update_timesrc_screen(void)
 		cmd_no = 0;
 	return 0;
 #else
-	/* The command data is read one data byte a a time, each byte followed by a 0.
-	 * This section packs a multi-byte command (which is sequence of such bytes)
-	 * eliminating the trailing zeroes. 
-	 */
- 	read(display_data.file_descr, pBuffer, MAX_CMD_BUFFER_SIZE);
-	/*
-	if (*pBuffer == SC_INPUT_ESC)
-	{
-		read(display_data.file_descr, pBuffer + 1, MAX_CMD_BUFFER_SIZE - 1);
-		read(display_data.file_descr, pBuffer + 2, MAX_CMD_BUFFER_SIZE - 2);
-	}
-	*/
-
-	return 0;
+ 	return (read(display_data.file_descr, pBuffer, MAX_CMD_BUFFER_SIZE));
 #endif 
  }
  
@@ -3539,8 +3588,8 @@ void update_timesrc_screen(void)
 		}
 	};
 	
-	/*printf("%s: cmd type=%d, crt curs xy=(%d,%d) field=%d\n",
-			__func__, pCmd->type, crt_cursor_x, crt_cursor_y, crt_field);*/
+	printf("%s: cmd type=%d, crt curs xy=(%d,%d) field=%d\n",
+			__func__, pCmd->type, crt_cursor_x, crt_cursor_y, crt_field);
 	switch (pCmd->type)
 	{
 		case kChangeCharCmd: /* change field command */
@@ -3757,21 +3806,12 @@ void update_timesrc_screen(void)
 			break;
 			
 		case kMenuSelectCmd:  /* go to the selected screen */
-#if 0
-			if ( pCmd->value < NO_INTERNAL_SCREENS ) {
-				display_data.crt_screen = pCmd->value;
-
-				display_screen(display_data.crt_screen);
-			}
-			break;
-#else
-			if ( pCmd->value < NO_INTERNAL_SCREENS ) {
+			if ((pCmd->value < NO_INTERNAL_SCREENS)
+				|| (external_screen[pCmd->value-NO_INTERNAL_SCREENS] != NULL)) {
 				screen_no = pCmd->value;
-
 				display_screen(screen_no);
 			}
 			break;
-#endif
 		case kEscapeCmd:	/* go to the top-level menu */
 			display_screen(MENU_SCREEN_ID);
 			break;

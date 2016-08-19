@@ -357,7 +357,7 @@ void destroy_virtual_terminal( int term )
 		return;
 	}
 
-	if (get_focus() == term) {
+	if ((term != SC_DEV) && (get_focus() == term)) {
 		// destroyed window has focus, so revert to MS_DEV
 		set_focus( MS_DEV );
 	}
