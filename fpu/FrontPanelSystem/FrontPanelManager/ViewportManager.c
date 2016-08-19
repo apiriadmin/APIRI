@@ -100,7 +100,7 @@ void set_focus( int term )
 {
 	DBG("%s: setting focus to device %d\n", __func__, term );
 	// signal app losing focus
-	if (has_focus < APP_OPENS) {
+	if ((has_focus < APP_OPENS) || (has_focus == SC_DEV)) {
 		routing_send_signal(has_focus);
 	}
 
@@ -113,7 +113,7 @@ void set_focus( int term )
 	vt_unlock( term );
 
 	// signal app gaining focus
-	if (has_focus < APP_OPENS) {
+	if ((has_focus < APP_OPENS) || (has_focus == SC_DEV)) {
 		routing_send_signal(has_focus);
 	}
 }
@@ -489,12 +489,12 @@ void viewport_listener( char *filepath )
 								break;
 							case NXT_KEY:
 								if( state == 2 ) {				    // we got two '*'s and the <NEXT> key
-									if (is_active(SC_DEV)) {
-										set_focus( SC_DEV );				//   set the SC_DEV to focus
+									if (is_active(SC_DEV) && (has_focus != SC_DEV)) {
+										set_focus( SC_DEV );		//   set the SC_DEV to focus
 										DBG( "%s: SC focus sequence\n", __func__ );
 										// also send ESC to SC in case in submenu
-										sprintf(buf, ESC "OS");
-										virtual_terminal_return( has_focus, buf );	//   send the string to the virtual terminals
+										//sprintf(buf, ESC "OS");
+										//virtual_terminal_return( has_focus, buf );	//   send the string to the virtual terminals
 									}
 								} else if( state == 1 ) {			    // we got one '*' and the <NEXT> key
 									    sprintf( buf, "*" );			//   prepare a string buffer

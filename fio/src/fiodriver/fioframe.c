@@ -2734,15 +2734,10 @@ fioman_rx_frame_177
 pr_debug("fioman_rx_frame_177: status=%x\n", p_sys_fiod->status);
 	if (p_sys_fiod->status & 0xc1) {/* P, E or W bits */
 		p_sys_fiod->status_reset = p_sys_fiod->status & 0xc1;
-		/* reset input point filters to defaults */
-		memset(p_sys_fiod->input_filters_leading, FIO_FILTER_DEFAULT, (FIO_INPUT_POINTS_BYTES*8));
-		memset(p_sys_fiod->input_filters_trailing, FIO_FILTER_DEFAULT, (FIO_INPUT_POINTS_BYTES*8));
-                /* reset input transition monitoring to defaults */
-                memset(p_sys_fiod->input_transition_map, 0, FIO_INPUT_POINTS_BYTES);
-                /* also reset p_app_fiod-> structures */
-                /* schedule frames to update fio module? */
-		/*fiomsg_tx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), fioman_ready_frame_51(p_sys_fiod));
-                fiomsg_rx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), fioman_ready_frame_179(p_sys_fiod));*/
+		/* schedule frame 51 to reconfigure input point filters */
+                /* and reconfigure input transition monitoring */
+		fiomsg_tx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), fioman_ready_frame_51(p_sys_fiod));
+                fiomsg_rx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), fioman_ready_frame_179(p_sys_fiod));
 	} else
 		p_sys_fiod->status_reset = 0;
 
