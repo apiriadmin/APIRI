@@ -3823,25 +3823,27 @@ void update_timesrc_screen(void)
 			break;
 			
 		case kRevertCmd:	/* revert changes to current field */
-			pCrt_field->type = kModifiable;
-			pCrt_field->temp_data = pCrt_field->internal_data;
-			/* re-display original field data ? */ 
-			if (pCrt_field->string_data[0] == NULL) {
-				// check for a format string
-				if ((pCrt_field->string_data[1] != NULL) && (pCrt_field->string_data[1][0] == '%'))
-					sprintf((char *)buffer, pCrt_field->string_data[1], pCrt_field->temp_data);
-				else
-					sprintf((char *)buffer, "%*d", pCrt_field->length, pCrt_field->temp_data);
-			} else {
-				sprintf((char *)buffer, "%s", pCrt_field->string_data[pCrt_field->temp_data]);
+			if (pCrt_field->type > kModifiable) {
+				pCrt_field->type = kModifiable;
+				pCrt_field->temp_data = pCrt_field->internal_data;
+				/* re-display original field data ? */ 
+				if (pCrt_field->string_data[0] == NULL) {
+					// check for a format string
+					if ((pCrt_field->string_data[1] != NULL) && (pCrt_field->string_data[1][0] == '%'))
+						sprintf((char *)buffer, pCrt_field->string_data[1], pCrt_field->temp_data);
+					else
+						sprintf((char *)buffer, "%*d", pCrt_field->length, pCrt_field->temp_data);
+				} else {
+					sprintf((char *)buffer, "%s", pCrt_field->string_data[pCrt_field->temp_data]);
+				}
+				memcpy(pCrt_line->line + pCrt_field->start, buffer, pCrt_field->length);
+				/* Send change to display. */
+				send_display_change(pCrt_field->start,
+					pCrt_screen->header_dim_y+pCrt_screen->cursor_y-pCrt_screen->display_offset_y,
+					CS_DISPLAY_MAKE_BLINKING,
+					(pCrt_line->line + pCrt_field->start), pCrt_field->length,
+					SCREEN_LOCK);
 			}
-			memcpy(pCrt_line->line + pCrt_field->start, buffer, pCrt_field->length);
-			/* Send change to display. */
-			send_display_change(pCrt_field->start,
-				pCrt_screen->header_dim_y+pCrt_screen->cursor_y-pCrt_screen->display_offset_y,
-				CS_DISPLAY_MAKE_BLINKING,
-				(pCrt_line->line + pCrt_field->start), pCrt_field->length,
-				SCREEN_LOCK);
 			break;
 		default:		/* no op command (will be ignored) */
 			pCmd->type = kNopCmd;
