@@ -3147,7 +3147,7 @@ void update_eeprom_screen(void *arg)
 				/* Ethernet N Switch/Router MAC */
 				byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "Enet %d Switch/Router MAC Address:", i+1);
 				memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);
-				byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "       %0X:%0X:%0X:%0X:%0X:%0X",
+				byteCount = snprintf(buffer, EPRM_SCREEN_X_SIZE, "       %02X:%02X:%02X:%02X:%02X:%02X",
 						eeprom[j], eeprom[j+1], eeprom[j+2], eeprom[j+3], eeprom[j+4], eeprom[j+5]);
 				memcpy((char *)pScreen->screen_lines[line_no++].line, buffer, byteCount);
 				j += 6;
