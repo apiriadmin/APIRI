@@ -1131,7 +1131,7 @@ printf("atc_sc: display_screen (%d)\n", screen_no);
  	//send_display_change(pCrt_screen->cursor_x, crt_cursor_y, CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
 	pCrt_screen->cursor_x = pCrt_screen->cursor_y = 0;
 fpui_set_cursor_pos(display_data.file_descr, /*pCrt_screen->cursor_y*/1, /*pCrt_screen->cursor_x*/1);
-fpui_set_cursor(display_data.file_descr, true);
+fpui_set_cursor(display_data.file_descr, false);
 
 // Set the cursor at the first editable field visible; set to 0,0 or hide if no editable fields
 
@@ -1800,7 +1800,8 @@ void update_time_screen(void)
 	struct tm *pLocalDateTime;
 	time_t t_msec;
 	unsigned char buffer[10];
-	bool dateTimeUpdate = true;
+	int cursor_x, cursor_y;
+	unsigned char cursor_type;
 
 	/* The saved position of the cursor that has to be restored if screen changes are performed. */
 	int saved_cursor_x = CURSOR_NOT_CHANGED;
@@ -1815,9 +1816,6 @@ void update_time_screen(void)
 		/* Lock the screen before updates. */
 		pthread_mutex_lock(&display_data.screen_mutex);
 
-		if (dateTimeUpdate) {
-			dateTimeUpdate = false;
-			
 		/* Update the current date/time in the internal structures if not modified recently by user. */
 		/* Update the TIMEZONE sign field */
 		if (((((pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].temp_data != 1) && (timezone <= 0))
@@ -1845,18 +1843,19 @@ void update_time_screen(void)
 					saved_cursor_y = pDateTime_screen->cursor_y;
 				}
 
-		           	send_display_change(pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].start,
-						 	pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y,
-							CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-                		 /* Write the new zone sign to the screen */
-                		write(display_data.file_descr,
-					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].start, 1);
+				cursor_x = pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].start;
+				cursor_y = pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y;
+				// if cursor is on this field, blink the field
+				if ((pDateTime_screen->cursor_x >= cursor_x)
+					&& (pDateTime_screen->cursor_x < (cursor_x + pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].length)))
+					cursor_type = CS_DISPLAY_MAKE_BLINKING;
+				else
+					cursor_type = CS_DISPLAY_STOP_BLINKING;
+				/* Write the new hour to the screen */
+                                send_display_change(cursor_x, cursor_y, cursor_type,
+					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].start,
+					pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].length, NO_SCREEN_LOCK);
 			}
-		}
-		else if  (pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].type == kModified)
-		{
-			/* Don't change the field, give a second chance to the user to commit his change. */
-		 	pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].type = kModified2;
 		}
 
 		/* Update the TIMEZONE HOUR field */
@@ -1884,19 +1883,20 @@ void update_time_screen(void)
                                         saved_cursor_y = pDateTime_screen->cursor_y;
                                 }
 
-                                send_display_change(pDateTimeEdit_line->fields[ZONE_HOUR_FIELD].start,
-                                                        pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y,
-                                                        CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-                                 /* Write the new timezone hour to the screen */
-                                write(display_data.file_descr,
-                                        pDateTimeEdit_line->line + pDateTimeEdit_line->fields[ZONE_HOUR_FIELD].start, 2);
+				cursor_x = pDateTimeEdit_line->fields[ZONE_HOUR_FIELD].start;
+				cursor_y = pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y;
+				// if cursor is on this field, blink the field
+				if ((pDateTime_screen->cursor_x >= cursor_x)
+					&& (pDateTime_screen->cursor_x < (cursor_x + pDateTimeEdit_line->fields[ZONE_HOUR_FIELD].length)))
+					cursor_type = CS_DISPLAY_MAKE_BLINKING;
+				else
+					cursor_type = CS_DISPLAY_STOP_BLINKING;
+				/* Write the new hour to the screen */
+                                send_display_change(cursor_x, cursor_y, cursor_type,
+					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[ZONE_HOUR_FIELD].start,
+					pDateTimeEdit_line->fields[ZONE_HOUR_FIELD].length, NO_SCREEN_LOCK);
                         }
 		}
-                else if  (pDateTimeEdit_line->fields[ZONE_HOUR_FIELD].type == kModified)
-                {
-                        /* Don't change the field, give a second chance to the user to commit his change. */
-                        pDateTimeEdit_line->fields[ZONE_HOUR_FIELD].type = kModified2;
-                }
 
 		/* Update the TIMEZONE MINUTE field */
 		if (((pDateTimeEdit_line->fields[ZONE_MIN_FIELD].temp_data != ((abs(timezone)%3600)/60) ) &&
@@ -1923,19 +1923,20 @@ void update_time_screen(void)
                                         saved_cursor_y = pDateTime_screen->cursor_y;
                                 }
 
-                                send_display_change(pDateTimeEdit_line->fields[ZONE_MIN_FIELD].start,
-                                                        pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y,
-                                                        CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-                                 /* Write the new minute to the screen */
-                                write(display_data.file_descr,
-                                        pDateTimeEdit_line->line + pDateTimeEdit_line->fields[ZONE_MIN_FIELD].start, 2);
+				cursor_x = pDateTimeEdit_line->fields[ZONE_MIN_FIELD].start;
+				cursor_y = pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y;
+				// if cursor is on this field, blink the field
+				if ((pDateTime_screen->cursor_x >= cursor_x)
+					&& (pDateTime_screen->cursor_x < (cursor_x + pDateTimeEdit_line->fields[ZONE_MIN_FIELD].length)))
+					cursor_type = CS_DISPLAY_MAKE_BLINKING;
+				else
+					cursor_type = CS_DISPLAY_STOP_BLINKING;
+				/* Write the new hour to the screen */
+                                send_display_change(cursor_x, cursor_y, cursor_type,
+					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[ZONE_MIN_FIELD].start,
+					pDateTimeEdit_line->fields[ZONE_MIN_FIELD].length, NO_SCREEN_LOCK);
                         }
 		}
-		else if (pDateTimeEdit_line->fields[ZONE_MIN_FIELD].type == kModified)
-                {
-                        /* Don't change the field, give a second chance to the user to commit his change. */
-                        pDateTimeEdit_line->fields[ZONE_MIN_FIELD].type = kModified2;
-                }
 
 		/* Update the DST enable field */
 		if (((((pDateTimeEdit_line->fields[DST_ENABLE_FIELD].temp_data != 0) && (daylight == 0))
@@ -1963,18 +1964,19 @@ void update_time_screen(void)
 					saved_cursor_y = pDateTime_screen->cursor_y;
 				}
 
-		           	send_display_change(pDateTimeEdit_line->fields[DST_ENABLE_FIELD].start,
-						 	pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y,
-							CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-                		 /* Write the new DST enable state to the screen */
-                		write(display_data.file_descr,
-					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[DST_ENABLE_FIELD].start, 6);
+				cursor_x = pDateTimeEdit_line->fields[DST_ENABLE_FIELD].start;
+				cursor_y = pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y;
+				// if cursor is on this field, blink the field
+				if ((pDateTime_screen->cursor_x >= cursor_x)
+					&& (pDateTime_screen->cursor_x < (cursor_x + pDateTimeEdit_line->fields[DST_ENABLE_FIELD].length)))
+					cursor_type = CS_DISPLAY_MAKE_BLINKING;
+				else
+					cursor_type = CS_DISPLAY_STOP_BLINKING;
+				/* Write the new hour to the screen */
+                                send_display_change(cursor_x, cursor_y, cursor_type,
+					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[DST_ENABLE_FIELD].start,
+					pDateTimeEdit_line->fields[DST_ENABLE_FIELD].length, NO_SCREEN_LOCK);
 			}
-		}
-		else if  (pDateTimeEdit_line->fields[DST_ENABLE_FIELD].type == kModified)
-		{
-			/* Don't change the field, give a second chance to the user to commit his change. */
-		 	pDateTimeEdit_line->fields[DST_ENABLE_FIELD].type = kModified2;
 		}
 
 		/* Update the YEAR field */
@@ -2002,18 +2004,19 @@ void update_time_screen(void)
 					saved_cursor_y = pDateTime_screen->cursor_y;
 				}
 		            	
-		           	send_display_change(pDateTimeEdit_line->fields[DATE_YEAR_FIELD].start,
-						 	pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y, 
-							CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-                		 /* Write the new year to the screen */
-                		write(display_data.file_descr, 
-					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[DATE_YEAR_FIELD].start, 4);
+				cursor_x = pDateTimeEdit_line->fields[DATE_YEAR_FIELD].start;
+				cursor_y = pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y;
+				// if cursor is on this field, blink the field
+				if ((pDateTime_screen->cursor_x >= cursor_x)
+					&& (pDateTime_screen->cursor_x < (cursor_x + pDateTimeEdit_line->fields[DATE_YEAR_FIELD].length)))
+					cursor_type = CS_DISPLAY_MAKE_BLINKING;
+				else
+					cursor_type = CS_DISPLAY_STOP_BLINKING;
+				/* Write the new hour to the screen */
+                                send_display_change(cursor_x, cursor_y, cursor_type,
+					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[DATE_YEAR_FIELD].start,
+					pDateTimeEdit_line->fields[DATE_YEAR_FIELD].length, NO_SCREEN_LOCK);
 			}
-		}
-		else if  (pDateTimeEdit_line->fields[DATE_YEAR_FIELD].type == kModified)
-		{
-			/* Don't change the field, give a second chance to the user to commit his change. */
-		 	pDateTimeEdit_line->fields[DATE_YEAR_FIELD].type = kModified2;
 		}
 
 		/* Update the MONTH field */
@@ -2041,19 +2044,20 @@ void update_time_screen(void)
                                         saved_cursor_y = pDateTime_screen->cursor_y;
                                 }
 
-                                send_display_change(pDateTimeEdit_line->fields[DATE_MONTH_FIELD].start,
-                                                        pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y,
-                                                        CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-                                 /* Write the month to the screen */
-                                write(display_data.file_descr,
-                                        pDateTimeEdit_line->line + pDateTimeEdit_line->fields[DATE_MONTH_FIELD].start, 2);
+				cursor_x = pDateTimeEdit_line->fields[DATE_MONTH_FIELD].start;
+				cursor_y = pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y;
+				// if cursor is on this field, blink the field
+				if ((pDateTime_screen->cursor_x >= cursor_x)
+					&& (pDateTime_screen->cursor_x < (cursor_x + pDateTimeEdit_line->fields[DATE_MONTH_FIELD].length)))
+					cursor_type = CS_DISPLAY_MAKE_BLINKING;
+				else
+					cursor_type = CS_DISPLAY_STOP_BLINKING;
+				/* Write the new hour to the screen */
+                                send_display_change(cursor_x, cursor_y, cursor_type,
+					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[DATE_MONTH_FIELD].start,
+					pDateTimeEdit_line->fields[DATE_MONTH_FIELD].length, NO_SCREEN_LOCK);
                         }
 		}
-                else if  (pDateTimeEdit_line->fields[DATE_MONTH_FIELD].type == kModified)
-                {
-                        /* Don't change the field, give a second chance to the user to commit his change. */
-                        pDateTimeEdit_line->fields[DATE_MONTH_FIELD].type = kModified2;
-                }
 
 		/* Update the DAY field */ 
 		if (((pDateTimeEdit_line->fields[DATE_DAY_FIELD].temp_data != pLocalDateTime->tm_mday) &&
@@ -2080,19 +2084,20 @@ void update_time_screen(void)
                                         saved_cursor_y = pDateTime_screen->cursor_y;
                                 }
 
-                                send_display_change(pDateTimeEdit_line->fields[DATE_DAY_FIELD].start,
-                                                        pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y,
-                                                        CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-                                 /* Write the day to the screen */
-                                write(display_data.file_descr,
-                                        pDateTimeEdit_line->line + pDateTimeEdit_line->fields[DATE_DAY_FIELD].start, 2);
+				cursor_x = pDateTimeEdit_line->fields[DATE_DAY_FIELD].start;
+				cursor_y = pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y;
+				// if cursor is on this field, blink the field
+				if ((pDateTime_screen->cursor_x >= cursor_x)
+					&& (pDateTime_screen->cursor_x < (cursor_x + pDateTimeEdit_line->fields[DATE_DAY_FIELD].length)))
+					cursor_type = CS_DISPLAY_MAKE_BLINKING;
+				else
+					cursor_type = CS_DISPLAY_STOP_BLINKING;
+				/* Write the new hour to the screen */
+                                send_display_change(cursor_x, cursor_y, cursor_type,
+					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[DATE_DAY_FIELD].start,
+					pDateTimeEdit_line->fields[DATE_DAY_FIELD].length, NO_SCREEN_LOCK);
                         }
 		}
-                else if  (pDateTimeEdit_line->fields[DATE_DAY_FIELD].type == kModified)
-                {
-                        /* Don't change the field, give a second chance to the user to commit his change. */
-                        pDateTimeEdit_line->fields[DATE_DAY_FIELD].type = kModified2;
-                }
 	
 		/* Update the HOUR field */
 		if (((pDateTimeEdit_line->fields[TIME_HOUR_FIELD].temp_data != pLocalDateTime->tm_hour) &&
@@ -2119,19 +2124,20 @@ void update_time_screen(void)
                                         saved_cursor_y = pDateTime_screen->cursor_y;
                                 }
 
-                                send_display_change(pDateTimeEdit_line->fields[TIME_HOUR_FIELD].start,
-                                                        pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y,
-                                                        CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-                                 /* Write the new year to the screen */
-                                write(display_data.file_descr,
-                                        pDateTimeEdit_line->line + pDateTimeEdit_line->fields[TIME_HOUR_FIELD].start, 2);
+				cursor_x = pDateTimeEdit_line->fields[TIME_HOUR_FIELD].start;
+				cursor_y = pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y;
+				// if cursor is on this field, blink the field
+				if ((pDateTime_screen->cursor_x >= cursor_x)
+					&& (pDateTime_screen->cursor_x < (cursor_x + pDateTimeEdit_line->fields[TIME_HOUR_FIELD].length)))
+					cursor_type = CS_DISPLAY_MAKE_BLINKING;
+				else
+					cursor_type = CS_DISPLAY_STOP_BLINKING;
+				/* Write the new hour to the screen */
+                                send_display_change(cursor_x, cursor_y, cursor_type,
+					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[TIME_HOUR_FIELD].start,
+					pDateTimeEdit_line->fields[TIME_HOUR_FIELD].length, NO_SCREEN_LOCK);
                         }
 		}
-                else if  (pDateTimeEdit_line->fields[TIME_HOUR_FIELD].type == kModified)
-                {
-                        /* Don't change the field, give a second chance to the user to commit his change. */
-                        pDateTimeEdit_line->fields[TIME_HOUR_FIELD].type = kModified2;
-                }
 
 		/* Update the MINUTE field */
 		if (((pDateTimeEdit_line->fields[TIME_MIN_FIELD].temp_data != pLocalDateTime->tm_min) &&
@@ -2157,20 +2163,19 @@ void update_time_screen(void)
                                         saved_cursor_x = pDateTime_screen->cursor_x;
                                         saved_cursor_y = pDateTime_screen->cursor_y;
                                 }
-
-                                send_display_change(pDateTimeEdit_line->fields[TIME_MIN_FIELD].start,
-                                                        pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y,
-                                                        CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-                                 /* Write the new minute to the screen */
-                                write(display_data.file_descr,
-                                        pDateTimeEdit_line->line + pDateTimeEdit_line->fields[TIME_MIN_FIELD].start, 2);
+				cursor_x = pDateTimeEdit_line->fields[TIME_MIN_FIELD].start;
+				cursor_y = pDateTime_screen->header_dim_y+DATE_TIME_EDIT_LINE-pDateTime_screen->display_offset_y;
+				// if cursor is on this field, blink the field
+				if ((pDateTime_screen->cursor_x >= cursor_x)
+					&& (pDateTime_screen->cursor_x < (cursor_x + pDateTimeEdit_line->fields[TIME_MIN_FIELD].length)))
+					cursor_type = CS_DISPLAY_MAKE_BLINKING;
+				else
+					cursor_type = CS_DISPLAY_STOP_BLINKING;
+				/* Write the new minute to the screen */
+                                send_display_change(cursor_x, cursor_y, cursor_type,
+					pDateTimeEdit_line->line + pDateTimeEdit_line->fields[TIME_MIN_FIELD].start,
+					pDateTimeEdit_line->fields[TIME_MIN_FIELD].length, NO_SCREEN_LOCK);
                         }
-		}
-		else if (pDateTimeEdit_line->fields[TIME_MIN_FIELD].type == kModified)
-                {
-                        /* Don't change the field, give a second chance to the user to commit his change. */
-                        pDateTimeEdit_line->fields[TIME_MIN_FIELD].type = kModified2;
-                }
 		}
 
 		// Update the date/time display line
@@ -2192,33 +2197,20 @@ void update_time_screen(void)
 		send_display_change(0, pDateTime_screen->header_dim_y+DATE_TIME_DISP_LINE-pDateTime_screen->display_offset_y,
 			CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
 		write(display_data.file_descr, pDateTimeDisp_line->line, MAX_INTERNAL_SCREEN_X_SIZE);
-#if 0
-		if( dateTimeUpdate ) {
-			//update edit line date/time once only
-			dateTimeUpdate = false;
-			memcpy(pDateTimeEdit_line->line, line,
-				pDateTimeEdit_line->fields[DST_ENABLE_FIELD].start +
-				pDateTimeEdit_line->fields[DST_ENABLE_FIELD].length);
-			send_display_change(0, DATE_TIME_EDIT_LINE - pDateTime_screen->display_offset_y,
-				CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-			write(display_data.file_descr, pDateTimeEdit_line->line, MAX_INTERNAL_SCREEN_X_SIZE);
-		}
-#endif
+
 		/* Restore the saved cursor position if screen updates have been made. */
 		if (saved_cursor_x != CURSOR_NOT_CHANGED)
 		{
 			send_display_change(saved_cursor_x, pDateTime_screen->header_dim_y+saved_cursor_y,
                                               CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
 			saved_cursor_x = CURSOR_NOT_CHANGED;
-			/* TODO: make the cursor blinking if positioned on a modifiable char. */
-
 		}
 
 		/* Unlock the screen after updates. */
 		pthread_mutex_unlock(&display_data.screen_mutex);
 
 		/* Sleep for 1 sec before the new updates. */
-		sleep(1/*60*/);
+		sleep(1);
 	}
 }
 
