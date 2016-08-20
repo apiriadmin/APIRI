@@ -3813,13 +3813,22 @@ void update_timesrc_screen(void)
 			}
 			break;
 		case kEscapeCmd:	/* go to the top-level menu */
-			display_screen(MENU_SCREEN_ID);
+			if (screen_no != MENU_SCREEN_ID)
+				display_screen(MENU_SCREEN_ID);
+			else
+				// warn invalid keypress
+				send_alarm_bell();
 			break;
 			
 		case kCommitCmd:	/* commit latest changes on the current line */
 			/* commit any changes to the current field */
-			if (pCrt_field->temp_data != pCrt_field->internal_data)
-				commit_line(screen_no, pCrt_screen->cursor_y);
+			if (pCrt_field->type > kModifiable) {
+				if (pCrt_field->temp_data != pCrt_field->internal_data)
+					commit_line(screen_no, pCrt_screen->cursor_y);
+			} else {
+				// warn invalid keypress
+				send_alarm_bell();
+			}
 			break;
 			
 		case kRevertCmd:	/* revert changes to current field */
@@ -3843,6 +3852,9 @@ void update_timesrc_screen(void)
 					CS_DISPLAY_MAKE_BLINKING,
 					(pCrt_line->line + pCrt_field->start), pCrt_field->length,
 					SCREEN_LOCK);
+			} else {
+				// warn invalid key press
+				send_alarm_bell();
 			}
 			break;
 		default:		/* no op command (will be ignored) */
