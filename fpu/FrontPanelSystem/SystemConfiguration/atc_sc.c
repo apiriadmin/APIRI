@@ -1723,6 +1723,12 @@ fpui_set_cursor(display_data.file_descr, false);
 	crt_cursor_x++;
 	crt_cursor_y++;	
 
+	/* Make sure requested cursor position is valid */
+	if ((crt_cursor_x > g_cols) || (crt_cursor_y > g_rows)) {
+		printf("send_display_change: cursor outside display\n");
+		return;
+	}
+		
 	/* Prepare the format of the cursor's command to set its  x,y coordinates. */
 	sprintf((char *)pCursor, "%c%c%u%c%u%c",0x1b,0x5b,(unsigned char)crt_cursor_y,0x3b,(unsigned char)crt_cursor_x,0x66);
 	/* The no of bytes in this command depends on the size of crt_cursor_x which could have a digit or two
@@ -2258,6 +2264,8 @@ void update_ethernet_screen(void *arg)
 	char *eth_name = (eth_screen_id == ETH1_SCREEN_ID)?"eth0":"eth1";
 	struct ifreq ifr;
 	int skfd;
+	int cursor_x, cursor_y;
+	unsigned char cursor_type;
 
 	/* The saved position of the cursor that has to be restored if screen changes are performed. */
 	int saved_cursor_x = CURSOR_NOT_CHANGED;
@@ -2310,18 +2318,18 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
 
-			           	send_display_change(pField->start,
-							pEthernet_screen->header_dim_y+ETH_MODE_LINE-pEthernet_screen->display_offset_y,
-							CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_MODE_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 		}
 		/*
@@ -2353,19 +2361,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
 
-			           	send_display_change(pField->start,
-							pEthernet_screen->header_dim_y+ETH_IPADDR_LINE-pEthernet_screen->display_offset_y,
-							CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_IPADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
 		        }
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
-			}
 
 		        pField = &(pEthEditLine->fields[ETH_IPADDR2_FIELD]);
 		        octet = atoi(strtok(NULL, "."));
@@ -2387,19 +2395,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
 
-			           	send_display_change(pField->start,
-							pEthernet_screen->header_dim_y+ETH_IPADDR_LINE-pEthernet_screen->display_offset_y,
-							CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_IPADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
 		        }
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
-			}
 
 		        pField = &(pEthEditLine->fields[ETH_IPADDR3_FIELD]);
 		        octet = atoi(strtok(NULL, "."));
@@ -2421,19 +2429,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
 
-			           	send_display_change(pField->start,
-							pEthernet_screen->header_dim_y+ETH_IPADDR_LINE-pEthernet_screen->display_offset_y,
-							CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_IPADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
 		        }
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
-			}
 
 		        pField = &(pEthEditLine->fields[ETH_IPADDR4_FIELD]);
 		        octet = atoi(strtok(NULL,"."));
@@ -2455,19 +2463,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
 
-			           	send_display_change(pField->start,
-							pEthernet_screen->header_dim_y+ETH_IPADDR_LINE-pEthernet_screen->display_offset_y,
-							CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_IPADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
 		        }
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
-			}
 		}
 		/*
 		 *  Netmask
@@ -2497,18 +2505,18 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
 
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_NETMASK_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_NETMASK_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 
 		        pField = &(pEthEditLine->fields[ETH_NETMASK2_FIELD]);
@@ -2531,18 +2539,18 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
 
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_NETMASK_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_NETMASK_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 
 		        pField = &(pEthEditLine->fields[ETH_NETMASK3_FIELD]);
@@ -2565,18 +2573,18 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
 
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_NETMASK_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_NETMASK_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 
 		        pField = &(pEthEditLine->fields[ETH_NETMASK4_FIELD]);
@@ -2599,18 +2607,18 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
 
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_NETMASK_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_NETMASK_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 		}
 		/*
@@ -2642,18 +2650,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_x = pEthernet_screen->cursor_x;
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_GWADDR_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_GWADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 
 		        pField = &(pEthEditLine->fields[ETH_GWADDR2_FIELD]);
@@ -2675,18 +2684,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_x = pEthernet_screen->cursor_x;
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_GWADDR_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_GWADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 
 		        pField = &(pEthEditLine->fields[ETH_GWADDR3_FIELD]);
@@ -2708,18 +2718,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_x = pEthernet_screen->cursor_x;
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_GWADDR_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_GWADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 
 		        pField = &(pEthEditLine->fields[ETH_GWADDR4_FIELD]);
@@ -2741,18 +2752,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_x = pEthernet_screen->cursor_x;
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_GWADDR_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_GWADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 		}
 
@@ -2783,18 +2795,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_x = pEthernet_screen->cursor_x;
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_NSADDR_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_NSADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 
 		        pField = &(pEthEditLine->fields[ETH_NSADDR2_FIELD]);
@@ -2816,18 +2829,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_x = pEthernet_screen->cursor_x;
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_NSADDR_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_NSADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 
 		        pField = &(pEthEditLine->fields[ETH_NSADDR3_FIELD]);
@@ -2849,18 +2863,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_x = pEthernet_screen->cursor_x;
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_NSADDR_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_NSADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 
 		        pField = &(pEthEditLine->fields[ETH_NSADDR4_FIELD]);
@@ -2882,18 +2897,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_x = pEthernet_screen->cursor_x;
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
-			           	send_display_change(pField->start,
-						pEthernet_screen->header_dim_y+ETH_NSADDR_LINE-pEthernet_screen->display_offset_y,
-						CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		 /* Write the new zone sign to the screen */
-	                		write(display_data.file_descr,
-						pEthEditLine->line + pField->start, pField->length);
+
+					cursor_x = pField->start;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_NSADDR_LINE-pEthernet_screen->display_offset_y;
+					// if cursor is on this field, blink the field
+					if ((pEthernet_screen->cursor_x >= cursor_x)
+						&& (pEthernet_screen->cursor_x < (cursor_x + pField->length)))
+						cursor_type = CS_DISPLAY_MAKE_BLINKING;
+					else
+						cursor_type = CS_DISPLAY_STOP_BLINKING;
+					/* Write the new field value to the screen */
+					send_display_change(cursor_x, cursor_y, cursor_type, pEthEditLine->line + pField->start,
+								pField->length, NO_SCREEN_LOCK);
 				}
-			}
-			else if  (pField->type == kModified)
-			{
-				/* Don't change the field, give a second chance to the user to commit his change. */
-			 	pField->type = kModified2;
 			}
 		}
 
@@ -2927,7 +2943,7 @@ void update_ethernet_screen(void *arg)
 					"Packets Rcvd GD:%10llu BD:%10lu", stats.rx_packets, stats.rx_errors);
 				memcpy(pEthEditLine->line, line, MAX_INTERNAL_SCREEN_X_SIZE);
 				/* Display the changes on the terminal if ETH_SCREEN is the current screen. */
-#if 0
+#if 1
 		//only if line is visible on external display!
 				if (display_data.crt_screen == eth_screen_id)
 				{	/* Save the initial position of the cursor if this has not been done yet. */
@@ -2935,14 +2951,19 @@ void update_ethernet_screen(void *arg)
 						saved_cursor_x = pEthernet_screen->cursor_x;
 						saved_cursor_y = pEthernet_screen->cursor_y;
 					}
-					send_display_change(0, ETH_TX_LINE - pEthernet_screen->display_offset_y,
-								CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-					write(display_data.file_descr, pEthernet_screen->screen_lines[ETH_TX_LINE].line,
-							MAX_INTERNAL_SCREEN_X_SIZE);
-			           	send_display_change(0, ETH_RX_LINE - pEthernet_screen->display_offset_y,
-								CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-	                		write(display_data.file_descr, pEthernet_screen->screen_lines[ETH_RX_LINE].line,
-	                				MAX_INTERNAL_SCREEN_X_SIZE);
+					cursor_x = 0;
+					cursor_y = pEthernet_screen->header_dim_y+ETH_TX_LINE-pEthernet_screen->display_offset_y;
+					//if (cursor_y < g_rows) {
+						send_display_change(0, cursor_y, CS_DISPLAY_STOP_BLINKING,
+							pEthernet_screen->screen_lines[ETH_TX_LINE].line,
+							MAX_INTERNAL_SCREEN_X_SIZE, NO_SCREEN_LOCK);
+					//}
+					cursor_y = pEthernet_screen->header_dim_y+ETH_RX_LINE-pEthernet_screen->display_offset_y;
+					//if (cursor_y < g_rows) {
+						send_display_change(0, cursor_y, CS_DISPLAY_STOP_BLINKING,
+							pEthernet_screen->screen_lines[ETH_RX_LINE].line,
+							MAX_INTERNAL_SCREEN_X_SIZE, NO_SCREEN_LOCK);
+					//}
 				}
 #endif
 			}
@@ -2954,14 +2975,13 @@ void update_ethernet_screen(void *arg)
 			send_display_change(saved_cursor_x, pEthernet_screen->header_dim_y+saved_cursor_y,
                                               CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
 			saved_cursor_x = CURSOR_NOT_CHANGED;
-			/* TODO: make the cursor blinking if positioned on a modifiable char. */
 		}
 
 		/* Unlock the screen after updates. */
 		pthread_mutex_unlock(&display_data.screen_mutex);
 
-		/* Sleep for 5 sec before the new updates. */
-		sleep(5/*60*/);
+		/* Sleep for 1 sec before the new updates. */
+		sleep(1/*60*/);
 	}
 
 	close (skfd);
@@ -3037,8 +3057,8 @@ void update_linux_screen(void *arg)
 		/* Unlock the screen after updates. */
 		pthread_mutex_unlock(&display_data.screen_mutex);
 
-		/* Sleep for 5 sec before the new updates. */
-		sleep(5);
+		/* Sleep for 1 sec before the new updates. */
+		sleep(1);
 	}
 }
 
