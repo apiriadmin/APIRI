@@ -293,7 +293,7 @@ int main( int argc, char * argv[] )
 				for( i = 0; (i < rp->raw_offset) && (rp->data[i] != '\0'); i++ ) {
 					switch( rp->data[i] ) {
 						case KEY_NEXT:	{// to select the System Configuration screen
-							unsigned int focus_dev = SC_DEV;
+							unsigned int focus_dev = SCM_DEV;
 							fprintf( stderr, "MS: Setting focus to System Configuration\n");
 							ioctl( msi, FP_IOC_SET_FOCUS, &focus_dev );
 							break;

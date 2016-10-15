@@ -100,7 +100,7 @@ void set_focus( int term )
 {
 	DBG("%s: setting focus to device %d\n", __func__, term );
 	// signal app losing focus
-	if ((has_focus < APP_OPENS) || (has_focus == SC_DEV)) {
+	if ((has_focus < APP_OPENS) || (has_focus == SCI_DEV)) {
 		routing_send_signal(has_focus);
 	}
 
@@ -113,7 +113,7 @@ void set_focus( int term )
 	vt_unlock( term );
 
 	// signal app gaining focus
-	if ((has_focus < APP_OPENS) || (has_focus == SC_DEV)) {
+	if ((has_focus < APP_OPENS) /*|| (has_focus == SCM_DEV)*/) {
 		routing_send_signal(has_focus);
 	}
 }
@@ -489,17 +489,24 @@ void viewport_listener( char *filepath )
 								break;
 							case NXT_KEY:
 								if( state == 2 ) {				    // we got two '*'s and the <NEXT> key
-									if (is_active(SC_DEV) && (has_focus != SC_DEV)) {
-										set_focus( SC_DEV );		//   set the SC_DEV to focus
-										DBG( "%s: SC focus sequence\n", __func__ );
-										// also send ESC to SC in case in submenu
-										//sprintf(buf, ESC "OS");
-										//virtual_terminal_return( has_focus, buf );	//   send the string to the virtual terminals
+									if (has_focus == SCI_DEV) {
+										// signal SCM_DEV only (terminate utility)
+										routing_send_signal(SCM_DEV);
+										DBG( "%s: SCI terminate sequence\n", __func__ );
+									} /*else if (is_active(SCI_DEV)) {
+										set_focus( SCI_DEV );
+										routing_send_signal(SCM_DEV);
+										DBG( "%s: SCI focus sequence\n", __func__ );
+									} */else if (is_active(SCM_DEV) && (has_focus != SCM_DEV)) {
+										set_focus( SCM_DEV );		//   set the SCM_DEV to focus
+										if (is_active(SCI_DEV))
+											routing_send_signal(SCM_DEV);
+										DBG( "%s: SCM focus sequence\n", __func__ );
 									}
 								} else if( state == 1 ) {			    // we got one '*' and the <NEXT> key
 									    sprintf( buf, "*" );			//   prepare a string buffer
 									    virtual_terminal_return( has_focus, buf );	//   send the string to the virtual terminals
-								} else if( has_focus == SC_DEV ){
+								} else if( has_focus == SCM_DEV ){
 									set_focus(MS_DEV);				// isolated <NEXT> in SC_DEV
 									DBG( "%s: MS focus sequence\n", __func__ );
 								} else {

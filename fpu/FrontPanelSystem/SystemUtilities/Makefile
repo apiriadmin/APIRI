@@ -1,16 +1,18 @@
-SOURCES := SystemConfiguration.c
+SOURCES := atc_sc.c crc_ccitt.c
 
-LIBRARIES := -L../libfpui -lfpui -lpthread
+LIBRARIES := -L../libfpui -L../../../fio/src/fioapi -L../../../tod/src \
+		-lfpui -lfio -ltod -lpthread
 
 INCLUDES := ../FrontPanelDriver/front_panel.h
 
 OBJECTS := $(SOURCES:.c=.o)
 
 .c.o:
-	$(CC) -g -O -Wall -I../ -I../FrontPanelDriver -I../libfpui -c $<
+	$(CC) -g -O -Wall -I../ -I../libfpui -I../../../fio/src/fioapi \
+	-I../../../tod/src -c $<
 
 ## Targets
-TARGET := SystemConfiguration
+TARGET := atc_sc
 
 all: $(TARGET)
 
