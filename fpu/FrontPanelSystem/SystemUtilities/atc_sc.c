@@ -172,7 +172,8 @@ int start_sc_module(char *appname)
 					/* kill thread of any submenu display */
 					printf("atc_sc: killing update thread\n");
 					pthread_cancel(display_data.update_thread);
-					display_screen(MENU_SCREEN_ID);
+					/* Terminate Utility */
+					break;
 				}
 			}
 		}
@@ -1699,7 +1700,6 @@ void update_time_screen(void)
 	int saved_cursor_x = CURSOR_NOT_CHANGED;
 	int saved_cursor_y = CURSOR_NOT_CHANGED;
 
-printf("atc_sc:update_time\n");
 	while(display_data.crt_screen == TIME_SCREEN_ID)	/* while we are displayed */
 	{
 		t_msec = time(NULL);
@@ -1710,7 +1710,6 @@ printf("atc_sc:update_time\n");
 
 		/* Update the current date/time in the internal structures if not modified recently by user. */
 		/* Update the TIMEZONE sign field */
-printf("atc_sc:update_time:timezone\n");
 		if (((((pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].temp_data != 1) && (timezone <= 0))
 			|| ((pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].temp_data != 0) && (timezone > 0)))
 				&& (pDateTimeEdit_line->fields[ZONE_SIGN_FIELD].type != kModified))
@@ -2160,7 +2159,6 @@ void update_ethernet_screen(void *arg)
 
 	skfd = socket(AF_INET, SOCK_DGRAM, 0);
 
-printf("atc_sc:update_eth (screen=%d)\n", eth_screen_id);
 	while(display_data.crt_screen == eth_screen_id)	/* while we are displayed */
 	{
 		char ip_str[24];
