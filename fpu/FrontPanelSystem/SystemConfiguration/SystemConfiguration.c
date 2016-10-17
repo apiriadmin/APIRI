@@ -121,7 +121,8 @@ void get_screen_size(int fd)
 	// Query panel type: A (4 lines); B (8 lines); D (16 lines)
 	fpui_write_string( fd, "\x1b[c" );
 	// response should be in read_packet format
-	if( (count = read(fd, buf, sizeof(buf))) > 0 ) {
+	while ( (count = read(fd, buf, sizeof(buf))) > 0 ) {
+		fprintf(stderr, "SCM: get_screen_size: read %d bytes\n", count);
 		if (rp->command == DATA) {
 			if (sscanf((const char *)rp->data, "\x1b[%cR", &type) == 1) {
 				if (toupper(type) == 'A')
@@ -131,6 +132,7 @@ void get_screen_size(int fd)
 				else if (toupper(type) == 'D')
 					g_rows = 16;
 			}
+			break;
 		}
 	}
 	fprintf( stderr, "SCM: panel type = %x, g_rows = %d\n", type, g_rows);	
