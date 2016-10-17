@@ -13,6 +13,7 @@ fpu/FrontPanelSystem/FrontPanelManager \
 fpu/FrontPanelSystem/MasterSelection \
 fpu/FrontPanelSystem/SampleApplication \
 fpu/FrontPanelSystem/SystemConfiguration \
+fpu/FrontPanelSystem/SystemUtilities \
 apps \
 utils/timesrc
 
