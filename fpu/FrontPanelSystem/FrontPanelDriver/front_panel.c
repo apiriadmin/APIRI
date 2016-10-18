@@ -174,7 +174,8 @@ static struct {
 	{ 0,   "fpi",  S_IRUGO | S_IWUGO, &fp_fops,  NULL },
 	{ 1,   "msi",  S_IRUSR | S_IWUSR, &fp_fops,  NULL },
 	{ 2,   "sci",  S_IRUSR | S_IWUSR, &fp_fops,  NULL },
-	{ 3,   "aux",  S_IRUGO          , &aux_fops, NULL },
+	{ 3,   "scm",  S_IRUSR | S_IWUSR, &fp_fops,  NULL },
+	{ 4,   "aux",  S_IRUGO          , &aux_fops, NULL },
 	{ 8,   "fpm",  S_IRUSR | S_IWUSR, &fp_fops,  NULL }
 };
 
@@ -188,7 +189,7 @@ MODULE_VERSION(FP_VERSION_STR);
 
 
 static char sts_buf[8];
-static char * slot_to_string( int slot )
+static char *slot_to_string( int slot )
 {
 	if( slot < 0 ) {
 		return( "Underflow");
@@ -197,8 +198,10 @@ static char * slot_to_string( int slot )
 		return( sts_buf );
 	} else if( slot == MS_DEV ) {
 		return( "MS_DEV" );
-	} else if( slot == SC_DEV ) {
-		return( "SC_DEV" );
+	} else if( slot == SCI_DEV ) {
+		return( "SCI_DEV" );
+	} else if( slot == SCM_DEV ) {
+		return( "SCM_DEV" );
 	} else if( slot == AUX_DEV ) {
 		return( "AUX_DEV" );
 	} else if( slot == FPM_DEV ) {
@@ -286,7 +289,7 @@ static int __init fp_init(void)
 	if( !fp_dir )
 		return -EBUSY;
 
-	// finally, create the 5 device nodes
+	// finally, create the 6 device nodes
 	for (i = 0; i < ARRAY_SIZE(devlist); i++) {
 		devfs_register( fp_dir, devlist[i].name, DEVFS_FL_DEFAULT,
 			fp_major, devlist[i].minor, S_IFCHR | devlist[i].mode,
@@ -357,11 +360,12 @@ static void __exit fp_exit(void)
 
 
 //
-//	This driver supports 5 minor interfaces as follows:
+//	This driver supports 6 minor interfaces as follows:
 //	minor 0 - general interface, limited to 16 opens.
 //	minor 1 - Selection Manager interface, exclusive.
-//	minor 2 - System Configuration interface, exclusive.
-//	minor 3 - AUX Switch interface, exclusive read only.
+//	minor 2 - System Configuration Utility interface, exclusive.
+//	minor 3 - System Configuration Manager, exclusive.
+//	minor 4 - AUX Switch interface, exclusive read only.
 //	minor 8 - Front Panel Manager, exclusive.
 //
 //	In general when an open is requested, the minor number is used to
@@ -528,22 +532,39 @@ int fp_open(struct inode *inode, struct file *filp)
 			}
 			printk("%s: MS_DEV is open\n", __func__ );
 			break;
-	    	case 2:		// System Configuration interface
-			fp_dev = &fp_devtab[SC_DEV];
+	    	case 2:		// System Config Utility interface
+			fp_dev = &fp_devtab[SCI_DEV];
 			if( (flags & O_SYNC) != 0 ) {
 				return( -EINVAL );
 			} else if( fp_dev->open_flags != CLOSED ) {
 				return( -EBUSY );
 			} else if( (flags & O_EXCL) == 0 ) {
 				return( -ENXIO );
-			} else if( send_packet( CREATE, SC_DEV, FPM_DEV, NULL, 0 ) == NULL ) {
+			} else if( send_packet( CREATE, SCI_DEV, FPM_DEV, NULL, 0 ) == NULL ) {
+				return( -ENOMEM );
+			} else if( send_packet( CREATE, SCI_DEV, SCM_DEV, NULL, 0 ) == NULL ) {
 				return( -ENOMEM );
 			} else {
 				fp_dev->open_flags = VR_OPEN | VW_OPEN;
 			}
-			printk("%s: SC_DEV is open\n", __func__ );
+			printk("%s: SCI_DEV is open\n", __func__ );
 			break;
-	    	case 3:		// AUX Switch interface (read only)
+	    	case 3:		// System Configuration Manager interface
+			fp_dev = &fp_devtab[SCM_DEV];
+			if( (flags & O_SYNC) != 0 ) {
+				return( -EINVAL );
+			} else if( fp_dev->open_flags != CLOSED ) {
+				return( -EBUSY );
+			} else if( (flags & O_EXCL) == 0 ) {
+				return( -ENXIO );
+			} else if( send_packet( CREATE, SCM_DEV, FPM_DEV, NULL, 0 ) == NULL ) {
+				return( -ENOMEM );
+			} else {
+				fp_dev->open_flags = VR_OPEN | VW_OPEN;
+			}
+			printk("%s: SCM_DEV is open\n", __func__ );
+			break;
+	    	case 4:		// AUX Switch interface (read only)
 			fp_dev = &fp_devtab[AUX_DEV];
 			if( (flags & O_SYNC) != 0 ) {
 				return( -EINVAL );
@@ -640,7 +661,6 @@ fp_release(struct inode *inode, struct file *filp)
 			struct list_head * node  = NULL;
 			struct list_head * next  = NULL;
 
-
 			// clean up any dangling read records
 			list_for_each_safe( node, next, &fp_dev->vroot ) {
 				lptr = container_of( node, list_packet, links );
@@ -695,11 +715,17 @@ fp_release(struct inode *inode, struct file *filp)
 		switch( devno ) {
 			case 0:
 				send_packet( DESTROY, fp_dev->slot, MS_DEV,  NULL, 0 );	// remove the registration for this device
-			case 1:
-			case 2:
 				send_packet( DESTROY, fp_dev->slot, FPM_DEV, NULL, 0 );	// tear down this devices virtual terminal
 				break;
+			case 2:
+				send_packet( DESTROY, fp_dev->slot, FPM_DEV, NULL, 0 );	// tear down this devices virtual terminal
+				send_packet( DESTROY, fp_dev->slot, SCM_DEV,  NULL, 0 );// notify SCM of Config Utility closure
+				break;
+			case 1:
 			case 3:
+				send_packet( DESTROY, fp_dev->slot, FPM_DEV, NULL, 0 );	// tear down this devices virtual terminal
+				break;
+			case 4:
 			case 8:
 				break;
 			default:
@@ -849,21 +875,10 @@ ssize_t fp_read(struct file *filp, char __user *buf, size_t count, loff_t *fpos)
 
 	switch( fp_dev->slot ) {
 		case FPM_DEV:	// this device will always read the entire record.
-			len = MIN( (rptr->size + sizeof( read_packet )), count );	// add in size of header and make sure it fits in users buffer
-			pr_debug("%s: Slot=%s, reading from FPM_DEV queue (transfer=%d bytes)\n", __func__, slot_to_string(fp_dev->slot), len );
-			if( (res = copy_to_user( buf, rptr, len ) ) < 0 ) {		// copy the entire read_packet to the FP
-				res = -EFAULT;
-			} else {
-				res = len - res;					// copy_to_user returns number of bytes NOT transfered
-				*fpos = 0;						// clear the offset for the next read request
-				list_del( &fp_dev->active_record->links );		// unlink this record from the list
-				kfree( fp_dev->active_record );				// free this structure allocation
-				fp_dev->active_record = NULL;				// clear the reference so we can fetch a new record
-			}
-			break;
 		case MS_DEV:	// this device will always read the entire record.
+		case SCM_DEV:	// this device will always read the entire record.
 			len = MIN( (rptr->size + sizeof( read_packet )), count );	// add in size of header and make sure it fits in users buffer
-			pr_debug("%s: Slot=%s, reading from MS_DEV queue (transfer=%d bytes)\n", __func__, slot_to_string(fp_dev->slot), len );
+			pr_debug("%s: Slot=%s, reading from queue (transfer=%d bytes)\n", __func__, slot_to_string(fp_dev->slot), len );
 			if( (res = copy_to_user( buf, rptr, len ) ) < 0 ) {		// copy the entire read_packet to the FP
 				res = -EFAULT;
 			} else {
@@ -1023,7 +1038,6 @@ fp_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 		case FP_IOC_REGISTER:
 			pr_debug("%s: FP_IOC_REGISTER\n", __func__ );
 			if( (fp_devtab[FPM_DEV].open_flags == CLOSED) || (fp_devtab[MS_DEV].open_flags == CLOSED) ) {
-
 				printk("%s: FP_IOC_REGISTER - FPM_DEV(0x%x) or MS_DEV(0x%x) not available\n", __func__, fp_devtab[FPM_DEV].open_flags, fp_devtab[MS_DEV].open_flags );
 				return( -EAGAIN );					// return error if not.
 			} else if( (_IOC_DIR( cmd_in ) & _IOC_READ) != 0 ) {		// Check for an illegal read request
@@ -1055,8 +1069,8 @@ fp_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 			if( _IOC_DIR( cmd_in ) & _IOC_READ ) {				// Check for an illegal read request
 				printk("%s: FP_IOC_SET_FOCUS bad IOC_DIR\n", __func__ );
 				res = -EFAULT;
-			} else if( fp_dev->slot != MS_DEV ) {				// Only Master Selection can issue this Ioctl
-				printk("%s: FP_IOC_SET_FOCUS bad slot (not MS_DEV)\n", __func__ );
+			} else if( (fp_dev->slot != MS_DEV) && (fp_dev->slot != SCM_DEV) ) {// Only Master Selection or System Config Mgr can issue this Ioctl
+				printk("%s: FP_IOC_SET_FOCUS bad slot (not MS_DEV or SCM_DEV)\n", __func__ );
 				res = -EFAULT;
 			} else if( !access_ok( VERIFY_READ, (void *)arg, _IOC_SIZE( cmd_in ) ) ) {
 				printk("%s: FP_IOC_SET_FOCUS bad argument\n", __func__ );
@@ -1065,7 +1079,7 @@ fp_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 			if( res ) return( -EFAULT );
 
 			pr_debug("%s: FP_IOC_SET_FOCUS\n", __func__ );
-			if( send_packet( FOCUS, MS_DEV, FPM_DEV, (char *)arg, _IOC_SIZE( cmd_in ) ) != NULL ) {
+			if( send_packet( FOCUS, fp_dev->slot, FPM_DEV, (char *)arg, _IOC_SIZE( cmd_in ) ) != NULL ) {
 				res = 0;
 			} else {
 				res = -EFAULT;

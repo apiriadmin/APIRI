@@ -55,13 +55,11 @@
 
 #include "crc_ccitt.h"
 
-#define ATC_CONFIG_MENU_FILE "/etc/default/ATCConfigurationMenu.txt"
 #define TZCONFIG_FILE	"/etc/localtime"
 
 /* Procedures used by the SC module */
-int start_sc_module(void);
-void init_internal_screens(void);
-void init_external_screens(void);
+int start_sc_module(char *);
+int init_internal_screen(int screen_id);
 void display_screen(int screen_no);
 void commit_line(int screen_no, int line_no);
 void send_display_change(int crt_cursor_x, int crt_cursor_y, unsigned char display_cmd,
@@ -80,7 +78,6 @@ void process_cmd(sc_cmd_struct *pCmd);
   * This data is accessed directly by the procedures from the SC module.
   */
 static sc_internal_data	display_data;
-static char *external_screen[MAX_SCREENS];
 int g_rows = 4, g_cols = 40;
 bool panel_change_sig = false;
 
@@ -106,22 +103,25 @@ void signal_handler( int arg )
 	panel_change_sig = true;
 }
 
- int main()
- {
- 	return start_sc_module();
+int main(int argc, char **argv)
+{
+	char *appname = argv[0];
+	
+ 	return start_sc_module(appname);
  }	
 
  /* Initialize and start the SC module;
   * After initialization the SC module stays in an infinite loop,
   * where it blocks  waiting for a new command, parse it, and execute it
   */	
- int start_sc_module()
- {
+int start_sc_module(char *appname)
+{
 	struct sigaction act;
  	/* Buffers used to store the current command */
 	unsigned char cmd_buffer[MAX_CMD_BUFFER_SIZE];
 	sc_cmd_struct crt_cmd;
 	bool panel_present = true;
+	int screen_id;
 	
 	memset(&act, 0, sizeof(act));
 	act.sa_handler = signal_handler;
@@ -129,7 +129,7 @@ void signal_handler( int arg )
 	sigaction(SIGWINCH, &act, NULL);
 
 	/* Open the communication channel with the FPM module */
-	display_data.file_descr = fpui_open_config_window(O_RDWR | O_EXCL);
+	display_data.file_descr = fpui_open_config_window(O_RDWR|O_EXCL);
 	
 	if (display_data.file_descr < 0) /* error opening the channel? */
 		return ERR_OPEN_CONNECTION;
@@ -139,15 +139,16 @@ void signal_handler( int arg )
 		g_rows = EXTERNAL_SCREEN_Y_SIZE;
 		g_cols = EXTERNAL_SCREEN_X_SIZE;
 	}
+	printf("atc_sc: panel size rows=%d, cols=%d\n", g_rows, g_cols);
 
- 	/* Initialize the default values of the internal screens */
- 	init_internal_screens();
+ 	/* Initialize the default values of the requested screen */
+	screen_id = appname[7]-0x30;
+ 	if (init_internal_screen(screen_id) != 0)
+		return ERR_INIT_SCREEN;
 
-	/* Initialize any screens required by ATC Menu Configuration File */
-	init_external_screens();
-	
-	/* Display the current screen */
-	display_screen(display_data.crt_screen);
+	/* Display the requested screen */
+	printf("atc_sc: call display_screen() for screen %d\n", screen_id);
+	display_screen(screen_id);
 	
 	/* Stay in the infinite loop read/parse/process command */
 	while (1)
@@ -164,12 +165,15 @@ void signal_handler( int arg )
 					g_rows = EXTERNAL_SCREEN_Y_SIZE;
 					g_cols = EXTERNAL_SCREEN_X_SIZE;
 				}
+				printf("atc_sc: panel size rows=%d, cols=%d\n", g_rows, g_cols);
 			} else {
 				/* focus change */
 				if (display_data.crt_screen != MENU_SCREEN_ID) {
 					/* kill thread of any submenu display */
+					printf("atc_sc: killing update thread\n");
 					pthread_cancel(display_data.update_thread);
-					display_screen(MENU_SCREEN_ID);
+					/* Terminate Utility */
+					break;
 				}
 			}
 		}
@@ -178,7 +182,7 @@ void signal_handler( int arg )
 			process_cmd(&crt_cmd);
 		}
 	}
-	fpui_close_config_window(display_data.file_descr);
+	return close(display_data.file_descr);
  }
  
  /* Initialize one unmodifiable field line, defined by a pointer to a screen and the line number */ 
@@ -298,9 +302,9 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 	}
 }
   
- /* Initialize the internal screens and the mutex protecting them. */
- void init_internal_screens(void)
- {
+/* Initialize the internal screens and the mutex protecting them. */
+int init_internal_screen(int screen_id)
+{
  	sc_internal_screen * pScreen;
 	sc_screen_line *pLine;
 	int lineNo;
@@ -319,727 +323,651 @@ void init_remaining_lines(sc_internal_screen* pScreen, int startLine)
 
 	display_data.update_thread = 0;
 
- 	/* Initialize the Menu screen */
-printf("atc_sc: initialize Menu Screen\n");
-	if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
-		printf("atc_sc: failed to allocate memory for screen %d\n", MENU_SCREEN_ID);
-		return;
-	}
-	display_data.screens[MENU_SCREEN_ID] = pScreen;
-	pScreen->dim_x = MENU_SCREEN_X_SIZE;
-	pScreen->dim_y = MENU_SCREEN_Y_SIZE;
-	pScreen->header_dim_y = MENU_SCREEN_HEADER_SIZE;
-	pScreen->cursor_x = 0;
-	pScreen->cursor_y = 0;
-	pScreen->display_offset_y = 0;
-	pScreen->update = NULL;
-	memcpy(pScreen->header[0], HEADER_LINE_0_MENU,
-		strlen(HEADER_LINE_0_MENU));
-	memcpy(pScreen->header[1], HEADER_LINE_1_MENU,
-		strlen(HEADER_LINE_1_MENU));
-	memcpy(pScreen->footer, FOOTER_LINE_MENU, strlen(FOOTER_LINE_MENU));
-	init_one_field_line(pScreen, 0, LINE_0_MENU, true);
-	init_one_field_line(pScreen, 1, LINE_1_MENU, true);
-	init_one_field_line(pScreen, 2, LINE_2_MENU, true);
-	init_one_field_line(pScreen, 3, LINE_3_MENU, true);
-	init_one_field_line(pScreen, 4, LINE_4_MENU, true);
-	init_one_field_line(pScreen, 5, LINE_5_MENU, true);
-	init_one_field_line(pScreen, 6, LINE_6_MENU, true);
-	init_one_field_line(pScreen, 7, LINE_7_MENU, true);
-	init_remaining_lines(pScreen, 8);
-	//init_one_field_line(pScreen, 10, LINE_10_MENU, true);
-
-
- 	/* Initialize the TIME screen */
+	switch (screen_id) {
+	case TIME_SCREEN_ID:
+	{
+		/* Initialize the TIME screen */
 printf("atc_sc: initialize TIME Screen\n");
-	if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
-		printf("atc_sc: failed to allocate memory for screen %d\n", TIME_SCREEN_ID);
-		return;
-	}
-	display_data.screens[TIME_SCREEN_ID] = pScreen;
-	pScreen->dim_x = TIME_SCREEN_X_SIZE;
-	pScreen->dim_y = TIME_SCREEN_Y_SIZE;
-	pScreen->header_dim_y = TIME_SCREEN_HEADER_SIZE;
-	pScreen->cursor_x = 0;
-	pScreen->cursor_y = 0;
-	pScreen->display_offset_y = 0;
-	pScreen->update = (void *)update_time_screen;
-	memcpy(pScreen->header[0], HEADER_LINE_0_TIME,
-		strlen(HEADER_LINE_0_TIME));
-	memcpy(pScreen->footer, FOOTER_LINE_TIME,
-		strlen(FOOTER_LINE_TIME));
-	init_one_field_line(pScreen, 0, LINE_0_TIME, false);
-	init_one_field_line(pScreen, 1, LINE_1_TIME, false);
-	init_one_field_line(pScreen, 2, LINE_2_TIME, false);
-	init_one_field_line(pScreen, 3, LINE_3_TIME, false);
-	init_one_field_line(pScreen, 4, LINE_4_TIME, false);
-	pScreen->screen_lines[5].isScrollable = false;
-	pScreen->screen_lines[5].no_fields = 17; //17 fields in line 5
-	memcpy(pScreen->screen_lines[5].line, LINE_5_TIME , strlen(LINE_5_TIME));
-
-	pScreen->screen_lines[5].fields[0].type = kModifiable;
-	pScreen->screen_lines[5].fields[0].length = 2;
-	pScreen->screen_lines[5].fields[0].data_min = 1;
-	pScreen->screen_lines[5].fields[0].data_max = 12;
-	pScreen->screen_lines[5].fields[0].string_data[1] = "%02d";
-	
-	pScreen->screen_lines[5].fields[1].type = kUnmodifiable;
-	pScreen->screen_lines[5].fields[1].length = 1;
-
-	pScreen->screen_lines[5].fields[2].type = kModifiable;
-	pScreen->screen_lines[5].fields[2].length = 2;
-	pScreen->screen_lines[5].fields[2].data_min = 1;
-	pScreen->screen_lines[5].fields[2].data_max = 31;
-	pScreen->screen_lines[5].fields[2].string_data[1] = "%02d";
-	
-	pScreen->screen_lines[5].fields[3].type = kUnmodifiable;
-	pScreen->screen_lines[5].fields[3].length = 1;
-
-	pScreen->screen_lines[5].fields[4].type = kModifiable;
-	pScreen->screen_lines[5].fields[4].length = 4;
-	pScreen->screen_lines[5].fields[4].data_max = 9999;
-	pScreen->screen_lines[5].fields[4].string_data[1] = "%04d";
-	
-	pScreen->screen_lines[5].fields[5].type = kUnmodifiable;
-	pScreen->screen_lines[5].fields[5].length = 1;
-	
-	pScreen->screen_lines[5].fields[6].type = kModifiable;
-	pScreen->screen_lines[5].fields[6].length = 2;
-	pScreen->screen_lines[5].fields[6].data_max = 23;
-	pScreen->screen_lines[5].fields[6].string_data[1] = "%02d";
-	
-	pScreen->screen_lines[5].fields[7].type = kUnmodifiable;
-	pScreen->screen_lines[5].fields[7].length = 1;
-	
-	pScreen->screen_lines[5].fields[8].type = kModifiable;
-	pScreen->screen_lines[5].fields[8].length = 2;
-	pScreen->screen_lines[5].fields[8].data_max = 59;
-	pScreen->screen_lines[5].fields[8].string_data[1] = "%02d";
-	
-	pScreen->screen_lines[5].fields[9].type = kUnmodifiable;
-	pScreen->screen_lines[5].fields[9].length = 4;
-	
-	pScreen->screen_lines[5].fields[10].type = kModifiable;
-	pScreen->screen_lines[5].fields[10].length = 1;
-	pScreen->screen_lines[5].fields[10].internal_data = 1;
-	pScreen->screen_lines[5].fields[10].temp_data = 1;
-	pScreen->screen_lines[5].fields[10].data_max = 1;
-	pScreen->screen_lines[5].fields[10].string_data[0] = "-";
-	pScreen->screen_lines[5].fields[10].string_data[1] = "+";
-
-	pScreen->screen_lines[5].fields[11].type = kModifiable;
-	pScreen->screen_lines[5].fields[11].length = 2;
-	pScreen->screen_lines[5].fields[11].data_max = 12;
-	pScreen->screen_lines[5].fields[11].string_data[1] = "%02d";
-
-	pScreen->screen_lines[5].fields[12].type = kUnmodifiable;
-	pScreen->screen_lines[5].fields[12].length = 1;
-
-	pScreen->screen_lines[5].fields[13].type = kModifiable;
-	pScreen->screen_lines[5].fields[13].length = 2;
-	pScreen->screen_lines[5].fields[13].data_max = 59;
-	pScreen->screen_lines[5].fields[13].string_data[1] = "%02d";
-
-	pScreen->screen_lines[5].fields[14].type = kUnmodifiable;
-	pScreen->screen_lines[5].fields[14].length = 1;
-
-	pScreen->screen_lines[5].fields[15].type = kModifiable;
-	pScreen->screen_lines[5].fields[15].length = 6;
-	pScreen->screen_lines[5].fields[15].internal_data = 0;
-	pScreen->screen_lines[5].fields[15].temp_data = 0;
-	pScreen->screen_lines[5].fields[15].data_max = 1;
-	pScreen->screen_lines[5].fields[15].string_data[0] = "Disabl";
-	pScreen->screen_lines[5].fields[15].string_data[1] = "Enable";
-
-	pScreen->screen_lines[5].fields[16].type = kUnmodifiable;
-	pScreen->screen_lines[5].fields[16].length = 7;
-	
-	init_remaining_lines(pScreen, 6);
-
-	/* Update the start var in each field of each line of this default screen */
-	for (lineNo = 0; lineNo < pScreen->dim_y; lineNo++)
-	{
-		pScreen->screen_lines[lineNo].fields[0].start = 0;
-		for (fieldNo = 1; fieldNo < pScreen->screen_lines[lineNo].no_fields; fieldNo++)
-		{
-			pScreen->screen_lines[lineNo].fields[fieldNo].start =
-				pScreen->screen_lines[lineNo].fields[fieldNo - 1].start +
-				pScreen->screen_lines[lineNo].fields[fieldNo - 1].length;
+		if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
+			printf("atc_sc: failed to allocate memory for screen %d\n", TIME_SCREEN_ID);
+			return -1;
 		}
-	}
+		display_data.screens[TIME_SCREEN_ID] = pScreen;
 
+		pScreen->dim_x = TIME_SCREEN_X_SIZE;
+		pScreen->dim_y = TIME_SCREEN_Y_SIZE;
+		pScreen->header_dim_y = TIME_SCREEN_HEADER_SIZE;
+		pScreen->cursor_x = 0;
+		pScreen->cursor_y = 0;
+		pScreen->display_offset_y = 0;
+		pScreen->update = (void *)update_time_screen;
+		memcpy(pScreen->header[0], HEADER_LINE_0_TIME, strlen(HEADER_LINE_0_TIME));
+		memcpy(pScreen->footer, FOOTER_LINE_TIME, strlen(FOOTER_LINE_TIME));
+		init_one_field_line(pScreen, 0, LINE_0_TIME, false);
+		init_one_field_line(pScreen, 1, LINE_1_TIME, false);
+		init_one_field_line(pScreen, 2, LINE_2_TIME, false);
+		init_one_field_line(pScreen, 3, LINE_3_TIME, false);
+		init_one_field_line(pScreen, 4, LINE_4_TIME, false);
+		pScreen->screen_lines[5].isScrollable = false;
+		pScreen->screen_lines[5].no_fields = 17; //17 fields in line 5
+		memcpy(pScreen->screen_lines[5].line, LINE_5_TIME , strlen(LINE_5_TIME));
 
- 	/* Initialize the ETH1 screen */
-printf("atc_sc: initialize Eth1 Screen\n");
-	if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
-		printf("atc_sc: failed to allocate memory for screen %d\n", ETH1_SCREEN_ID);
-		return;
-	}
-	display_data.screens[ETH1_SCREEN_ID] = pScreen;
-	pScreen->dim_x = ETH1_SCREEN_X_SIZE;
-	pScreen->dim_y = ETH1_SCREEN_Y_SIZE;
-	pScreen->header_dim_y = ETH_SCREEN_HEADER_SIZE;
-	pScreen->cursor_x = 0;
-	pScreen->cursor_y = 0;
-	pScreen->display_offset_y = 0;
-	pScreen->update = (void *)update_ethernet_screen;
-	memcpy(pScreen->header[0], HEADER_LINE_0_ETH,
-		strlen(HEADER_LINE_0_ETH));
-	memcpy(pScreen->header[1], HEADER_LINE_1_ETH,
-		strlen(HEADER_LINE_1_ETH));	
-	memcpy(pScreen->footer, FOOTER_LINE_ETH, strlen(FOOTER_LINE_ETH));
+		pScreen->screen_lines[5].fields[0].type = kModifiable;
+		pScreen->screen_lines[5].fields[0].length = 2;
+		pScreen->screen_lines[5].fields[0].data_min = 1;
+		pScreen->screen_lines[5].fields[0].data_max = 12;
+		pScreen->screen_lines[5].fields[0].string_data[1] = "%02d";
 	
-	byteCount = get_data_from_file("/sys/class/net/eth0/address", NULL, buffer, 17);
-	memcpy((char *)&pScreen->header[1][19], buffer, byteCount);
+		pScreen->screen_lines[5].fields[1].type = kUnmodifiable;
+		pScreen->screen_lines[5].fields[1].length = 1;
 
-	pLine = &pScreen->screen_lines[ETH_MODE_LINE];
-	pLine->isScrollable = true;
-	memcpy(pLine->line, LINE_0_ETH , strlen(LINE_0_ETH));
-	pLine->no_fields = 3;
-	pLine->fields[0].type = kUnmodifiable;
-	pLine->fields[0].length = 17;
-	pLine->fields[1].type = kModifiable;
-	pLine->fields[1].length = 8;
-	pLine->fields[1].internal_data = 0;
-	pLine->fields[1].temp_data = 0;
-	pLine->fields[1].data_max = 2;
-	pLine->fields[1].string_data[0] = "disabled";
-	pLine->fields[1].string_data[1] = "static  ";
-	pLine->fields[1].string_data[2] = "dhcp    ";
-	pLine->fields[2].type = kUnmodifiable;
-	pLine->fields[2].length = 15;
-
-	pLine = &pScreen->screen_lines[ETH_IPADDR_LINE];
-	pLine->isScrollable = true;
-	memcpy(pLine->line, LINE_1_ETH , strlen(LINE_1_ETH));
-	pLine->no_fields = 9;
-	pLine->fields[0].type = kUnmodifiable;
-	pLine->fields[0].length = 17;
-	pLine->fields[1].type = kModifiable;
-	pLine->fields[1].length = 3;
-	pLine->fields[1].data_max = 255;
-	pLine->fields[2].type = kUnmodifiable;
-	pLine->fields[2].length = 1;
-	pLine->fields[3].type = kModifiable;
-	pLine->fields[3].length = 3;
-	pLine->fields[3].data_max = 255;
-	pLine->fields[4].type = kUnmodifiable;
-	pLine->fields[4].length = 1;
-	pLine->fields[5].type = kModifiable;
-	pLine->fields[5].length = 3;
-	pLine->fields[5].data_max = 255;
-	pLine->fields[6].type = kUnmodifiable;
-	pLine->fields[6].length = 1;
-	pLine->fields[7].type = kModifiable;
-	pLine->fields[7].length = 3;
-	pLine->fields[7].data_max = 255;
-	pLine->fields[8].type = kUnmodifiable;
-	pLine->fields[8].length = 8;
-
-	pLine = &pScreen->screen_lines[ETH_NETMASK_LINE];
-	pLine->isScrollable = true;
-	memcpy(pLine->line, LINE_2_ETH , strlen(LINE_2_ETH));
-	pLine->no_fields = 9;
-	pLine->fields[0].type = kUnmodifiable;
-	pLine->fields[0].length = 17;
-	pLine->fields[1].type = kModifiable;
-	pLine->fields[1].length = 3;
-	pLine->fields[1].data_max = 255;
-	pLine->fields[2].type = kUnmodifiable;
-	pLine->fields[2].length = 1;
-	pLine->fields[3].type = kModifiable;
-	pLine->fields[3].length = 3;
-	pLine->fields[3].data_max = 255;
-	pLine->fields[4].type = kUnmodifiable;
-	pLine->fields[4].length = 1;
-	pLine->fields[5].type = kModifiable;
-	pLine->fields[5].length = 3;
-	pLine->fields[5].data_max = 255;
-	pLine->fields[6].type = kUnmodifiable;
-	pLine->fields[6].length = 1;
-	pLine->fields[7].type = kModifiable;
-	pLine->fields[7].length = 3;
-	pLine->fields[7].data_max = 255;
-	pLine->fields[8].type = kUnmodifiable;
-	pLine->fields[8].length = 8;
-
-	pLine = &pScreen->screen_lines[ETH_GWADDR_LINE];
-	pLine->isScrollable = true;
-	memcpy(pLine->line, LINE_3_ETH , strlen(LINE_3_ETH));
-	pLine->no_fields = 9;
-	pLine->fields[0].type = kUnmodifiable;
-	pLine->fields[0].length = 17;
-	pLine->fields[1].type = kModifiable;
-	pLine->fields[1].length = 3;
-	pLine->fields[1].data_max = 255;
-	pLine->fields[2].type = kUnmodifiable;
-	pLine->fields[2].length = 1;
-	pLine->fields[3].type = kModifiable;
-	pLine->fields[3].length = 3;
-	pLine->fields[3].data_max = 255;
-	pLine->fields[4].type = kUnmodifiable;
-	pLine->fields[4].length = 1;
-	pLine->fields[5].type = kModifiable;
-	pLine->fields[5].length = 3;
-	pLine->fields[5].data_max = 255;
-	pLine->fields[6].type = kUnmodifiable;
-	pLine->fields[6].length = 1;
-	pLine->fields[7].type = kModifiable;
-	pLine->fields[7].length = 3;
-	pLine->fields[7].data_max = 255;
-	pLine->fields[8].type = kUnmodifiable;
-	pLine->fields[8].length = 8;
-
-	pLine = &pScreen->screen_lines[ETH_NSADDR_LINE];
-	pLine->isScrollable = true;
-	memcpy(pLine->line, LINE_4_ETH , strlen(LINE_4_ETH));
-	pLine->no_fields = 9;
-	pLine->fields[0].type = kUnmodifiable;
-	pLine->fields[0].length = 17;
-	pLine->fields[1].type = kModifiable;
-	pLine->fields[1].length = 3;
-	pLine->fields[1].data_max = 255;
-	pLine->fields[2].type = kUnmodifiable;
-	pLine->fields[2].length = 1;
-	pLine->fields[3].type = kModifiable;
-	pLine->fields[3].length = 3;
-	pLine->fields[3].data_max = 255;
-	pLine->fields[4].type = kUnmodifiable;
-	pLine->fields[4].length = 1;
-	pLine->fields[5].type = kModifiable;
-	pLine->fields[5].length = 3;
-	pLine->fields[5].data_max = 255;
-	pLine->fields[6].type = kUnmodifiable;
-	pLine->fields[6].length = 1;
-	pLine->fields[7].type = kModifiable;
-	pLine->fields[7].length = 3;
-	pLine->fields[7].data_max = 255;
-	pLine->fields[8].type = kUnmodifiable;
-	pLine->fields[8].length = 8;
-
-	pLine = &pScreen->screen_lines[ETH_HOSTNAME_LINE];
-	pLine->isScrollable = true;
-	memcpy(pLine->line, LINE_5_ETH , strlen(LINE_5_ETH));
-	pLine->no_fields = 17;
-	pLine->fields[0].type = kUnmodifiable;
-	pLine->fields[0].length = 11;
-	byteCount = get_data_from_file("/proc/sys/kernel/hostname", NULL, buffer, 29);
-	if (byteCount > 0)
-		memcpy((char *)&pLine->line[11], buffer, byteCount);
-	for(fieldNo = ETH_HOSTNAME_FIELD1; fieldNo < pLine->no_fields; fieldNo++) {
-		pLine->fields[fieldNo].type = kModifiable;
-		pLine->fields[fieldNo].length = 1;
-		if (fieldNo <= byteCount)
-			init_alpha_field(&pLine->fields[fieldNo], buffer[fieldNo-1]);
-		else
-			init_alpha_field(&pLine->fields[fieldNo], ' ');
-	}
+		pScreen->screen_lines[5].fields[2].type = kModifiable;
+		pScreen->screen_lines[5].fields[2].length = 2;
+		pScreen->screen_lines[5].fields[2].data_min = 1;
+		pScreen->screen_lines[5].fields[2].data_max = 31;
+		pScreen->screen_lines[5].fields[2].string_data[1] = "%02d";
 	
-	init_one_field_line(pScreen, ETH_TX_LINE, LINE_6_ETH, true);
-	init_one_field_line(pScreen, ETH_RX_LINE, LINE_7_ETH, true);
-	
-	init_remaining_lines(pScreen, 8);
+		pScreen->screen_lines[5].fields[3].type = kUnmodifiable;
+		pScreen->screen_lines[5].fields[3].length = 1;
 
-	/* Update the start var in each field of each line of this default screen */
-	for (lineNo = 0; lineNo < pScreen->dim_y; lineNo++)
-	{
-		pScreen->screen_lines[lineNo].fields[0].start = 0;
-		for (fieldNo = 1; fieldNo < pScreen->screen_lines[lineNo].no_fields; fieldNo++)
-		{
-			pScreen->screen_lines[lineNo].fields[fieldNo].start =
-				pScreen->screen_lines[lineNo].fields[fieldNo - 1].start +
-				pScreen->screen_lines[lineNo].fields[fieldNo - 1].length;
+		pScreen->screen_lines[5].fields[4].type = kModifiable;
+		pScreen->screen_lines[5].fields[4].length = 4;
+		pScreen->screen_lines[5].fields[4].data_max = 9999;
+		pScreen->screen_lines[5].fields[4].string_data[1] = "%04d";
+	
+		pScreen->screen_lines[5].fields[5].type = kUnmodifiable;
+		pScreen->screen_lines[5].fields[5].length = 1;
+	
+		pScreen->screen_lines[5].fields[6].type = kModifiable;
+		pScreen->screen_lines[5].fields[6].length = 2;
+		pScreen->screen_lines[5].fields[6].data_max = 23;
+		pScreen->screen_lines[5].fields[6].string_data[1] = "%02d";
+	
+		pScreen->screen_lines[5].fields[7].type = kUnmodifiable;
+		pScreen->screen_lines[5].fields[7].length = 1;
+	
+		pScreen->screen_lines[5].fields[8].type = kModifiable;
+		pScreen->screen_lines[5].fields[8].length = 2;
+		pScreen->screen_lines[5].fields[8].data_max = 59;
+		pScreen->screen_lines[5].fields[8].string_data[1] = "%02d";
+	
+		pScreen->screen_lines[5].fields[9].type = kUnmodifiable;
+		pScreen->screen_lines[5].fields[9].length = 4;
+	
+		pScreen->screen_lines[5].fields[10].type = kModifiable;
+		pScreen->screen_lines[5].fields[10].length = 1;
+		pScreen->screen_lines[5].fields[10].internal_data = 1;
+		pScreen->screen_lines[5].fields[10].temp_data = 1;
+		pScreen->screen_lines[5].fields[10].data_max = 1;
+		pScreen->screen_lines[5].fields[10].string_data[0] = "-";
+		pScreen->screen_lines[5].fields[10].string_data[1] = "+";
+
+		pScreen->screen_lines[5].fields[11].type = kModifiable;
+		pScreen->screen_lines[5].fields[11].length = 2;
+		pScreen->screen_lines[5].fields[11].data_max = 12;
+		pScreen->screen_lines[5].fields[11].string_data[1] = "%02d";
+
+		pScreen->screen_lines[5].fields[12].type = kUnmodifiable;
+		pScreen->screen_lines[5].fields[12].length = 1;
+
+		pScreen->screen_lines[5].fields[13].type = kModifiable;
+		pScreen->screen_lines[5].fields[13].length = 2;
+		pScreen->screen_lines[5].fields[13].data_max = 59;
+		pScreen->screen_lines[5].fields[13].string_data[1] = "%02d";
+
+		pScreen->screen_lines[5].fields[14].type = kUnmodifiable;
+		pScreen->screen_lines[5].fields[14].length = 1;
+
+		pScreen->screen_lines[5].fields[15].type = kModifiable;
+		pScreen->screen_lines[5].fields[15].length = 6;
+		pScreen->screen_lines[5].fields[15].internal_data = 0;
+		pScreen->screen_lines[5].fields[15].temp_data = 0;
+		pScreen->screen_lines[5].fields[15].data_max = 1;
+		pScreen->screen_lines[5].fields[15].string_data[0] = "Disabl";
+		pScreen->screen_lines[5].fields[15].string_data[1] = "Enable";
+
+		pScreen->screen_lines[5].fields[16].type = kUnmodifiable;
+		pScreen->screen_lines[5].fields[16].length = 7;
+	
+		init_remaining_lines(pScreen, 6);
+
+		/* Update the start var in each field of each line of this default screen */
+		for (lineNo = 0; lineNo < pScreen->dim_y; lineNo++) {
+			pScreen->screen_lines[lineNo].fields[0].start = 0;
+			for (fieldNo = 1; fieldNo < pScreen->screen_lines[lineNo].no_fields; fieldNo++) {
+				pScreen->screen_lines[lineNo].fields[fieldNo].start =
+					pScreen->screen_lines[lineNo].fields[fieldNo - 1].start +
+					pScreen->screen_lines[lineNo].fields[fieldNo - 1].length;
+			}
 		}
+		
+		break;
 	}
-
-
- 	/* Initialize the ETH2 screen */
-printf("atc_sc: initialize Eth2 Screen\n");
-	if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
-		printf("atc_sc: failed to allocate memory for screen %d\n", ETH2_SCREEN_ID);
-		return;
-	}
-	display_data.screens[ETH2_SCREEN_ID] = pScreen;
-	*pScreen = *display_data.screens[ETH1_SCREEN_ID];
-	memcpy(pScreen->header[1], HEADER_LINE_1_ETH2,
-		strlen(HEADER_LINE_1_ETH2));	
-	byteCount = get_data_from_file("/sys/class/net/eth1/address", NULL, buffer, 17);
-	memcpy((char *)&pScreen->header[1][19], buffer, byteCount);
-
-	/* Update the start var in each field of each line of this default screen */
-	for (lineNo = 0; lineNo < pScreen->dim_y; lineNo++)
+	case ETH1_SCREEN_ID:
+	case ETH2_SCREEN_ID:
 	{
-		pScreen->screen_lines[lineNo].fields[0].start = 0;
-		for (fieldNo = 1; fieldNo < pScreen->screen_lines[lineNo].no_fields; fieldNo++)
-		{
-			pScreen->screen_lines[lineNo].fields[fieldNo].start =
-				pScreen->screen_lines[lineNo].fields[fieldNo - 1].start +
-				pScreen->screen_lines[lineNo].fields[fieldNo - 1].length;
+		/* Initialize the ETH1 or ETH2 screen */
+printf("atc_sc: initialize Eth%c Screen\n",(screen_id==ETH1_SCREEN_ID)?'0':'1');
+		if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
+			printf("atc_sc: failed to allocate memory for screen %d\n", screen_id);
+			return -1;
 		}
+		display_data.screens[screen_id] = pScreen;
+		pScreen->dim_x = ETH1_SCREEN_X_SIZE;
+		pScreen->dim_y = ETH1_SCREEN_Y_SIZE;
+		pScreen->header_dim_y = ETH_SCREEN_HEADER_SIZE;
+		pScreen->cursor_x = 0;
+		pScreen->cursor_y = 0;
+		pScreen->display_offset_y = 0;
+		pScreen->update = (void *)update_ethernet_screen;
+		memcpy(pScreen->header[0], HEADER_LINE_0_ETH, strlen(HEADER_LINE_0_ETH));
+		memcpy(pScreen->header[1], (screen_id==ETH1_SCREEN_ID)?HEADER_LINE_1_ETH:HEADER_LINE_1_ETH2,
+			strlen(HEADER_LINE_1_ETH));	
+		memcpy(pScreen->footer, FOOTER_LINE_ETH, strlen(FOOTER_LINE_ETH));
+	
+		byteCount = get_data_from_file((screen_id==ETH1_SCREEN_ID)?"/sys/class/net/eth0/address":"/sys/class/net/eth1/address", NULL, buffer, 17);
+		memcpy((char *)&pScreen->header[1][19], buffer, byteCount);
+
+		pLine = &pScreen->screen_lines[ETH_MODE_LINE];
+		pLine->isScrollable = true;
+		memcpy(pLine->line, LINE_0_ETH , strlen(LINE_0_ETH));
+		pLine->no_fields = 3;
+		pLine->fields[0].type = kUnmodifiable;
+		pLine->fields[0].length = 17;
+		pLine->fields[1].type = kModifiable;
+		pLine->fields[1].length = 8;
+		pLine->fields[1].internal_data = 0;
+		pLine->fields[1].temp_data = 0;
+		pLine->fields[1].data_max = 2;
+		pLine->fields[1].string_data[0] = "disabled";
+		pLine->fields[1].string_data[1] = "static  ";
+		pLine->fields[1].string_data[2] = "dhcp    ";
+		pLine->fields[2].type = kUnmodifiable;
+		pLine->fields[2].length = 15;
+
+		pLine = &pScreen->screen_lines[ETH_IPADDR_LINE];
+		pLine->isScrollable = true;
+		memcpy(pLine->line, LINE_1_ETH , strlen(LINE_1_ETH));
+		pLine->no_fields = 9;
+		pLine->fields[0].type = kUnmodifiable;
+		pLine->fields[0].length = 17;
+		pLine->fields[1].type = kModifiable;
+		pLine->fields[1].length = 3;
+		pLine->fields[1].data_max = 255;
+		pLine->fields[2].type = kUnmodifiable;
+		pLine->fields[2].length = 1;
+		pLine->fields[3].type = kModifiable;
+		pLine->fields[3].length = 3;
+		pLine->fields[3].data_max = 255;
+		pLine->fields[4].type = kUnmodifiable;
+		pLine->fields[4].length = 1;
+		pLine->fields[5].type = kModifiable;
+		pLine->fields[5].length = 3;
+		pLine->fields[5].data_max = 255;
+		pLine->fields[6].type = kUnmodifiable;
+		pLine->fields[6].length = 1;
+		pLine->fields[7].type = kModifiable;
+		pLine->fields[7].length = 3;
+		pLine->fields[7].data_max = 255;
+		pLine->fields[8].type = kUnmodifiable;
+		pLine->fields[8].length = 8;
+
+		pLine = &pScreen->screen_lines[ETH_NETMASK_LINE];
+		pLine->isScrollable = true;
+		memcpy(pLine->line, LINE_2_ETH , strlen(LINE_2_ETH));
+		pLine->no_fields = 9;
+		pLine->fields[0].type = kUnmodifiable;
+		pLine->fields[0].length = 17;
+		pLine->fields[1].type = kModifiable;
+		pLine->fields[1].length = 3;
+		pLine->fields[1].data_max = 255;
+		pLine->fields[2].type = kUnmodifiable;
+		pLine->fields[2].length = 1;
+		pLine->fields[3].type = kModifiable;
+		pLine->fields[3].length = 3;
+		pLine->fields[3].data_max = 255;
+		pLine->fields[4].type = kUnmodifiable;
+		pLine->fields[4].length = 1;
+		pLine->fields[5].type = kModifiable;
+		pLine->fields[5].length = 3;
+		pLine->fields[5].data_max = 255;
+		pLine->fields[6].type = kUnmodifiable;
+		pLine->fields[6].length = 1;
+		pLine->fields[7].type = kModifiable;
+		pLine->fields[7].length = 3;
+		pLine->fields[7].data_max = 255;
+		pLine->fields[8].type = kUnmodifiable;
+		pLine->fields[8].length = 8;
+
+		pLine = &pScreen->screen_lines[ETH_GWADDR_LINE];
+		pLine->isScrollable = true;
+		memcpy(pLine->line, LINE_3_ETH , strlen(LINE_3_ETH));
+		pLine->no_fields = 9;
+		pLine->fields[0].type = kUnmodifiable;
+		pLine->fields[0].length = 17;
+		pLine->fields[1].type = kModifiable;
+		pLine->fields[1].length = 3;
+		pLine->fields[1].data_max = 255;
+		pLine->fields[2].type = kUnmodifiable;
+		pLine->fields[2].length = 1;
+		pLine->fields[3].type = kModifiable;
+		pLine->fields[3].length = 3;
+		pLine->fields[3].data_max = 255;
+		pLine->fields[4].type = kUnmodifiable;
+		pLine->fields[4].length = 1;
+		pLine->fields[5].type = kModifiable;
+		pLine->fields[5].length = 3;
+		pLine->fields[5].data_max = 255;
+		pLine->fields[6].type = kUnmodifiable;
+		pLine->fields[6].length = 1;
+		pLine->fields[7].type = kModifiable;
+		pLine->fields[7].length = 3;
+		pLine->fields[7].data_max = 255;
+		pLine->fields[8].type = kUnmodifiable;
+		pLine->fields[8].length = 8;
+
+		pLine = &pScreen->screen_lines[ETH_NSADDR_LINE];
+		pLine->isScrollable = true;
+		memcpy(pLine->line, LINE_4_ETH , strlen(LINE_4_ETH));
+		pLine->no_fields = 9;
+		pLine->fields[0].type = kUnmodifiable;
+		pLine->fields[0].length = 17;
+		pLine->fields[1].type = kModifiable;
+		pLine->fields[1].length = 3;
+		pLine->fields[1].data_max = 255;
+		pLine->fields[2].type = kUnmodifiable;
+		pLine->fields[2].length = 1;
+		pLine->fields[3].type = kModifiable;
+		pLine->fields[3].length = 3;
+		pLine->fields[3].data_max = 255;
+		pLine->fields[4].type = kUnmodifiable;
+		pLine->fields[4].length = 1;
+		pLine->fields[5].type = kModifiable;
+		pLine->fields[5].length = 3;
+		pLine->fields[5].data_max = 255;
+		pLine->fields[6].type = kUnmodifiable;
+		pLine->fields[6].length = 1;
+		pLine->fields[7].type = kModifiable;
+		pLine->fields[7].length = 3;
+		pLine->fields[7].data_max = 255;
+		pLine->fields[8].type = kUnmodifiable;
+		pLine->fields[8].length = 8;
+
+		pLine = &pScreen->screen_lines[ETH_HOSTNAME_LINE];
+		pLine->isScrollable = true;
+		memcpy(pLine->line, LINE_5_ETH , strlen(LINE_5_ETH));
+		pLine->no_fields = 17;
+		pLine->fields[0].type = kUnmodifiable;
+		pLine->fields[0].length = 11;
+		byteCount = get_data_from_file("/proc/sys/kernel/hostname", NULL, buffer, 29);
+		if (byteCount > 0)
+			memcpy((char *)&pLine->line[11], buffer, byteCount);
+		for(fieldNo = ETH_HOSTNAME_FIELD1; fieldNo < pLine->no_fields; fieldNo++) {
+			pLine->fields[fieldNo].type = kModifiable;
+			pLine->fields[fieldNo].length = 1;
+			if (fieldNo <= byteCount)
+				init_alpha_field(&pLine->fields[fieldNo], buffer[fieldNo-1]);
+			else
+				init_alpha_field(&pLine->fields[fieldNo], ' ');
+		}
+	
+		init_one_field_line(pScreen, ETH_TX_LINE, LINE_6_ETH, true);
+		init_one_field_line(pScreen, ETH_RX_LINE, LINE_7_ETH, true);
+	
+		init_remaining_lines(pScreen, 8);
+
+		/* Update the start var in each field of each line of this default screen */
+		for (lineNo = 0; lineNo < pScreen->dim_y; lineNo++)
+		{
+			pScreen->screen_lines[lineNo].fields[0].start = 0;
+			for (fieldNo = 1; fieldNo < pScreen->screen_lines[lineNo].no_fields; fieldNo++)
+			{
+				pScreen->screen_lines[lineNo].fields[fieldNo].start =
+					pScreen->screen_lines[lineNo].fields[fieldNo - 1].start +
+					pScreen->screen_lines[lineNo].fields[fieldNo - 1].length;
+			}
+		}
+		break;
 	}
-
-
- 	/* Initialize the SRVC screen */
+	case SRVC_SCREEN_ID:
+	{
+		/* Initialize the SRVC screen */
 printf("atc_sc: initialize SRVC Screen\n");
-	if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
-		printf("atc_sc: failed to allocate memory for screen %d\n", SRVC_SCREEN_ID);
-		return;
-	}
-	display_data.screens[SRVC_SCREEN_ID] = pScreen;
-	pScreen->dim_x = SRVC_SCREEN_X_SIZE;
-	pScreen->dim_y = SRVC_SCREEN_Y_SIZE;
-	pScreen->header_dim_y = SRVC_SCREEN_HEADER_SIZE;
-	pScreen->cursor_x = 0;
-	pScreen->cursor_y = 0;
-	pScreen->display_offset_y = 0;
-	pScreen->update = NULL;
-	memcpy(pScreen->header[0], HEADER_LINE_0_SRVC,
-		strlen(HEADER_LINE_0_SRVC));
-	memcpy(pScreen->header[1], HEADER_LINE_1_SRVC,
-		strlen(HEADER_LINE_1_SRVC));
-	memcpy(pScreen->footer, FOOTER_LINE_SRVC, strlen(FOOTER_LINE_SRVC));
-	init_remaining_lines(pScreen, 0);
-	//init_one_field_line(pScreen, 7, LINE_7_SRVC, false);
-	{DIR *dir;
-	struct dirent *ent;
-	struct stat sb;
-	char fn[80];
-
-	/* check for service scripts in /etc/init.d */
-	if ((dir = opendir("/etc/init.d")) != NULL) {
-		sc_screen_line *pLine = &pScreen->screen_lines[0];
-		int line_no = 0;
-		while ((ent = readdir(dir)) != NULL) {
-			/* Skip any file not starting with a 'S' or 'X' */
-			if ((ent->d_name[0] != 'S') && (ent->d_name[0] != 'X'))
-				continue;
-
-			sprintf(fn, "/etc/init.d/%s", ent->d_name);
-			if (stat(fn, &sb) != 0) continue;
-			if (!S_ISREG(sb.st_mode)) continue;
-
-			pLine->isScrollable = true;
-			pLine->no_fields = 3;
-			pLine->fields[0].type = kUnmodifiable;
-			pLine->fields[0].length = 23;
-			byteCount = snprintf(buffer, 24, "%-23.23s", &ent->d_name[1]);
-			memcpy((char *)pLine->line, buffer, byteCount);
-			pLine->fields[1].type = kUnmodifiable;
-			pLine->fields[1].length = 9;
-			pLine->fields[1].internal_data = (ent->d_name[0] == 'S')?1:0;
-			pLine->fields[1].temp_data = pLine->fields[1].internal_data;
-			pLine->fields[1].data_max = 1;
-			pLine->fields[1].string_data[0] = "Disabled";
-			pLine->fields[1].string_data[1] = "Enabled ";
-			byteCount = snprintf(buffer, 10, "%s", pLine->fields[1].string_data[pLine->fields[1].internal_data]);
-			memcpy((char *)&pLine->line[23], buffer, byteCount);
-			pLine->fields[2].type = kModifiable;
-			pLine->fields[2].length = 8;
-			pLine->fields[2].internal_data = (ent->d_name[0] == 'S')?1:0;
-			pLine->fields[2].temp_data = pLine->fields[2].internal_data;
-			pLine->fields[2].data_max = 1;
-			pLine->fields[2].string_data[0] = "Disabled";
-			pLine->fields[2].string_data[1] = "Enabled ";
-			byteCount = snprintf(buffer, 9, "%s", pLine->fields[2].string_data[pLine->fields[2].internal_data]);
-			memcpy((char *)&pLine->line[32], buffer, byteCount);
-			pLine++;
-			line_no++;
+		if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
+			printf("atc_sc: failed to allocate memory for screen %d\n", SRVC_SCREEN_ID);
+			return -1;
 		}
+		display_data.screens[SRVC_SCREEN_ID] = pScreen;
+		pScreen->dim_x = SRVC_SCREEN_X_SIZE;
+		pScreen->dim_y = SRVC_SCREEN_Y_SIZE;
+		pScreen->header_dim_y = SRVC_SCREEN_HEADER_SIZE;
+		pScreen->cursor_x = 0;
+		pScreen->cursor_y = 0;
+		pScreen->display_offset_y = 0;
+		pScreen->update = NULL;
+		memcpy(pScreen->header[0], HEADER_LINE_0_SRVC, strlen(HEADER_LINE_0_SRVC));
+		memcpy(pScreen->header[1], HEADER_LINE_1_SRVC, strlen(HEADER_LINE_1_SRVC));
+		memcpy(pScreen->footer, FOOTER_LINE_SRVC, strlen(FOOTER_LINE_SRVC));
+		init_remaining_lines(pScreen, 0);
+		//init_one_field_line(pScreen, 7, LINE_7_SRVC, false);
+		{DIR *dir;
+		struct dirent *ent;
+		struct stat sb;
+		char fn[80];
 
-		if (line_no > SRVC_SCREEN_Y_SIZE) {
-			pScreen->dim_y = line_no;
+		/* check for service scripts in /etc/init.d */
+		if ((dir = opendir("/etc/init.d")) != NULL) {
+			sc_screen_line *pLine = &pScreen->screen_lines[0];
+			int line_no = 0;
+			while ((ent = readdir(dir)) != NULL) {
+				/* Skip any file not starting with a 'S' or 'X' */
+				if ((ent->d_name[0] != 'S') && (ent->d_name[0] != 'X'))
+					continue;
+
+				sprintf(fn, "/etc/init.d/%s", ent->d_name);
+				if (stat(fn, &sb) != 0) continue;
+				if (!S_ISREG(sb.st_mode)) continue;
+
+				pLine->isScrollable = true;
+				pLine->no_fields = 3;
+				pLine->fields[0].type = kUnmodifiable;
+				pLine->fields[0].length = 23;
+				byteCount = snprintf(buffer, 24, "%-23.23s", &ent->d_name[1]);
+				memcpy((char *)pLine->line, buffer, byteCount);
+				pLine->fields[1].type = kUnmodifiable;
+				pLine->fields[1].length = 9;
+				pLine->fields[1].internal_data = (ent->d_name[0] == 'S')?1:0;
+				pLine->fields[1].temp_data = pLine->fields[1].internal_data;
+				pLine->fields[1].data_max = 1;
+				pLine->fields[1].string_data[0] = "Disabled";
+				pLine->fields[1].string_data[1] = "Enabled ";
+				byteCount = snprintf(buffer, 10, "%s", pLine->fields[1].string_data[pLine->fields[1].internal_data]);
+				memcpy((char *)&pLine->line[23], buffer, byteCount);
+				pLine->fields[2].type = kModifiable;
+				pLine->fields[2].length = 8;
+				pLine->fields[2].internal_data = (ent->d_name[0] == 'S')?1:0;
+				pLine->fields[2].temp_data = pLine->fields[2].internal_data;
+				pLine->fields[2].data_max = 1;
+				pLine->fields[2].string_data[0] = "Disabled";
+				pLine->fields[2].string_data[1] = "Enabled ";
+				byteCount = snprintf(buffer, 9, "%s", pLine->fields[2].string_data[pLine->fields[2].internal_data]);
+				memcpy((char *)&pLine->line[32], buffer, byteCount);
+				pLine++;
+				line_no++;
+			}
+
+			if (line_no > SRVC_SCREEN_Y_SIZE) {
+				pScreen->dim_y = line_no;
+			}
 		}
-	}
-	}
-	/* Update the start var in each field of each line of this default screen */
-	for (lineNo = 0; lineNo < pScreen->dim_y; lineNo++)
-	{
-		pScreen->screen_lines[lineNo].fields[0].start = 0;
-		for (fieldNo = 1; fieldNo < pScreen->screen_lines[lineNo].no_fields; fieldNo++)
+		}
+		/* Update the start var in each field of each line of this default screen */
+		for (lineNo = 0; lineNo < pScreen->dim_y; lineNo++)
 		{
-			pScreen->screen_lines[lineNo].fields[fieldNo].start =
-				pScreen->screen_lines[lineNo].fields[fieldNo - 1].start +
-				pScreen->screen_lines[lineNo].fields[fieldNo - 1].length;
+			pScreen->screen_lines[lineNo].fields[0].start = 0;
+			for (fieldNo = 1; fieldNo < pScreen->screen_lines[lineNo].no_fields; fieldNo++)
+			{
+				pScreen->screen_lines[lineNo].fields[fieldNo].start =
+					pScreen->screen_lines[lineNo].fields[fieldNo - 1].start +
+					pScreen->screen_lines[lineNo].fields[fieldNo - 1].length;
+			}
 		}
+		break;
 	}
-
- 	/* Initialize the LNUX screen */
+	case LNUX_SCREEN_ID:
+	{
+		/* Initialize the LNUX screen */
 printf("atc_sc: initialize LNUX Screen\n");
-	if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
-		printf("atc_sc: failed to allocate memory for screen %d\n", LNUX_SCREEN_ID);
-		return;
-	}
-	display_data.screens[LNUX_SCREEN_ID] = pScreen;
-	pScreen->dim_x = LNUX_SCREEN_X_SIZE;
-	pScreen->dim_y = LNUX_SCREEN_Y_SIZE;
-	pScreen->header_dim_y = LNUX_SCREEN_HEADER_SIZE;
-	pScreen->cursor_x = 0;
-	pScreen->cursor_y = 0;
-	pScreen->display_offset_y = 0;
-	pScreen->update = (void *)update_linux_screen;
-	memcpy(pScreen->header[0], HEADER_LINE_0_LNUX,
-		strlen(HEADER_LINE_0_LNUX));
-	memcpy(pScreen->footer, FOOTER_LINE_LNUX, strlen(FOOTER_LINE_LNUX));
-	init_one_field_line(pScreen, 0, LINE_0_LNUX, true);
-	init_one_field_line(pScreen, 1, LINE_1_LNUX, true);
-	init_one_field_line(pScreen, 2, LINE_2_LNUX, true);
-	init_one_field_line(pScreen, 3, LINE_3_LNUX, true);
-	init_one_field_line(pScreen, 4, LINE_4_LNUX, true);
-	init_one_field_line(pScreen, 5, LINE_5_LNUX, true);
-	init_one_field_line(pScreen, 6, LINE_6_LNUX, true);
-	init_remaining_lines(pScreen, 7);
-	if( uname(&utsname) == 0 ) {
-		byteCount = snprintf(buffer, 24, "%-14.14s", utsname.release);
-		memcpy((char *)&pScreen->screen_lines[0].line[15], buffer, byteCount);
-		byteCount = snprintf(buffer, 25, "%-25.25s", utsname.version);
-		memcpy((char *)&pScreen->screen_lines[1].line[15], buffer, byteCount);
-		byteCount = snprintf(buffer, 17, "%-17.17s", utsname.machine);
-		memcpy((char *)&pScreen->screen_lines[2].line[23], buffer, byteCount);
-	}
-	if( sysinfo(&sys_info) == 0 ) {
-		int updays = sys_info.uptime/(60*60*24);
-		int uphours = (sys_info.uptime/(60*60))%24;
-		int upmins = (sys_info.uptime/60)%60;
-		if( sys_info.mem_unit == 0 )
-			sys_info.mem_unit = 1;
-		byteCount = snprintf(buffer, 32, "%4dMB", (int)((sys_info.totalram*sys_info.mem_unit)>>20));
-		memcpy((char *)&pScreen->screen_lines[3].line[14], buffer, byteCount);
-		byteCount = snprintf(buffer, 32, "%4dMB", (int)((sys_info.freeram*sys_info.mem_unit)>>20));
-		memcpy((char *)&pScreen->screen_lines[3].line[27], buffer, byteCount);
-		byteCount = get_data_from_file("/proc/loadavg", NULL, buffer, 26);
-		memcpy((char *)&pScreen->screen_lines[5].line[14], buffer, byteCount);
-		byteCount = snprintf(buffer, 26, "%d day%s, %2d hour%s, %2d min%s",
-                    updays, ((updays!=1)?"s":""), uphours, ((uphours!=1)?"s":""), upmins, ((upmins!=1)?"s":"") );
-		memcpy((char *)&pScreen->screen_lines[6].line[8], buffer, byteCount);
-	}
-        if (statfs("/", &stat_fs) == 0) {
-		byteCount = snprintf(buffer, 32, "%4dMB", (int)((stat_fs.f_blocks*stat_fs.f_bsize)>>20));
-		memcpy((char *)&pScreen->screen_lines[4].line[18], buffer, byteCount);
-		byteCount = snprintf(buffer, 32, "%4dMB", (int)((stat_fs.f_bavail*stat_fs.f_bsize)>>20));
-		memcpy((char *)&pScreen->screen_lines[4].line[31], buffer, byteCount);                
-        }
-
-
- 	/* Initialize the APIV screen */
-printf("atc_sc: initialize APIV Screen\n");
-	if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
-		printf("atc_sc: failed to allocate memory for screen %d\n", APIV_SCREEN_ID);
-		return;
-	}
-	display_data.screens[APIV_SCREEN_ID] = pScreen;
-	pScreen->dim_x = APIV_SCREEN_X_SIZE;
-	pScreen->dim_y = APIV_SCREEN_Y_SIZE;
-	pScreen->header_dim_y = APIV_SCREEN_HEADER_SIZE;
-	pScreen->cursor_x = 0;
-	pScreen->cursor_y = 0;
-	pScreen->display_offset_y = 0;
-	pScreen->update = NULL;
-	memcpy(pScreen->header[0], HEADER_LINE_0_APIV,
-		strlen(HEADER_LINE_0_APIV));
-	memcpy(pScreen->footer, FOOTER_LINE_APIV, strlen(FOOTER_LINE_APIV));
-	init_one_field_line(pScreen, 0, LINE_0_APIV, false);
-	init_one_field_line(pScreen, 1, LINE_1_APIV, false);
-	init_one_field_line(pScreen, 2, LINE_2_APIV, false);
-	init_one_field_line(pScreen, 3, LINE_3_APIV, false);
-	init_one_field_line(pScreen, 4, LINE_4_APIV, false);
-	init_remaining_lines(pScreen, 5);
-	byteCount = snprintf(buffer, 26, "%-26.26s", fpui_apiver(display_data.file_descr,1));
-	memcpy(&pScreen->screen_lines[0].line[14], buffer, byteCount);
-	byteCount = snprintf(buffer, 22, "%-22.22s", fpui_apiver(display_data.file_descr,2));
-	memcpy((char *)&pScreen->screen_lines[1].line[18], buffer, byteCount);
-	// Connect to fio api to get version info
-	FIO_APP_HANDLE fiod = -1;
-	if ((fiod = fio_register()) >= 0) { 
-		byteCount = snprintf(buffer, 27, "%-27.27s", fio_apiver(fiod, FIO_VERSION_LIBRARY));
-		memcpy(&pScreen->screen_lines[2].line[13], buffer, byteCount);
-		byteCount = snprintf(buffer, 23, "%-23.23s", fio_apiver(fiod, FIO_VERSION_LKM));
-		memcpy((char *)&pScreen->screen_lines[3].line[17], buffer, byteCount);
-		fio_deregister(fiod);
-	}
-	byteCount = snprintf(buffer, 27, "%-27.27s", tod_apiver());
-	memcpy(&pScreen->screen_lines[4].line[13], buffer, byteCount);
-	
- 	/* Initialize the EPRM screen */
-printf("atc_sc: initialize EPRM Screen\n");
-	if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
-		printf("atc_sc: failed to allocate memory for screen %d\n", EPRM_SCREEN_ID);
-		return;
-	}
-	display_data.screens[EPRM_SCREEN_ID] = pScreen;
-	pScreen->dim_x = EPRM_SCREEN_X_SIZE;
-	pScreen->dim_y = EPRM_SCREEN_Y_SIZE;
-	pScreen->header_dim_y = EPRM_SCREEN_HEADER_SIZE;
-	pScreen->cursor_x = 0;
-	pScreen->cursor_y = 0;
-	pScreen->display_offset_y = 0;
-	pScreen->update = (void *)update_eeprom_screen;
-	memcpy(pScreen->header[0], HEADER_LINE_0_EPRM,
-		strlen(HEADER_LINE_0_EPRM));
-	memcpy(pScreen->footer, FOOTER_LINE_EPRM, strlen(FOOTER_LINE_EPRM));
-	init_one_field_line(pScreen, 0, LINE_0_EPRM, false);
-	init_one_field_line(pScreen, 1, LINE_1_EPRM, false);
-	init_remaining_lines(pScreen, 2);
-	/*for(lineNo=0; lineNo<MAX_INTERNAL_SCREEN_Y_SIZE; lineNo++) {
-		memset(pScreen->screen_lines[lineNo].line, ' ', EPRM_SCREEN_X_SIZE);
-	}*/
-
-	/* update eeprom content from current state before display */
-	sprintf(buffer, "/usr/bin/eeprom -u");
-	system(buffer);
-	
-	int screen_no = EPRM_SCREEN_ID;
-	update_eeprom_screen(&screen_no);
-
-
- 	/* Initialize the TSRC screen */
-printf("atc_sc: initialize TSRC Screen\n");
-	if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
-		printf("atc_sc: failed to allocate memory for screen %d\n", TSRC_SCREEN_ID);
-		return;
-	}
-	display_data.screens[TSRC_SCREEN_ID] = pScreen;
-	pScreen->dim_x = TSRC_SCREEN_X_SIZE;
-	pScreen->dim_y = TSRC_SCREEN_Y_SIZE;
-	pScreen->header_dim_y = TSRC_SCREEN_HEADER_SIZE;
-	pScreen->cursor_x = 0;
-	pScreen->cursor_y = 0;
-	pScreen->display_offset_y = 0;
-	pScreen->update = (void *)update_timesrc_screen;
-	memcpy(pScreen->header[0], HEADER_LINE_0_TSRC,
-		strlen(HEADER_LINE_0_TSRC));
-	memcpy(pScreen->footer, FOOTER_LINE_TSRC, strlen(FOOTER_LINE_TSRC));
-	init_one_field_line(pScreen, 0, LINE_0_TSRC, false);
-
-        //int tsrc = tod_get_timesrc();
-        //printf("Initial tod_get_timesrc: %d\n", tsrc);
-        //if ((tsrc < 0) || (tsrc > 4))
-        //        tsrc = 0;
-	pLine = &pScreen->screen_lines[TSRC_TSRC_LINE];
-	memcpy(pLine->line, LINE_1_TSRC, strlen(LINE_1_TSRC));
-	pLine->isScrollable = false;
-	pLine->no_fields = 12;
-	pLine->fields[0].type = kModifiable;
-	pLine->fields[0].length = 8;
-	pLine->fields[0].temp_data = pLine->fields[0].internal_data = 0;
-	pLine->fields[0].data_max = 4;
-	pLine->fields[0].string_data[0] = "LINESYNC";
-	pLine->fields[0].string_data[1] = "RTCSQWR ";
-	pLine->fields[0].string_data[2] = "CRYSTAL ";
-	pLine->fields[0].string_data[3] = "GPS     ";
-	pLine->fields[0].string_data[4] = "NTP     ";
-	pLine->fields[1].type = kUnmodifiable;
-	pLine->fields[1].length = 4;
-	pLine->fields[2].type = kModifiable;
-	pLine->fields[2].length = 3;
-	pLine->fields[2].data_max = 255;
-	pLine->fields[3].type = kUnmodifiable;
-	pLine->fields[3].length = 1;
-	pLine->fields[4].type = kModifiable;
-	pLine->fields[4].length = 3;
-	pLine->fields[4].data_max = 255;
-	pLine->fields[5].type = kUnmodifiable;
-	pLine->fields[5].length = 1;
-	pLine->fields[6].type = kModifiable;
-	pLine->fields[6].length = 3;
-	pLine->fields[6].data_max = 255;
-	pLine->fields[7].type = kUnmodifiable;
-	pLine->fields[7].length = 1;
-	pLine->fields[8].type = kModifiable;
-	pLine->fields[8].length = 3;
-	pLine->fields[8].data_max = 255;
-	pLine->fields[9].type = kUnmodifiable;
-	pLine->fields[9].length = 3;
-	pLine->fields[10].type = kModifiable;
-	pLine->fields[10].length = 3;
-	pLine->fields[10].temp_data = pLine->fields[0].internal_data = 0;
-	pLine->fields[10].data_max = 4;
-	pLine->fields[10].string_data[0] = "N/A";
-	pLine->fields[10].string_data[1] = "sp1";
-	pLine->fields[10].string_data[2] = "sp2";
-	pLine->fields[10].string_data[3] = "sp3";
-	pLine->fields[10].string_data[4] = "sp8";
-        
-	init_remaining_lines(pScreen, 2);
-
-	/* Update the start var in each field of each line of this default screen */
-	for (lineNo = 0; lineNo < pScreen->dim_y; lineNo++)
-	{
-		pScreen->screen_lines[lineNo].fields[0].start = 0;
-		for (fieldNo = 1; fieldNo < pScreen->screen_lines[lineNo].no_fields; fieldNo++)
-		{
-			pScreen->screen_lines[lineNo].fields[fieldNo].start =
-				pScreen->screen_lines[lineNo].fields[fieldNo - 1].start +
-				pScreen->screen_lines[lineNo].fields[fieldNo - 1].length;
+		if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
+			printf("atc_sc: failed to allocate memory for screen %d\n", LNUX_SCREEN_ID);
+			return -1;
 		}
+		display_data.screens[LNUX_SCREEN_ID] = pScreen;
+		pScreen->dim_x = LNUX_SCREEN_X_SIZE;
+		pScreen->dim_y = LNUX_SCREEN_Y_SIZE;
+		pScreen->header_dim_y = LNUX_SCREEN_HEADER_SIZE;
+		pScreen->cursor_x = 0;
+		pScreen->cursor_y = 0;
+		pScreen->display_offset_y = 0;
+		pScreen->update = (void *)update_linux_screen;
+		memcpy(pScreen->header[0], HEADER_LINE_0_LNUX, strlen(HEADER_LINE_0_LNUX));
+		memcpy(pScreen->footer, FOOTER_LINE_LNUX, strlen(FOOTER_LINE_LNUX));
+		init_one_field_line(pScreen, 0, LINE_0_LNUX, true);
+		init_one_field_line(pScreen, 1, LINE_1_LNUX, true);
+		init_one_field_line(pScreen, 2, LINE_2_LNUX, true);
+		init_one_field_line(pScreen, 3, LINE_3_LNUX, true);
+		init_one_field_line(pScreen, 4, LINE_4_LNUX, true);
+		init_one_field_line(pScreen, 5, LINE_5_LNUX, true);
+		init_one_field_line(pScreen, 6, LINE_6_LNUX, true);
+		init_remaining_lines(pScreen, 7);
+		if( uname(&utsname) == 0 ) {
+			byteCount = snprintf(buffer, 24, "%-14.14s", utsname.release);
+			memcpy((char *)&pScreen->screen_lines[0].line[15], buffer, byteCount);
+			byteCount = snprintf(buffer, 25, "%-25.25s", utsname.version);
+			memcpy((char *)&pScreen->screen_lines[1].line[15], buffer, byteCount);
+			byteCount = snprintf(buffer, 17, "%-17.17s", utsname.machine);
+			memcpy((char *)&pScreen->screen_lines[2].line[23], buffer, byteCount);
+		}
+		if( sysinfo(&sys_info) == 0 ) {
+			int updays = sys_info.uptime/(60*60*24);
+			int uphours = (sys_info.uptime/(60*60))%24;
+			int upmins = (sys_info.uptime/60)%60;
+			if( sys_info.mem_unit == 0 )
+				sys_info.mem_unit = 1;
+			byteCount = snprintf(buffer, 32, "%4dMB", (int)((sys_info.totalram*sys_info.mem_unit)>>20));
+			memcpy((char *)&pScreen->screen_lines[3].line[14], buffer, byteCount);
+			byteCount = snprintf(buffer, 32, "%4dMB", (int)((sys_info.freeram*sys_info.mem_unit)>>20));
+			memcpy((char *)&pScreen->screen_lines[3].line[27], buffer, byteCount);
+			byteCount = get_data_from_file("/proc/loadavg", NULL, buffer, 26);
+			memcpy((char *)&pScreen->screen_lines[5].line[14], buffer, byteCount);
+			byteCount = snprintf(buffer, 26, "%d day%s, %2d hour%s, %2d min%s",
+				updays, ((updays!=1)?"s":""), uphours, ((uphours!=1)?"s":""), upmins, ((upmins!=1)?"s":"") );
+			memcpy((char *)&pScreen->screen_lines[6].line[8], buffer, byteCount);
+		}
+		if (statfs("/", &stat_fs) == 0) {
+			byteCount = snprintf(buffer, 32, "%4dMB", (int)((stat_fs.f_blocks*stat_fs.f_bsize)>>20));
+			memcpy((char *)&pScreen->screen_lines[4].line[18], buffer, byteCount);
+			byteCount = snprintf(buffer, 32, "%4dMB", (int)((stat_fs.f_bavail*stat_fs.f_bsize)>>20));
+			memcpy((char *)&pScreen->screen_lines[4].line[31], buffer, byteCount);                
+		}
+		break;
 	}
+	case APIV_SCREEN_ID:
+	{
+		/* Initialize the APIV screen */
+printf("atc_sc: initialize APIV Screen\n");
+		if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
+			printf("atc_sc: failed to allocate memory for screen %d\n", APIV_SCREEN_ID);
+			return -1;
+		}
+		display_data.screens[APIV_SCREEN_ID] = pScreen;
+		pScreen->dim_x = APIV_SCREEN_X_SIZE;
+		pScreen->dim_y = APIV_SCREEN_Y_SIZE;
+		pScreen->header_dim_y = APIV_SCREEN_HEADER_SIZE;
+		pScreen->cursor_x = 0;
+		pScreen->cursor_y = 0;
+		pScreen->display_offset_y = 0;
+		pScreen->update = NULL;
+		memcpy(pScreen->header[0], HEADER_LINE_0_APIV, strlen(HEADER_LINE_0_APIV));
+		memcpy(pScreen->footer, FOOTER_LINE_APIV, strlen(FOOTER_LINE_APIV));
+		init_one_field_line(pScreen, 0, LINE_0_APIV, false);
+		init_one_field_line(pScreen, 1, LINE_1_APIV, false);
+		init_one_field_line(pScreen, 2, LINE_2_APIV, false);
+		init_one_field_line(pScreen, 3, LINE_3_APIV, false);
+		init_one_field_line(pScreen, 4, LINE_4_APIV, false);
+		init_remaining_lines(pScreen, 5);
+		byteCount = snprintf(buffer, 26, "%-26.26s", fpui_apiver(display_data.file_descr,1));
+		memcpy(&pScreen->screen_lines[0].line[14], buffer, byteCount);
+		byteCount = snprintf(buffer, 22, "%-22.22s", fpui_apiver(display_data.file_descr,2));
+		memcpy((char *)&pScreen->screen_lines[1].line[18], buffer, byteCount);
+		// Connect to fio api to get version info
+		FIO_APP_HANDLE fiod = -1;
+		if ((fiod = fio_register()) >= 0) { 
+			byteCount = snprintf(buffer, 27, "%-27.27s", fio_apiver(fiod, FIO_VERSION_LIBRARY));
+			memcpy(&pScreen->screen_lines[2].line[13], buffer, byteCount);
+			byteCount = snprintf(buffer, 23, "%-23.23s", fio_apiver(fiod, FIO_VERSION_LKM));
+			memcpy((char *)&pScreen->screen_lines[3].line[17], buffer, byteCount);
+			fio_deregister(fiod);
+		}
+		byteCount = snprintf(buffer, 27, "%-27.27s", tod_apiver());
+		memcpy(&pScreen->screen_lines[4].line[13], buffer, byteCount);
+		break;
+	}
+	case EPRM_SCREEN_ID:
+	{
+		/* Initialize the EPRM screen */
+printf("atc_sc: initialize EPRM Screen\n");
+		if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
+			printf("atc_sc: failed to allocate memory for screen %d\n", EPRM_SCREEN_ID);
+			return -1;
+		}
+		display_data.screens[EPRM_SCREEN_ID] = pScreen;
+		pScreen->dim_x = EPRM_SCREEN_X_SIZE;
+		pScreen->dim_y = EPRM_SCREEN_Y_SIZE;
+		pScreen->header_dim_y = EPRM_SCREEN_HEADER_SIZE;
+		pScreen->cursor_x = 0;
+		pScreen->cursor_y = 0;
+		pScreen->display_offset_y = 0;
+		pScreen->update = (void *)update_eeprom_screen;
+		memcpy(pScreen->header[0], HEADER_LINE_0_EPRM, strlen(HEADER_LINE_0_EPRM));
+		memcpy(pScreen->footer, FOOTER_LINE_EPRM, strlen(FOOTER_LINE_EPRM));
+		init_one_field_line(pScreen, 0, LINE_0_EPRM, false);
+		init_one_field_line(pScreen, 1, LINE_1_EPRM, false);
+		init_remaining_lines(pScreen, 2);
+		/*for(lineNo=0; lineNo<MAX_INTERNAL_SCREEN_Y_SIZE; lineNo++) {
+			memset(pScreen->screen_lines[lineNo].line, ' ', EPRM_SCREEN_X_SIZE);
+		}*/
 
-	/* Initialize the Help screen */
-	/* TODO: more info may be needed to be displayed here */
-printf("atc_sc: initialize Help Screen\n");
-	if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
-		printf("atc_sc: failed to allocate memory for screen %d\n", HELP_SCREEN_ID);
-		return;
+		/* update eeprom content from current state before display */
+		sprintf(buffer, "/usr/bin/eeprom -u");
+		system(buffer);
+	
+		int screen_no = EPRM_SCREEN_ID;
+		update_eeprom_screen((void *)screen_no);
+		break;
 	}
-	display_data.screens[HELP_SCREEN_ID] = pScreen;
-	pScreen->dim_x = HELP_SCREEN_X_SIZE;
-	pScreen->dim_y = HELP_SCREEN_Y_SIZE;	
-	pScreen->header_dim_y = HELP_SCREEN_HEADER_SIZE;
-	pScreen->update = NULL;
-	memcpy(pScreen->header[0], HEADER_LINE_0_HELP,
-		strlen(HEADER_LINE_0_HELP));
-	memcpy(pScreen->footer, FOOTER_LINE_HELP, strlen(FOOTER_LINE_HELP));
-	init_one_field_line(pScreen, 0, LINE_0_HELP, false);
-	init_one_field_line(pScreen, 1, LINE_1_HELP, true);
-	init_one_field_line(pScreen, 2, LINE_2_HELP, true);
-	init_one_field_line(pScreen, 3, LINE_3_HELP, true);
-	init_one_field_line(pScreen, 4, LINE_4_HELP, true);
-	init_one_field_line(pScreen, 5, LINE_5_HELP, true);
-	init_remaining_lines(pScreen, 6);
+	case TSRC_SCREEN_ID:
+	{
+		/* Initialize the TSRC screen */
+printf("atc_sc: initialize TSRC Screen\n");
+		if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
+			printf("atc_sc: failed to allocate memory for screen %d\n", TSRC_SCREEN_ID);
+			return -1;
+		}
+		display_data.screens[TSRC_SCREEN_ID] = pScreen;
+		pScreen->dim_x = TSRC_SCREEN_X_SIZE;
+		pScreen->dim_y = TSRC_SCREEN_Y_SIZE;
+		pScreen->header_dim_y = TSRC_SCREEN_HEADER_SIZE;
+		pScreen->cursor_x = 0;
+		pScreen->cursor_y = 0;
+		pScreen->display_offset_y = 0;
+		pScreen->update = (void *)update_timesrc_screen;
+		memcpy(pScreen->header[0], HEADER_LINE_0_TSRC, strlen(HEADER_LINE_0_TSRC));
+		memcpy(pScreen->footer, FOOTER_LINE_TSRC, strlen(FOOTER_LINE_TSRC));
+		init_one_field_line(pScreen, 0, LINE_0_TSRC, false);
+
+		//int tsrc = tod_get_timesrc();
+		//printf("Initial tod_get_timesrc: %d\n", tsrc);
+		//if ((tsrc < 0) || (tsrc > 4))
+		//       tsrc = 0;
+		pLine = &pScreen->screen_lines[TSRC_TSRC_LINE];
+		memcpy(pLine->line, LINE_1_TSRC, strlen(LINE_1_TSRC));
+		pLine->isScrollable = false;
+		pLine->no_fields = 12;
+		pLine->fields[0].type = kModifiable;
+		pLine->fields[0].length = 8;
+		pLine->fields[0].temp_data = pLine->fields[0].internal_data = 0;
+		pLine->fields[0].data_max = 4;
+		pLine->fields[0].string_data[0] = "LINESYNC";
+		pLine->fields[0].string_data[1] = "RTCSQWR ";
+		pLine->fields[0].string_data[2] = "CRYSTAL ";
+		pLine->fields[0].string_data[3] = "GPS     ";
+		pLine->fields[0].string_data[4] = "NTP     ";
+		pLine->fields[1].type = kUnmodifiable;
+		pLine->fields[1].length = 4;
+		pLine->fields[2].type = kModifiable;
+		pLine->fields[2].length = 3;
+		pLine->fields[2].data_max = 255;
+		pLine->fields[3].type = kUnmodifiable;
+		pLine->fields[3].length = 1;
+		pLine->fields[4].type = kModifiable;
+		pLine->fields[4].length = 3;
+		pLine->fields[4].data_max = 255;
+		pLine->fields[5].type = kUnmodifiable;
+		pLine->fields[5].length = 1;
+		pLine->fields[6].type = kModifiable;
+		pLine->fields[6].length = 3;
+		pLine->fields[6].data_max = 255;
+		pLine->fields[7].type = kUnmodifiable;
+		pLine->fields[7].length = 1;
+		pLine->fields[8].type = kModifiable;
+		pLine->fields[8].length = 3;
+		pLine->fields[8].data_max = 255;
+		pLine->fields[9].type = kUnmodifiable;
+		pLine->fields[9].length = 3;
+		pLine->fields[10].type = kModifiable;
+		pLine->fields[10].length = 3;
+		pLine->fields[10].temp_data = pLine->fields[0].internal_data = 0;
+		pLine->fields[10].data_max = 4;
+		pLine->fields[10].string_data[0] = "N/A";
+		pLine->fields[10].string_data[1] = "sp1";
+		pLine->fields[10].string_data[2] = "sp2";
+		pLine->fields[10].string_data[3] = "sp3";
+		pLine->fields[10].string_data[4] = "sp8";
+        
+		init_remaining_lines(pScreen, 2);
+
+		/* Update the start var in each field of each line of this default screen */
+		for (lineNo = 0; lineNo < pScreen->dim_y; lineNo++)
+		{
+			pScreen->screen_lines[lineNo].fields[0].start = 0;
+			for (fieldNo = 1; fieldNo < pScreen->screen_lines[lineNo].no_fields; fieldNo++)
+			{
+				pScreen->screen_lines[lineNo].fields[fieldNo].start =
+					pScreen->screen_lines[lineNo].fields[fieldNo - 1].start +
+					pScreen->screen_lines[lineNo].fields[fieldNo - 1].length;
+			}
+		}
+		break;
+	}
+	case HELP_SCREEN_ID:
+	{
+		/* Initialize the Help screen */
+		/* TODO: more info may be needed to be displayed here */
+printf("atc_sc: initialize Help Screen\n");
+		if ((pScreen = calloc(1, sizeof(sc_internal_screen))) == NULL) {
+			printf("atc_sc: failed to allocate memory for screen %d\n", HELP_SCREEN_ID);
+			return -1;
+		}
+		display_data.screens[HELP_SCREEN_ID] = pScreen;
+		pScreen->dim_x = HELP_SCREEN_X_SIZE;
+		pScreen->dim_y = HELP_SCREEN_Y_SIZE;	
+		pScreen->header_dim_y = HELP_SCREEN_HEADER_SIZE;
+		pScreen->update = NULL;
+		memcpy(pScreen->header[0], HEADER_LINE_0_HELP, strlen(HEADER_LINE_0_HELP));
+		memcpy(pScreen->footer, FOOTER_LINE_HELP, strlen(FOOTER_LINE_HELP));
+		init_one_field_line(pScreen, 0, LINE_0_HELP, false);
+		init_one_field_line(pScreen, 1, LINE_1_HELP, true);
+		init_one_field_line(pScreen, 2, LINE_2_HELP, true);
+		init_one_field_line(pScreen, 3, LINE_3_HELP, true);
+		init_one_field_line(pScreen, 4, LINE_4_HELP, true);
+		init_one_field_line(pScreen, 5, LINE_5_HELP, true);
+		init_remaining_lines(pScreen, 6);
+		break;
+	}
+	default: 
+		return -1;
+	}
 
 	/* Set the Menu screen as the current screen */
  	display_data.crt_screen = MENU_SCREEN_ID;
 
-
 	/* Unlock the mutex protecting the variable part of the screens. */
 	pthread_mutex_unlock(&display_data.screen_mutex);
- 
+
+	return 0;
  }
  
-/* Initialize any external screens */
-void init_external_screens(void)
-{
-	FILE *fp = NULL;
-	char linestr[255];
-	char *appName, *appPath;
-	int i, screen, line = 0, col = 0;
-
-	for (i=0;i<MAX_SCREENS;i++) {
-		external_screen[i] = NULL;
-	}
-	
-	if ((fp = fopen(ATC_CONFIG_MENU_FILE, "r")) == NULL) {
-		printf("atc_sc: could not open %s\n", ATC_CONFIG_MENU_FILE);
-		return;
-	}
-	/* Process entries and add to menu */
-	for (i=0,screen=NO_INTERNAL_SCREENS;
-		(screen<(MAX_SCREENS-2))&&(fgets(linestr, sizeof(linestr), fp) != NULL);
-		i++,screen++) {
-		if ((external_screen[i] = calloc(1, PATH_MAX)) == NULL) {
-			printf("atc_sc: could not allocate memory for external app #%d pathname\n", i);
-			break;
-		}
-		appName = strtok(linestr, ",");
-		appPath = strtok(NULL, "\n");
-		printf("atc_sc: init screen %d for %s, %s\n", screen, appName, appPath);
-		line = screen / 2;
-		col = ((screen % 2)*20) + 2;
-		memcpy(&display_data.screens[MENU_SCREEN_ID]->screen_lines[line].line[col],
-			appName, strlen(appName));
-		memcpy(external_screen[i], appPath, strlen(appPath));
-	}
-	fclose(fp);
-}
 
 /* Display screen with ID "screen_no" */
 void display_screen(int screen_no)
@@ -1050,47 +978,6 @@ void display_screen(int screen_no)
  	int line = 0;
  	int crt_cursor_y = 0;
 printf("atc_sc: display_screen (%d)\n", screen_no);
-	if (screen_no >= NO_INTERNAL_SCREENS) {
-		if (screen_no < MENU_SCREEN_ID) {
-			screen_no = screen_no - NO_INTERNAL_SCREENS;
-			if (external_screen[screen_no] != NULL) {
-				/* External screen, try to exec application */
-				pid_t pid;
-				
-				printf("atc_sc: external screen #%d starting app %s\n",
-					screen_no, external_screen[screen_no]);
-				printf("atc_sc: closing config window\n");
-				fpui_close_config_window(display_data.file_descr);
-				if ((pid = fork()) < 0) {
-					/* Error forking */
-					return;
-				} else if (pid == 0) {
-					/* child process */
-					char *pname = strdup(external_screen[screen_no]);
-					char *argv[] = {basename(pname), NULL};
-					execvp(external_screen[screen_no], argv);
-				} else {
-					/* parent process */
-					/* close /dev/sci to allow external app to open */
-					/* (child should use fpui_open_config_window()) */
-					printf("atc_sc: waiting for forked utility\n");
-					waitpid(pid, 0, 0);
-					/* re-acquire the window handle and continue */
-					printf("atc_sc: re-opening config window\n");
-					while ((display_data.file_descr = fpui_open_config_window(O_RDWR|O_EXCL)) < 0) {
-						sleep(1);
-					};
-					/* re-display menu screen */
-					pCrt_screen = display_data.screens[MENU_SCREEN_ID];
-					screen_no = MENU_SCREEN_ID;
-				}
-			} else {
-				printf("atc_sc: no such external screen (%d)\n", screen_no);
-				return;
-			}
-		}
-	}
-
 	/* Lock the screens and call send_display_change with NO_SCREEN_LOCK as a parameter. */
 	pthread_mutex_lock(&display_data.screen_mutex);
 	/*printf("%s: screen #%d, y-dim=%d, y-offset=%d\n", __func__, screen_no,
@@ -1174,7 +1061,7 @@ fpui_set_cursor(display_data.file_descr, false);
  		display_data.crt_screen = screen_no;
  		if ((display_data.screens[screen_no]->update != NULL)
  			&& pthread_create(&display_data.update_thread, NULL,
- 				(void *)display_data.screens[screen_no]->update, &screen_no)) {
+ 				(void *)display_data.screens[screen_no]->update, (void *)screen_no)) {
  			perror("pthread_create");
  		}
  	}
@@ -1813,7 +1700,6 @@ void update_time_screen(void)
 	int saved_cursor_x = CURSOR_NOT_CHANGED;
 	int saved_cursor_y = CURSOR_NOT_CHANGED;
 
-
 	while(display_data.crt_screen == TIME_SCREEN_ID)	/* while we are displayed */
 	{
 		t_msec = time(NULL);
@@ -2256,7 +2142,7 @@ struct eth_dev_stats {
  */
 void update_ethernet_screen(void *arg)
 {
-	int *screen_id = arg, eth_screen_id = *screen_id;
+	int eth_screen_id = (int)arg;
 	sc_internal_screen *pEthernet_screen = display_data.screens[eth_screen_id];
 	sc_screen_line *pEthEditLine;
 	sc_line_field *pField;
@@ -2283,6 +2169,7 @@ void update_ethernet_screen(void *arg)
 
 		/* Lock the screen before updates. */
 		pthread_mutex_lock(&display_data.screen_mutex);
+
 		/*
 		 *  Interface Mode Setting
 		 */
@@ -2306,9 +2193,9 @@ void update_ethernet_screen(void *arg)
 					else
 						pField->temp_data = pField->internal_data = 1;
 				}
+
 				sprintf( (char *)buffer, "%s", pField->string_data[pField->internal_data]);
 				memcpy(pEthEditLine->line + pField->start, buffer, pField->length);
-
 				/* Display the changes on the terminal if ETH_SCREEN is the current screen. */
 				if (display_data.crt_screen == eth_screen_id)
 				{	/* Saved the initial position of the cursor if this has not been done yet. */
@@ -2332,6 +2219,7 @@ void update_ethernet_screen(void *arg)
 				}
 			}
 		}
+
 		/*
 		 *  IP Address
 		 */
@@ -2965,10 +2853,10 @@ void update_ethernet_screen(void *arg)
 							MAX_INTERNAL_SCREEN_X_SIZE, NO_SCREEN_LOCK);
 					//}
 				}
-#endif
+
 			}
 		}
-
+#endif
 		/* Restore the saved cursor position if screen updates have been made. */
 		if (saved_cursor_x != CURSOR_NOT_CHANGED)
 		{
@@ -2976,20 +2864,18 @@ void update_ethernet_screen(void *arg)
                                               CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
 			saved_cursor_x = CURSOR_NOT_CHANGED;
 		}
-
 		/* Unlock the screen after updates. */
 		pthread_mutex_unlock(&display_data.screen_mutex);
 
 		/* Sleep for 1 sec before the new updates. */
 		sleep(1/*60*/);
 	}
-
 	close (skfd);
 }
 
 void update_linux_screen(void *arg)
 {
-	int *screen_id = arg, lnx_screen_id = *screen_id;
+	int lnx_screen_id = (int)arg;
 	sc_internal_screen *pLinux_screen = display_data.screens[lnx_screen_id];
 	char buffer[32];
 	int count, updays, uphours, upmins;
@@ -3064,7 +2950,7 @@ void update_linux_screen(void *arg)
 
 void update_eeprom_screen(void *arg)
 {
-	int *screen_id = arg, eprm_screen_id = *screen_id;
+	int eprm_screen_id = (int)arg;
 	sc_internal_screen *pScreen = display_data.screens[eprm_screen_id];
 	char buffer[EPRM_SCREEN_X_SIZE];
 	char eeprom[256];
@@ -3298,7 +3184,7 @@ printf("atc_sc:update_eeprom_screen: lines=%d\n", line_no);
 #if 0
 void update_service_screen(void *arg)
 {
-	int *screen_id = arg, srvc_screen_id = *screen_id;
+	int srvc_screen_id = (int)arg;
 	sc_internal_screen *pScreen = display_data.screens[srvc_screen_id];
 	char buffer[32];
 
@@ -3817,6 +3703,7 @@ void update_timesrc_screen(void)
 			display_screen(screen_no);
 			break;
 			
+#if 0
 		case kMenuSelectCmd:  /* go to the selected screen */
 			if ((pCmd->value < NO_INTERNAL_SCREENS)
 				|| (external_screen[pCmd->value-NO_INTERNAL_SCREENS] != NULL)) {
@@ -3824,6 +3711,7 @@ void update_timesrc_screen(void)
 				display_screen(screen_no);
 			}
 			break;
+#endif
 		case kEscapeCmd:	/* go to the top-level menu */
 			if (screen_no != MENU_SCREEN_ID)
 				display_screen(MENU_SCREEN_ID);

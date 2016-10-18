@@ -92,8 +92,9 @@ typedef struct read_packet {
 //
 #define APP_OPENS   (16)		// this is the maximum number of application opens allowed
 #define MS_DEV      (APP_OPENS)		// this is the index of the Master Selection device entry
-#define SC_DEV      (MS_DEV+1)		// this is the index of the System Configuration device entry
-#define AUX_DEV     (SC_DEV+1)		// this is the index of the AUX Switch device entry
+#define SCI_DEV     (MS_DEV+1)	        // this is the index of the System Configuration Utility device entry
+#define SCM_DEV     (SCI_DEV+1)         // this is the index of the System Configuration Manager device entry
+#define AUX_DEV     (SCM_DEV+1)		// this is the index of the AUX Switch device entry
 #define FPM_DEV     (AUX_DEV+1)		// this is the index of the Front Panel device entry
 #define FP_MAX_DEVS (FPM_DEV+1)		// this is the maximum number of possible interfaces
 
@@ -104,19 +105,19 @@ typedef struct read_packet {
 #include <sys/ioctl.h>
 #endif
 
-/* Use 'k' as magic number */
+/* Use 'f' as magic number */
 #define FP_IOC_MAGIC  'f'
 
 #define FP_IOC_REGISTER		_IOC( _IOC_WRITE, FP_IOC_MAGIC, 0, sizeof( char * ) )
-#define FP_IOC_GET_FOCUS	_IOC( _IOC_READ,  FP_IOC_MAGIC, 1, sizeof( unsigned int * ) )
-#define FP_IOC_SETDEFAULT	_IOC( _IOC_WRITE, FP_IOC_MAGIC, 2, sizeof( int ) )
-#define FP_IOC_VERSION		_IOC( _IOC_READ,  FP_IOC_MAGIC, 3, sizeof( int * ) )
-#define FP_IOC_WINDOW_SIZE	_IOC( _IOC_READ,  FP_IOC_MAGIC, 4, sizeof( int * ) )
-#define FP_IOC_EMERGENCY	_IOC( _IOC_WRITE, FP_IOC_MAGIC, 5, sizeof( int ) )
-#define FP_IOC_ATTRIBUTES	_IOC( _IOC_READ,  FP_IOC_MAGIC, 6, sizeof( int * ) )
-#define FP_IOC_SET_FOCUS	_IOC( _IOC_WRITE, FP_IOC_MAGIC, 7, sizeof( unsigned int * ) )
-#define FP_IOC_REFRESH		_IO( FP_IOC_MAGIC, 8 )
-// #define FP_IOCREGISTER _IOW(FP_IOC_MAGIC,  0, * )
+#define FP_IOC_REGISTER_SC	_IO( FP_IOC_MAGIC, 1 )
+#define FP_IOC_GET_FOCUS	_IOC( _IOC_READ,  FP_IOC_MAGIC, 2, sizeof( unsigned int * ) )
+#define FP_IOC_SETDEFAULT	_IOC( _IOC_WRITE, FP_IOC_MAGIC, 3, sizeof( int ) )
+#define FP_IOC_VERSION		_IOC( _IOC_READ,  FP_IOC_MAGIC, 4, sizeof( int * ) )
+#define FP_IOC_WINDOW_SIZE	_IOC( _IOC_READ,  FP_IOC_MAGIC, 5, sizeof( int * ) )
+#define FP_IOC_EMERGENCY	_IOC( _IOC_WRITE, FP_IOC_MAGIC, 6, sizeof( int ) )
+#define FP_IOC_ATTRIBUTES	_IOC( _IOC_READ,  FP_IOC_MAGIC, 7, sizeof( int * ) )
+#define FP_IOC_SET_FOCUS	_IOC( _IOC_WRITE, FP_IOC_MAGIC, 8, sizeof( unsigned int * ) )
+#define FP_IOC_REFRESH		_IO( FP_IOC_MAGIC, 9 )
 
 enum { BIT_CHARACTER_BLINK, BIT_CURSOR_BLINK, BIT_UNDERLINE, BIT_CURSOR };
 

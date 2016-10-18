@@ -357,9 +357,14 @@ void destroy_virtual_terminal( int term )
 		return;
 	}
 
-	if ((term != SC_DEV) && (get_focus() == term)) {
-		// destroyed window has focus, so revert to MS_DEV
-		set_focus( MS_DEV );
+	if (get_focus() == term) {
+		if (term == SCI_DEV) {
+			// destroyed utility window has focus, revert to SCM_DEV
+			set_focus( SCM_DEV );
+		} else {  
+			// destroyed app window has focus, revert to MS_DEV
+			set_focus( MS_DEV );
+		}
 	}
 	pthread_mutex_destroy( &display[term]->lock );
 	pthread_cond_destroy( &display[term]->update );
@@ -1276,7 +1281,7 @@ void load_screen( int fd, int term )
 	xprintf( fd, ESC "[?7%c",  hl( disp->screen.auto_wrap ) );
 	xprintf( fd, ESC "[?8%c",  hl( disp->screen.auto_repeat ) );
 	xprintf( fd, ESC "[<47%c", hl( disp->screen.auto_scroll ) );
-	xprintf( fd, ESC "[<5%c",  hl( disp->screen.backlight ) );
+	//xprintf( fd, ESC "[<5%c",  hl( disp->screen.backlight ) );
 	xprintf( fd, ESC "[<%dS", disp->screen.backlight_timeout );
 	
 

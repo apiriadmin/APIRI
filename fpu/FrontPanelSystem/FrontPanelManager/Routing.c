@@ -46,6 +46,9 @@ static char *slot_to_string( int slot )
 		return( sts_buf );
 	} else if( slot == MS_DEV ) {
 		return( "MS_DEV" );
+	} else if( slot < SC_DEV ) {
+		sprintf( sts_buf, "SCU(%d)", slot );
+		return( sts_buf );
 	} else if( slot == SC_DEV ) {
 		return( "SC_DEV" );
 	} else if( slot == AUX_DEV ) {
