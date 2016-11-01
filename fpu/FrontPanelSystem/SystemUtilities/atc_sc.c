@@ -2831,8 +2831,7 @@ void update_ethernet_screen(void *arg)
 					"Packets Rcvd GD:%10llu BD:%10lu", stats.rx_packets, stats.rx_errors);
 				memcpy(pEthEditLine->line, line, MAX_INTERNAL_SCREEN_X_SIZE);
 				/* Display the changes on the terminal if ETH_SCREEN is the current screen. */
-#if 1
-		//only if line is visible on external display!
+				//only if line is visible on external display!
 				if (display_data.crt_screen == eth_screen_id)
 				{	/* Save the initial position of the cursor if this has not been done yet. */
 					if (saved_cursor_x == CURSOR_NOT_CHANGED) {
@@ -2841,22 +2840,21 @@ void update_ethernet_screen(void *arg)
 					}
 					cursor_x = 0;
 					cursor_y = pEthernet_screen->header_dim_y+ETH_TX_LINE-pEthernet_screen->display_offset_y;
-					//if (cursor_y < g_rows) {
+					if (cursor_y < (g_rows-1)) {
 						send_display_change(0, cursor_y, CS_DISPLAY_STOP_BLINKING,
 							pEthernet_screen->screen_lines[ETH_TX_LINE].line,
 							MAX_INTERNAL_SCREEN_X_SIZE, NO_SCREEN_LOCK);
-					//}
+					}
 					cursor_y = pEthernet_screen->header_dim_y+ETH_RX_LINE-pEthernet_screen->display_offset_y;
-					//if (cursor_y < g_rows) {
+					if (cursor_y < (g_rows-1)) {
 						send_display_change(0, cursor_y, CS_DISPLAY_STOP_BLINKING,
 							pEthernet_screen->screen_lines[ETH_RX_LINE].line,
 							MAX_INTERNAL_SCREEN_X_SIZE, NO_SCREEN_LOCK);
-					//}
+					}
 				}
-
 			}
 		}
-#endif
+
 		/* Restore the saved cursor position if screen updates have been made. */
 		if (saved_cursor_x != CURSOR_NOT_CHANGED)
 		{
@@ -2882,10 +2880,6 @@ void update_linux_screen(void *arg)
 	struct sysinfo sys_info;
         struct statfs stat_fs;
 
-	/* The saved position of the cursor that has to be restored if screen changes are performed. */
-	int saved_cursor_x = CURSOR_NOT_CHANGED;
-	int saved_cursor_y = CURSOR_NOT_CHANGED;
-
 	while(display_data.crt_screen == lnx_screen_id)	/* while we are displayed */
 	{
 		/* Lock the screen before updates. */
@@ -2899,50 +2893,27 @@ void update_linux_screen(void *arg)
 				updays, ((updays!=1)?"s":""), uphours, ((uphours!=1)?"s":""),
 				upmins, ((upmins!=1)?"s":"") );
 			memcpy(&pLinux_screen->screen_lines[LNX_UPT_LINE].line[8], buffer, count);
-			/* Save the initial position of the cursor if this has not been done yet. */
-			if (saved_cursor_x == CURSOR_NOT_CHANGED) {
-				saved_cursor_x = pLinux_screen->cursor_x;
-				saved_cursor_y = pLinux_screen->cursor_y;
-			}
-			send_display_change(0, pLinux_screen->header_dim_y+LNX_UPT_LINE-pLinux_screen->display_offset_y,
-				CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-			/* Write the new data to the screen */
-			write(display_data.file_descr, pLinux_screen->screen_lines[LNX_UPT_LINE].line, MAX_INTERNAL_SCREEN_X_SIZE);
-			/* update Load Average */
-			count = get_data_from_file("/proc/loadavg", NULL, buffer, 26);
-			memcpy((char *)&pLinux_screen->screen_lines[LNX_AVG_LINE].line[14], buffer, count);
-			send_display_change(0, pLinux_screen->header_dim_y+LNX_AVG_LINE-pLinux_screen->display_offset_y,
-				CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-			/* Write the new data to the screen */
-			write(display_data.file_descr, pLinux_screen->screen_lines[LNX_AVG_LINE].line, MAX_INTERNAL_SCREEN_X_SIZE);
                         /* update Free Memory */
                		count = snprintf(buffer, 32, "%4dMB", (int)((sys_info.freeram*sys_info.mem_unit)>>20));
                         memcpy((char *)&pLinux_screen->screen_lines[LNX_MEM_LINE].line[27], buffer, count);
-			send_display_change(0, pLinux_screen->header_dim_y+LNX_MEM_LINE-pLinux_screen->display_offset_y,
-				CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-			/* Write the new data to the screen */
-			write(display_data.file_descr, pLinux_screen->screen_lines[LNX_MEM_LINE].line, MAX_INTERNAL_SCREEN_X_SIZE);
-                        /* update Free Storage on rootfs */
-                        if (statfs("/", &stat_fs) == 0) {
-                                count = snprintf(buffer, 32, "%4dMB", (int)((stat_fs.f_bavail*stat_fs.f_bsize)>>20));
-                                memcpy((char *)&pLinux_screen->screen_lines[LNX_FS_LINE].line[31], buffer, count);                
-                                send_display_change(0, pLinux_screen->header_dim_y+LNX_FS_LINE-pLinux_screen->display_offset_y,
-                                        CS_DISPLAY_SET_CURSOR, 0, 0, NO_SCREEN_LOCK);
-                                /* Write the new data to the screen */
-                                write(display_data.file_descr, pLinux_screen->screen_lines[LNX_FS_LINE].line, MAX_INTERNAL_SCREEN_X_SIZE);
-                        }
-
-			/* restore cursor position */
-			if (saved_cursor_x != CURSOR_NOT_CHANGED) {
-				send_display_change(saved_cursor_x, pLinux_screen->header_dim_y+saved_cursor_y, CS_DISPLAY_SET_CURSOR, 0, 0,
-					NO_SCREEN_LOCK);
-				saved_cursor_x = CURSOR_NOT_CHANGED;
-			}
 		}
+
+		/* update Free Storage on rootfs */
+		if (statfs("/", &stat_fs) == 0) {
+			count = snprintf(buffer, 32, "%4dMB", (int)((stat_fs.f_bavail*stat_fs.f_bsize)>>20));
+			memcpy((char *)&pLinux_screen->screen_lines[LNX_FS_LINE].line[31], buffer, count);                
+		}
+
+		/* update Load Average */
+		count = get_data_from_file("/proc/loadavg", NULL, buffer, 26);
+		memcpy((char *)&pLinux_screen->screen_lines[LNX_AVG_LINE].line[14], buffer, count);
 
 		/* Unlock the screen after updates. */
 		pthread_mutex_unlock(&display_data.screen_mutex);
-
+		
+		/* Display updates on panel */
+		display_screen(lnx_screen_id);
+		
 		/* Sleep for 1 sec before the new updates. */
 		sleep(1);
 	}

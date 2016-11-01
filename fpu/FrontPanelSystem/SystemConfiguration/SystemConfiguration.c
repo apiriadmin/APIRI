@@ -144,7 +144,7 @@ void get_screen_size(int fd)
 #define KEY_MINUS 0x2d
 
 typedef enum { KEY_NONE=0x00, KEY_UP=0x80,  KEY_DOWN=0x81, KEY_RIGHT=0x82, KEY_LEFT=0x83,
-	       KEY_NEXT=0x84,  KEY_YES=0x85, KEY_NO=0x86 } key_types;
+	       KEY_NEXT=0x84,  KEY_YES=0x85, KEY_NO=0x86, KEY_ESC=0x87 } key_types;
 
 struct {
 	key_types   key;
@@ -157,6 +157,7 @@ struct {
 	{ KEY_NEXT,  "\x1bOP" },	// NEXT
 	{ KEY_YES,   "\x1bOQ" },	// YES
 	{ KEY_NO,    "\x1bOR" },	// NO
+	{ KEY_ESC,   "\x1bOS" },	// ESC
 };
 #define KEYMAP_SIZE (sizeof( keymap ) / sizeof( keymap[0] ))
 
@@ -296,6 +297,9 @@ int main( int argc, char * argv[] )
 		exit( 99 );
 	}
 
+	// Map the ESC key to a single key code
+	fpui_set_keymap(scm, KEY_ESC, "\x1bOS");
+	
 	printf("%s Ready scm=%d\n", argv[0], scm );
 
 	init_menu();
