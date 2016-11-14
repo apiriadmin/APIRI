@@ -211,7 +211,7 @@ static char lkm_version[80] = "";
 char *fio_apiver( FIO_APP_HANDLE app_handle, FIO_VERSION which )
 {
 	if (which == FIO_VERSION_LIBRARY)
-		return( "Intelight, 1.1, 2.17" );
+		return( "APIRI, 1.1, 2.17" );
 	if (which == FIO_VERSION_LKM) {
 		if (ioctl( (int)app_handle, FIOMAN_IOC_VERSION_GET, lkm_version) != -1) {
 			return lkm_version;
@@ -1107,7 +1107,7 @@ fio_fiod_inputs_trans_set
 	unsigned int	count
 )
 {
-	FIO_IOC_INPUTS_TRANS_GET request;	/* IOCTL argument structure */
+	FIO_IOC_INPUTS_TRANS_SET request;	/* IOCTL argument structure */
 
 	/* Set up IOCTL structure */
 	request.dev_handle = dev_handle;

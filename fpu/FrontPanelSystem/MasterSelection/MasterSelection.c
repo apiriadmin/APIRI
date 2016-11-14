@@ -38,6 +38,7 @@
 
 static int msi;				// globaled for signal handler
 static int default_screen = MS_DEV;	// temporary storage for default screen
+static bool panel_change = true;
 
 extern void tohex( char * );
 extern void tohexn( char *, int );
@@ -45,7 +46,7 @@ extern int xprintf( int fd, const char * fmt, ... );
 
 void window_handler( int arg )
 {
-	fprintf( stderr, "SIGWINCH\n" );
+	panel_change = true;
 }
 
 
@@ -58,6 +59,7 @@ void alldone( int arg )
 
 
 static char *regtab[APP_OPENS];
+static bool emergency[APP_OPENS] = {0};
 #define MAX_MENU_ROWS 8
 static char menu[MAX_MENU_ROWS][41];
 int g_rows = 8, g_cols = 40;
@@ -103,6 +105,10 @@ char isdefault( int i )
 	return( (i == default_screen)?'*':' ' );
 }
 
+bool has_emergency( int i )
+{
+	return emergency[i];
+}
 
 bool build_menu( void )
 {
@@ -110,7 +116,13 @@ bool build_menu( void )
 
 	clear_menu();
 	for( i=0; i<MAX_MENU_ROWS; i++ ) {
-		sprintf( menu[i], "%1x%c%-16.16s  %1x%c%-16.16s", i*2, isdefault(i*2), reg_name(i*2), i*2+1, isdefault(i*2+1), reg_name(i*2+1) );
+		sprintf( menu[i], "%s%1X%c%-16.16s%s  %s%1X%c%-16.16s%s",
+			has_emergency(i*2)?"\x1b[25h":"",
+			i*2, isdefault(i*2), reg_name(i*2),
+			has_emergency(i*2)?"\x1b[25l":"",
+			has_emergency(i*2+1)?"\x1b[25h":"",
+			i*2+1, isdefault(i*2+1), reg_name(i*2+1),
+			has_emergency(i*2+1)?"\x1b[25l":"" );
 	}
 	return( true );
 }
@@ -120,17 +132,22 @@ void display( int fd, int row_index )
 {
 	int i, row;
 	int menu_start_row = ((g_rows-3) < MAX_MENU_ROWS)?row_index:0;
-	char *s;
+	char buf[100];
 
-	build_menu();
-	fpui_write_string_at( fd, "          FRONT PANEL MANAGER", 1, 1 );
-	fpui_write_string_at( fd, "SELECT WINDOW [0-F]  SET DEFAULT *[0-F]", 2, 1 );
+	//build_menu();
+	fpui_write_string_at(fd, "          FRONT PANEL MANAGER", 1, 1);
+	fpui_write_string_at(fd, "SELECT WINDOW [0-F]  SET DEFAULT *[0-F]", 2, 1);
 	for( i=menu_start_row, row=3; (i<MAX_MENU_ROWS) && (row<g_rows); i++ ) {
-		s = &menu[i][0];
-		printf("%s write %d bytes of menu row %d\n", __func__, strlen(s), i );
-		fpui_write_string_at(fd, s, row++, 1);
+		sprintf(buf, "%1X%c%s%-16.16s%s  %1X%c%s%-16.16s%s",
+			i*2, isdefault(i*2), has_emergency(i*2)?"\x1b[25h":"",
+			reg_name(i*2),
+			has_emergency(i*2)?"\x1b[25l":"",
+			i*2+1, isdefault(i*2+1), has_emergency(i*2+1)?"\x1b[25h":"",
+			reg_name(i*2+1),
+			has_emergency(i*2+1)?"\x1b[25l":"" );
+		fpui_write_string_at(fd, buf, row++, 1);
 	}
-	fpui_write_string_at( fd, "[UP/DN ARROW]        [CONFIG INFO- NEXT]", g_rows, 1 );
+	fpui_write_string_at(fd, "[UP/DN ARROW]        [CONFIG INFO- NEXT]", g_rows, 1);
 	fpui_set_cursor_pos(fd, 3, 10);
 }
 
@@ -149,11 +166,14 @@ void get_screen_size(int fd)
 			if (sscanf((const char *)rp->data, "\x1b[%cR", &type) == 1) {
 				if (toupper(type) == 'A')
 					g_rows = 4;
+				else if (toupper(type) == 'B')
+					g_rows = 8;
 				else if (toupper(type) == 'D')
 					g_rows = 16;
 			}
 		}
 	}
+	fprintf( stderr, "MS: panel type = %x, g_rows = %d\n", type, g_rows);	
 }
 
 #define KEY_ENT   0x0d
@@ -188,9 +208,18 @@ int main( int argc, char * argv[] )
 	bool default_cmd = false;
 	int default_win = -1;
 	char default_app[16] = "";
-
+	struct sigaction act;
+	unsigned int *p_state;
+	
 	signal( SIGHUP, alldone );
-	signal( SIGWINCH, window_handler );
+	
+	memset (&act, 0, sizeof(act));
+	act.sa_handler = window_handler;
+	act.sa_flags = 0;
+	if (sigaction(SIGWINCH, &act, NULL) != 0) {
+	        fprintf( stderr, "%s: sigaction error - %s\n", argv[0], strerror( errno ) );
+		exit( 99 );		
+	}
 
 	// try to read the default app from /etc/default/fpui
 	FILE *fp = fopen("/etc/default/fpui", "r");
@@ -232,17 +261,25 @@ int main( int argc, char * argv[] )
 
 	printf("%s Ready msi=%d\n", argv[0], msi );
 
-	// get actual panel dimensions
-	get_screen_size( msi );
-	fpui_clear( msi );
-	display( msi, row_index );
 
 	// Use default key mappings
 
 	for( ;; ) {
-		printf( "MS: reading on msi=%d\n", msi );
-		if (((i = read(msi, buf, sizeof(buf))) < 0)
-				|| (i < sizeof(read_packet)) ) {
+		if (panel_change) {
+			// get actual panel dimensions
+			row_index = 0;
+			fprintf(stderr, "MS: panel change\n");
+			get_screen_size( msi );
+			fpui_clear( msi );
+			display( msi, row_index );
+			panel_change = false;
+		}
+			
+		i = read(msi, buf, sizeof(buf));
+		printf( "MS: read() return %d\n", i );
+		if ( (i < 0) || (i < sizeof(read_packet)) ) {
+			if (errno == EINTR)
+				continue;
 			perror( argv[0] );
 			exit( 30 );
 		}
@@ -256,7 +293,7 @@ int main( int argc, char * argv[] )
 				for( i = 0; (i < rp->raw_offset) && (rp->data[i] != '\0'); i++ ) {
 					switch( rp->data[i] ) {
 						case KEY_NEXT:	{// to select the System Configuration screen
-							unsigned int focus_dev = SC_DEV;
+							unsigned int focus_dev = SCM_DEV;
 							fprintf( stderr, "MS: Setting focus to System Configuration\n");
 							ioctl( msi, FP_IOC_SET_FOCUS, &focus_dev );
 							break;
@@ -327,6 +364,8 @@ int main( int argc, char * argv[] )
 								if (regtab[win] != NULL) {
 									fprintf( stderr, "MS: Setting focus to process %x\n", win);
 									ioctl( msi, FP_IOC_SET_FOCUS, &win );
+									// clear any emergency condition for this app
+									emergency[win] = 0;
 									break;
 								}
 							}
@@ -365,6 +404,15 @@ int main( int argc, char * argv[] )
                         case FOCUS:
 				printf("%s: FOCUS packet from %d to %d\n", argv[0], rp->from, rp->to );
                                 break;
+                        case EMERGENCY:
+                        {
+				p_state = (unsigned int *)rp->data;
+				// set emergency state for this app according to packet data
+				emergency[rp->from] = *p_state;
+				printf("%s: EMERGENCY packet from %d to %d, state=%d\n", argv[0], rp->from, rp->to, *p_state);
+				display( msi, row_index );
+                                break;
+			}				
                         default:
 				printf("%s: Undefined packet from %d to %d\n", argv[0], rp->from, rp->to );
 				exit( 99 );

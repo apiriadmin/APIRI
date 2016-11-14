@@ -32,7 +32,7 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
-#include "atc.h"
+#include <atc.h>
 #include "tod.h"
 
 #ifndef __isdigit_char
@@ -45,7 +45,7 @@
 
 char *tod_apiver(void)
 {
-	return "Intelight, 1.1, 2.17";
+	return "APIRI, 1.1, 2.17";
 }
 
 int tod_ioctl_call(int command, int arg)
@@ -92,7 +92,7 @@ int tod_request_tick_signal(int signal)
 		return ret;
 	tod_fd = ret;
 	arg = signal;
-	ret = ioctl(tod_fd, ATC_TOD_REQUEST_TICK_SIG, &arg);
+	ret = ioctl(tod_fd, ATC_TOD_REQUEST_TICK_SIG, arg);
 	if (ret < 0) {
 		close(tod_fd);
 		return ret;
@@ -122,7 +122,7 @@ int tod_request_onchange_signal(int signal)
 		return ret;
 	tod_fd = ret;
 	arg = signal;
-	ret = ioctl(tod_fd, ATC_TOD_REQUEST_ONCHANGE_SIG, &arg);
+	ret = ioctl(tod_fd, ATC_TOD_REQUEST_ONCHANGE_SIG, arg);
 	if (ret < 0) {
 		close(tod_fd);
 		return ret;
@@ -570,18 +570,42 @@ int tod_get_dst_state(void)
 
 int tod_set_dst_state(int state)
 {
+	struct stat sb;
+	char buf[64+TZ_BUFLEN] = {'T','Z','i','f','2', 0};
+	char *tzstr = &buf[54];
+	int fd;
+
 	// if we enable dst, where do we get the rules from?
 	// if we disable dst, where do we store the rules?
 	
 	tzset();
 	if (!state != !daylight) {
-		// action required
-		if (state) {
-			// enable DST (what rule?)
-		} else {
-			// disable DST
-			// rewrite tzfile with no rule
-			// try moving the trailing '\n' delimiter and preserving any DST rule after it?
+		// We must set or remove the DST rule but preserve any existing timezone
+		// is /etc/localtime present?
+		if (stat("/etc/localtime", &sb) == 0) {
+			// Fill std offset from "timezone" global
+			tzstr += sprintf(tzstr, "\nATCST%2.2ld:%2.2ld:%2.2ld",
+				timezone/3600, (timezone%3600)/60, (timezone%3600)%60);
+
+			if (state) {
+				// use USA rule (from Energy Policy Act of 2005)
+				tzstr += sprintf(tzstr, "ATCDT,M3.2.0,M11.1.0");
+			}
+			*tzstr++ = '\n';
+			// Write to temp file
+			fd = open("/etc/localtime~", O_RDWR|O_CREAT|O_TRUNC);
+			if (fd >= 0) {
+				write(fd, buf, (tzstr-buf));
+				fsync(fd);
+				close(fd);
+			} else {
+				return -1;
+			}
+			// Rename to actual filename (or move to /usr/share/zoneinfo and link?)
+			if (rename("/etc/localtime~", "/etc/localtime") == -1)
+				return -1;			
+			// Update globals with new timezone
+			tzset();
 		}
 	}
 	
@@ -591,13 +615,14 @@ int tod_set_dst_state(int state)
 
 int tod_get(struct timeval *tv, int *tzsec_off, int *dst_off)
 {
-	struct tm *p_localtime;
+	struct tm local_time;
 	struct timeval utc;
 	
-	gettimeofday(&utc, NULL);;
-	p_localtime = localtime(&utc.tv_sec);
+	gettimeofday(&utc, NULL);
+	tzset();
+	localtime_r(&utc.tv_sec, &local_time);
 	if (tv != NULL) {
-		tv->tv_sec = utc.tv_sec - timezone + ((daylight && p_localtime->tm_isdst)?3600:0);
+		tv->tv_sec = utc.tv_sec - timezone + ((daylight && local_time.tm_isdst)?3600:0);
                 tv->tv_usec = utc.tv_usec;
 	}
 	if (tzsec_off != NULL) {
@@ -605,7 +630,7 @@ int tod_get(struct timeval *tv, int *tzsec_off, int *dst_off)
 	}
 	if (dst_off != NULL) {
 		/* Correct for all but the 360 residents of Lord Howe Island! */
-		*dst_off = ((daylight && p_localtime->tm_isdst)?3600:0);
+		*dst_off = ((daylight && local_time.tm_isdst)?3600:0);
 	}
 
 	return 0;

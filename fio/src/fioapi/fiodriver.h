@@ -564,7 +564,7 @@ struct fio_ioc_inputs_trans_set
 	unsigned int		count;		/* Size of data array passed */	
 };
 typedef struct fio_ioc_inputs_trans_set FIO_IOC_INPUTS_TRANS_SET;
-#define FIOMAN_IOC_INPUTS_TRANS_SET		_IOR( FIO_IOC_MAGIC, \
+#define FIOMAN_IOC_INPUTS_TRANS_SET		_IOW( FIO_IOC_MAGIC, \
 						FIO_IOCTL( FIOMAN_IOC_51 ), \
 						FIO_IOC_INPUTS_TRANS_SET )						
 

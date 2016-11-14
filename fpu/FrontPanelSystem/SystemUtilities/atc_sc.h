@@ -55,11 +55,12 @@
 #define SC_INPUT_MINUS		'-'
 
 /* Error codes returned by the SC module */
-#define ERR_CREATE_THREAD	-1
-#define ERR_OPEN_CONNECTION	-2
-#define ERR_OPEN_PROCFILE	-3
-#define ERR_READ_PROCFILE	-4
-#define ERR_UNAVAILABLE_PROCFILE	-5
+#define ERR_INIT_SCREEN         -1
+#define ERR_CREATE_THREAD	-2
+#define ERR_OPEN_CONNECTION	-3
+#define ERR_OPEN_PROCFILE	-4
+#define ERR_READ_PROCFILE	-5
+#define ERR_UNAVAILABLE_PROCFILE	-6
 
 /* Definitions of constants used for locking the screens */
 #define SCREEN_LOCK		1
@@ -160,7 +161,7 @@ typedef struct _sc_internal_data
 	pthread_t update_thread;	// thread to run update function for screen on display
 	int file_descr; // file descriptor used to communicate witht he screen manager
 	int crt_screen;	// current internal screen to be displayed on the external screen
-	sc_internal_screen screens[NO_INTERNAL_SCREENS]; //internal screens
+	sc_internal_screen *screens[MAX_SCREENS]; //internal screens
 	
 }sc_internal_data;
 

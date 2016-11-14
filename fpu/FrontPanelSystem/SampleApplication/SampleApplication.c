@@ -35,7 +35,7 @@ int main( int argc, char * argv[] )
 {
 	int id = 0;
 	int i;
-	int fd;
+	int fd, rows=0, cols=0;
 	char buf[64];
 
 	if( argc > 1 ) {
@@ -43,12 +43,17 @@ int main( int argc, char * argv[] )
 	} 
 
 	fprintf( stderr, "%s: opening device\n", argv[0] );
-	sprintf( buf, "Sample %d Application", id );
-	if( (fd = fpui_open(O_RDWR|O_SYNC, buf)) < 0 ) {
+	sprintf( buf, "Sample %d App", id );
+	if( (fd = fpui_open(O_RDWR, buf)) < 0 ) {
 	        fprintf( stderr, "%s: Fopen failed (%s)\n", argv[0], strerror( errno ) );
 		exit( 99 );
 	}
 fprintf(stderr, "%s: fd=%d\n", argv[0], fd);
+	if (fpui_get_window_size(fd, &rows, &cols) != 0) {
+		fprintf(stderr, "%s: fpui_get_window_size() error %s\n", argv[0], strerror(errno));
+		exit(1);
+	}
+fprintf(stderr, "%s: window rows=%d cols=%d\n", argv[0], rows, cols);
 	fpui_write(fd, "\f", 1);
 	sprintf( buf, "This is Sample Application %d\n\r", id );
 	fpui_write_string(fd, buf);

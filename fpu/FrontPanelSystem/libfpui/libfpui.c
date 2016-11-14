@@ -24,7 +24,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <fcntl.h>
+#include <asm/fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -58,7 +58,7 @@ char *fpui_apiver( fpui_handle fd, int type )
 {
 	switch( type ) {
 		case 1:
-			return( "Intelight, 1.0, 2.17" );
+			return( "APIRI, 1.1, 2.17" );
 		case 2:
 			if( ioctl( fd, FP_IOC_VERSION, version_buf ) < 0 ) {
 				return( NULL );
@@ -72,12 +72,16 @@ char *fpui_apiver( fpui_handle fd, int type )
 }
 
 
-int fpui_open( int flags, const char * regname )
+int fpui_open( int flags, const char *regname )
 {
 	int fd    = 0;
 	int errcd = 0;
 
-	if( (fd = open( FRONT_PANEL_DEV, flags )) < 0 ) {
+	if (flags & O_DIRECT) {
+		flags = (flags & ~O_DIRECT)|O_SYNC;
+	}
+	
+	if ((fd = open(FRONT_PANEL_DEV, flags)) < 0) {
 		return( fd );
 	}
 
@@ -112,7 +116,7 @@ int fpui_panel_present( fpui_handle fd )
 	char sbuf[16];
 	char status;
 
-	if( fpui_write_string( fd, ESC "[5n" ) < 0 ) {
+	if (fpui_write_string(fd, ESC "[5n") < 4) {
 		return( -1 );
 	}
 
@@ -132,10 +136,10 @@ int fpui_get_window_size( fpui_handle fd, int *rows, int *columns )
 {
 	int count = 0;
 	char sbuf[16];
-	char panel_type;
+	char panel_type = '\0';
 
 	//Query panel type: A (4 lines); B (8 lines); D (16 lines)
-	if( fpui_write_string( fd, ESC "[c" ) < 0 ) {
+	if (fpui_write_string(fd, ESC "[c") < 3) {
 		return -1;
 	}
 
@@ -152,8 +156,8 @@ int fpui_get_window_size( fpui_handle fd, int *rows, int *columns )
 			else
 				return -1;
 			*columns = 40;
+			return 0;
 		}
-		return 0;
 	}
 	return -1;
 }
@@ -164,7 +168,7 @@ int fpui_get_focus( fpui_handle fd )
 	char sbuf[16];
 	char focus;
 
-	if( fpui_write_string( fd, ESC "[Fn" ) < 0 ) {
+	if (fpui_write_string(fd, ESC "[Fn") < 4) {
 		return -1;
 	}
 
@@ -185,9 +189,8 @@ int fpui_get_focus( fpui_handle fd )
 
 int fpui_clear( fpui_handle fd )
 {
-	int err = fpui_write_string( fd, ESC "[2J" );
-	if (err < 0)
-		return err;
+	if (fpui_write_string(fd, ESC "[2J") < 4)
+		return -1;
 	return 0;
 }
 
@@ -199,12 +202,10 @@ int fpui_refresh( int fd )
 }
 
 
-int fpui_set_emergency( fpui_handle fd, bool state )
+int fpui_set_emergency(fpui_handle fd, bool state)
 {
-	return( ioctl( fd, FP_IOC_EMERGENCY, state ) < 0 );
+	return( ioctl(fd, FP_IOC_EMERGENCY, state?1:0) );
 }
-
-
 
 
 
@@ -233,14 +234,14 @@ int fpui_set_window_attr( fpui_handle fd, int attr )
 	return err;
 }
 
-int fpui_get_window_attr( fpui_handle fd )
+int get_attr( fpui_handle fd, bool extended )
 {
 	char buf[32];
 	char p1, p2, p3, p4, p6, p7, p8, p9, p10, p11;
 	int p5;
-	fpui_attr_t attr;
+	fpui_attr_t attr = {0};
 
-	if( fpui_write_string( fd, ESC "[Bn" ) < 0 ) {
+	if (fpui_write_string(fd, ESC "[Bn") < 4) {
 		attr.errcode = -1;
 		return attr.errcode;
 	}
@@ -250,30 +251,41 @@ int fpui_get_window_attr( fpui_handle fd )
 		return attr.errcode;
 	}
 
-	sscanf( buf, ESC "[%c;%c;%c;%c;%d;%c;%c;%c;%c;%c;%cR",
-		&p1, &p2, &p3, &p4, &p5, &p6, &p7, &p8, &p9, &p10, &p11 );
+	if (sscanf(buf, ESC "[%c;%c;%c;%c;%d;%c;%c;%c;%c;%c;%cR",
+		&p1, &p2, &p3, &p4, &p5, &p6, &p7, &p8, &p9, &p10, &p11)
+		!= 11) {
+		attr.errcode = -1;
+		return attr.errcode;
+	}
 	attr.auto_wrap = (p1 == 'h')?1:0;
 	attr.auto_scroll = (p2 == 'h')?1:0;
 	attr.auto_repeat = (p3 == 'h')?1:0;
 	attr.backlight = (p4 == 'h')?1:0;
 	attr.backlight_timeout = p5;
-	attr.aux_switch = (p6 == 'h')?1:0;
-	attr.cursor_on = (p7 == 'h')?1:0;
-	attr.cursor_blink = (p8 == 'h')?1:0;
-	attr.char_blink = (p9 == 'h')?1:0;
-	attr.char_reverse = (p10 == 'h')?1:0;
-	attr.char_underline = (p11 == 'h')?1:0;
+	if (extended) {
+		/*attr.aux_switch = (p6 == 'h')?1:0;*/
+		attr.cursor_on = (p7 == 'h')?1:0;
+		attr.cursor_blink = (p8 == 'h')?1:0;
+		attr.char_blink = (p9 == 'h')?1:0;
+		attr.char_reverse = (p10 == 'h')?1:0;
+		attr.char_underline = (p11 == 'h')?1:0;
+	}
 
-	return (attr.errcode);
+	return attr.errcode;
 
 }
 
-int fpui_get_attributes( int fd, int index )
+int fpui_get_window_attr( fpui_handle fd )
+{
+	return get_attr(fd, false);
+}
+
+int fpui_get_attribute(int fd, int index)
 {
 	fpui_attr_t attr;
 
-	attr = (fpui_attr_t) fpui_get_window_attr(fd);
-	if (attr.errcode < 0)
+	attr = (fpui_attr_t)get_attr(fd, true);
+	if (attr.errcode == -1)
 		return -1;
 
 	switch( index ) {
@@ -307,34 +319,40 @@ int fpui_get_attributes( int fd, int index )
 
 int fpui_set_character_blink( fpui_handle fd, bool state )
 {
+	int ret = 0;
 	if( state ) {
-		return( fpui_write_string( fd, ESC "[25h" ) );
+		ret = fpui_write_string(fd, ESC "[25h");
 	} else {
-		return( fpui_write_string( fd, ESC "[25l" ) );
+		ret = fpui_write_string(fd, ESC "[25l");
 	}
-	return( 0 );
+	if (ret < 5)
+		return -1;		
+	return 0;
 }
 
 
-bool fpui_get_character_blink( fpui_handle fd )
+int fpui_get_character_blink( fpui_handle fd )
 {
-	return fpui_get_attributes(fd, 9);
+	return fpui_get_attribute(fd, 9);
 }
 
 
 int fpui_set_backlight( fpui_handle fd, bool state )
 {
+	int ret = 0;
 	if( state ) {
-		return( fpui_write_string( fd, ESC "[<5h" ) );
+		ret = fpui_write_string(fd, ESC "[<5h");
 	} else {
-		return( fpui_write_string( fd, ESC "[<5l" ) );
+		ret = fpui_write_string(fd, ESC "[<5l");
 	}
-	return( 0 );
+	if (ret < 5)
+		return -1;
+	return 0;
 }
 
-bool  fpui_get_backlight( fpui_handle fd )
+int fpui_get_backlight( fpui_handle fd )
 {
-	return fpui_get_attributes(fd, 4);
+	return fpui_get_attribute(fd, 4);
 }
 
 int fpui_set_backlight_timeout( fpui_handle fd, int timeout )
@@ -342,131 +360,157 @@ int fpui_set_backlight_timeout( fpui_handle fd, int timeout )
 	char sbuf[16];
 
 	sprintf( sbuf, ESC "[<%dS", timeout/10 );
-	return( fpui_write_string( fd, sbuf ) );
+	if (fpui_write_string(fd, sbuf) != strlen(sbuf))
+		return -1;
+	return 0;
 }
 
 int fpui_set_cursor_blink( fpui_handle fd, bool state )
 {
+	int ret = 0;
 	if( state ) {
-		return( fpui_write_string( fd, ESC "[33h" ) );
+		ret = fpui_write_string(fd, ESC "[33h");
 	} else {
-		return( fpui_write_string( fd, ESC "[33l" ) );
+		ret = fpui_write_string(fd, ESC "[33l");
 	}
-	return( 0 );
+	if (ret < 5)
+		return -1;
+	return 0;
 }
 
 
-bool  fpui_get_cursor_blink( fpui_handle fd )
+int fpui_get_cursor_blink( fpui_handle fd )
 {
-	return fpui_get_attributes(fd, 8);
+	return fpui_get_attribute(fd, 8);
 }
 
 
 int fpui_set_reverse_video( fpui_handle fd, bool state )
 {
+	int ret = 0;
 	if( state ) {
-		return( fpui_write_string( fd, ESC "[27h" ) );
+		ret = fpui_write_string(fd, ESC "[27h");
 	} else {
-		return( fpui_write_string( fd, ESC "[27l" ) );
+		ret = fpui_write_string(fd, ESC "[27l");
 	}
-	return( 0 );
+	if (ret < 5)
+		return -1;
+	return 0;
 }
 
 
-bool  fpui_get_reverse_video( fpui_handle fd )
+int fpui_get_reverse_video( fpui_handle fd )
 {
-	return fpui_get_attributes(fd, 10);
+	return fpui_get_attribute(fd, 10);
 }
 
 
 int fpui_set_underline( fpui_handle fd, bool state )
 {
+	int ret = 0;
 	if( state ) {
-		return( fpui_write_string( fd, ESC "[24h" ) );
+		ret = fpui_write_string(fd, ESC "[24h");
 	} else {
-		return( fpui_write_string( fd, ESC "[24l" ) );
+		ret = fpui_write_string(fd, ESC "[24l");
 	}
-	return( 0 );
+	if (ret < 5)
+		return -1;
+	return 0;
 }
 
 
-bool  fpui_get_underline( fpui_handle fd )
+int fpui_get_underline( fpui_handle fd )
 {
-	return fpui_get_attributes(fd, 11);
+	return fpui_get_attribute(fd, 11);
 }
 
 
 int fpui_set_auto_wrap( fpui_handle fd, bool state )
 {
+	int ret = 0;
 	if( state ) {
-		return( fpui_write_string( fd, ESC "[?7h" ) );
+		ret = fpui_write_string(fd, ESC "[?7h");
 	} else {
-		return( fpui_write_string( fd, ESC "[?7l" ) );
+		ret = fpui_write_string(fd, ESC "[?7l");
 	}
-	return( 0 );
+	if (ret < 5)
+		return -1;
+	return 0;
 }
 
 
-bool  fpui_get_auto_wrap( fpui_handle fd )
+int fpui_get_auto_wrap( fpui_handle fd )
 {
-	return fpui_get_attributes(fd, 1);
+	return fpui_get_attribute(fd, 1);
 }
 
 
 int fpui_set_auto_repeat( fpui_handle fd, bool state )
 {
+	int ret = 0;
 	if( state ) {
-		return( fpui_write_string( fd, ESC "[?8h" ) );
+		ret = fpui_write_string(fd, ESC "[?8h");
 	} else {
-		return( fpui_write_string( fd, ESC "[?8l" ) );
+		ret = fpui_write_string(fd, ESC "[?8l");
 	}
-	return( 0 );
+	if (ret < 5)
+		return -1;
+	return 0;
 }
 
 
-bool  fpui_get_auto_repeat( fpui_handle fd )
+int fpui_get_auto_repeat( fpui_handle fd )
 {
-	return fpui_get_attributes(fd, 3);
+	return fpui_get_attribute(fd, 3);
 }
 
 
 int fpui_set_cursor( fpui_handle fd, bool state )
 {
+	int ret = 0;
 	if( state ) {
-		return( fpui_write_string( fd, ESC "[?25h" ) );
+		ret = fpui_write_string(fd, ESC "[?25h");
 	} else {
-		return( fpui_write_string( fd, ESC "[?25l" ) );
+		ret = fpui_write_string(fd, ESC "[?25l");
 	}
-	return( 0 );
+	if (ret < 6)
+		return -1;
+	return 0;
 }
 
 
-bool  fpui_get_cursor( fpui_handle fd )
+int fpui_get_cursor( fpui_handle fd )
 {
-	return fpui_get_attributes(fd, 7);
+	return fpui_get_attribute(fd, 7);
 }
 
 
 int fpui_set_auto_scroll( fpui_handle fd, bool state )
 {
-	if( state ) {
-		return( fpui_write_string( fd, ESC "[<47h" ) );
-	} else {
-		return( fpui_write_string( fd, ESC "[<47l" ) );
-	}
-	return( 0 );
+	int ret = 0;
+	
+	if (state)
+		ret = fpui_write_string(fd, ESC "[<47h");
+	else
+		ret = fpui_write_string(fd, ESC "[<47l");
+		
+	if (ret < 6)
+		return -1;
+	return 0;
 }
 
 
-bool  fpui_get_auto_scroll( fpui_handle fd )
+int fpui_get_auto_scroll( fpui_handle fd )
 {
-	return fpui_get_attributes(fd, 2);
+	return fpui_get_attribute(fd, 2);
 }
 
 
 int fpui_reset_all_attributes( fpui_handle fd )
 {
-	return fpui_write_string(fd, ESC "[0m");
+	if (fpui_write_string(fd, ESC "[0m") < 4)
+		return -1;
+	return 0;
 }
 
 
@@ -480,6 +524,11 @@ int fpui_poll( fpui_handle fd, int flags )
 	int ret;
 	struct pollfd fds;
 	int timeout = -1;
+
+	if (fd < 0) {
+		errno = EBADF;
+		return -1;
+	}
 
 	fds.fd = fd;
 	fds.events = POLLIN;
@@ -533,68 +582,61 @@ ssize_t fpui_write( fpui_handle fd, char *buffer, int buflen )
 
 ssize_t fpui_write_char( fpui_handle fd, char ch )
 {
-	return( write( fd, &ch, 1 ) );
+	return( write(fd, &ch, 1) );
 }
 
 
 ssize_t fpui_write_string( fpui_handle fd, char *string )
 {
-	return( fpui_write( fd, string, strlen(string) ) );
+	return( write(fd, string, strlen(string)) );
 }
 
 
 ssize_t fpui_write_at( fpui_handle fd, char *buffer, int buflen, int row, int column )
 {
-	int errcd;
+	char sbuf[256];
+	int count = 0, ssize = (buflen<100)?buflen:100;
+	int err = 0;
 
-	if( (errcd = fpui_set_cursor_pos( fd, row, column )) < 0 ) {
-		return( errcd );
+	if ((row < 1) || (row > 24) || (column < 1) || (column > 80)) {
+		errno = EINVAL;
+		return -1;
 	}
-
-	return( fpui_write( fd, buffer, buflen ) );
+	
+	count = sprintf(sbuf, ESC "[%d;%df%*.*s", row, column, ssize, ssize, buffer);
+	if ((err = write(fd, sbuf, count)) != count)
+		return -1;
+	else
+		return ssize;
 }
 
 
 ssize_t fpui_write_char_at( fpui_handle fd, char ch, int row, int column )
 {
-	int errcd;
-
-	if( (errcd = fpui_set_cursor_pos( fd, row, column )) < 0 ) {
-		return( errcd );
-	}
-
-	return( write( fd, &ch, 1 ) );
+	return( fpui_write_at(fd, &ch, 1, row, column) );
 }
 
 
 ssize_t fpui_write_string_at( fpui_handle fd, char *string, int row, int column )
 {
-	int errcd;
-
-	if( (errcd = fpui_set_cursor_pos( fd, row, column )) < 0 ) {
-		return( errcd );
-	}
-
-	return( fpui_write( fd, string, strlen(string) ) );
+	return( fpui_write_at(fd, string, strlen(string), row, column) );
 }
 
 
 /*
 	Cursor Operators
 */
-int fpui_get_cursor_pos( fpui_handle fd,  int * row, int * column )
+int fpui_get_cursor_pos( fpui_handle fd,  int *row, int *column )
 {
-	int  errcd;
 	char sbuf[16];
 
-	if( (errcd = fpui_write_string( fd, ESC "[6n" )) < 0 ) {
-		return( errcd );
+	if (fpui_write_string(fd, ESC "[6n") < 4) {
+		return -1;
 	}
 
-	if( (errcd = fpui_read( fd, sbuf, sizeof( sbuf ) )) < 0 ) {
-		return( errcd );
+	if (fpui_read(fd, sbuf, sizeof(sbuf)) < 0) {
+		return -1;
 	}
-
 	sscanf( sbuf, ESC "[%d;%dR", row, column );
 	return( 0 );
 }
@@ -603,32 +645,47 @@ int fpui_get_cursor_pos( fpui_handle fd,  int * row, int * column )
 int fpui_set_cursor_pos( fpui_handle fd,  int row, int column )
 {
 	char sbuf[16];
-	sprintf( sbuf, ESC "[%d;%df", row, column );
-	return( fpui_write_string( fd, sbuf ) );
+	int count = 0;
+	
+	if ((row < 1) || (row > 24) || (column < 1) || (column > 80)) {
+		errno = EINVAL;
+		return -1;
+	}
+		
+	count = sprintf( sbuf, ESC "[%d;%df", row, column );
+	return( write(fd, sbuf, count) );
 }
 
 
 int fpui_home( fpui_handle fd )
 {
-	return( fpui_write_string( fd, ESC "[H" ) );
+	if (fpui_write_string(fd, ESC "[H") < 3)
+		return -1;
+	return 0;
 }
 
 
 int fpui_set_tab( fpui_handle fd )
 {
-	return( fpui_write_string( fd, ESC "H" ) );
+	if (fpui_write_string(fd, ESC "H") < 2)
+		return -1;
+	return 0;
 }
 
 
 int fpui_clear_tab( fpui_handle fd, int type )
 {
 	char buf[8];
-	if( (type >= 0) && (type <= 3) ) {
-		sprintf( buf, ESC "[%dg", type );
-		return( fpui_write_string( fd, buf ) );
+	
+	if ((type < 0) || (type > 3)) {
+		errno = EINVAL;
+		return -1;
 	}
-	errno = EINVAL;
-	return( -1 );
+	sprintf(buf, ESC "[%dg", type);
+	if (fpui_write_string(fd, buf) != strlen(buf))
+		return -1;
+	
+	return 0;
 }
 
 
@@ -643,6 +700,11 @@ int fpui_compose_special_char( fpui_handle fd, int index, unsigned char *buffer 
 	int len = 0;
 	char buf[40];
 
+	if ((index < 1) || (index > 8)) {
+		errno = EINVAL;
+		return -1;
+	}
+		
 	len += sprintf( &buf[len], ESC "P%d[", index );
 	for( i = 0; i < 8; i++ ) {
 		len += sprintf( &buf[len], "%d;", buffer[i] );
@@ -685,6 +747,7 @@ fpui_aux_handle fpui_open_aux_switch( void )
 	int fd = 0;
 
 	fd = open(FRONT_PANEL_AUX_DEV, O_RDONLY|O_NONBLOCK);
+
 	return( fd );
 }
 int fpui_close_aux_switch( fpui_aux_handle fd )
@@ -693,11 +756,10 @@ int fpui_close_aux_switch( fpui_aux_handle fd )
 }
 int fpui_read_aux_switch( fpui_aux_handle fd )
 {
-	int  err;
-	unsigned char auxsw;
+	char auxsw = -1;
 
-	if( (err = read(fd, &auxsw, 1)) < 0 ) {
-		return( err );
+	if(read(fd, &auxsw, 1) != 1) {
+		return -1;
 	}
 
 	if (auxsw == AUX_SWITCH_ON)
@@ -739,12 +801,16 @@ int fpui_get_keymap( fpui_handle fd, char key, char *seq, int size )
 	}
 
 	memset( &km, 0, sizeof( km ) );			// clear the buffer for the response
-
-	if( (n = read(fd, &km, sizeof( km ))) >= 0 ) {	// read the response
-		memmove(seq, km.seq, (size<7)?size:7);	// copy the escape sequence to the users buffer
+	n = read(fd, &km, sizeof( km ));		// read the response
+	if ((n > 0) && (km.cmd == CHAR_DC2)) {
+		if ((n == 1) || (km.seq[0] == '\0'))
+			seq[0] = '\0';
+		else
+			strcpy(seq, km.seq);	// copy the escape sequence to the users buffer
+		return 0;
 	}
 
-	return( n );
+	return -1;
 }
 
 

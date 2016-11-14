@@ -68,6 +68,18 @@ FIO Message Scheduler (FIOMSG).
 /* Timer definitions */
 #if defined(CONFIG_HIGH_RES_TIMERS)
 #include	<linux/hrtimer.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+static inline ktime_t ktime_add_ms(const ktime_t kt, const u64 msec)
+{
+	return ktime_add_ns(kt, msec * NSEC_PER_MSEC);
+}
+static inline ktime_t ms_to_ktime(u64 ms)
+{
+	static const ktime_t ktime_zero = { .tv64 = 0 };
+	
+	return ktime_add_ms(ktime_zero, ms);
+}
+#endif
 typedef ktime_t				FIOMSG_TIME;
 typedef struct hrtimer			FIOMSG_TIMER;
 #define FIOMSG_CLOCKS_PER_SEC		NSEC_PER_SEC
@@ -127,6 +139,7 @@ typedef unsigned long			fiomsg_timer_callback_arg;
 struct fiomsg_rx_pending
 {
 	u8			frame_no;		/* Expected response frame */
+	int                     frame_len;              /* Length of frame received */
 	FIO_IOC_FIOD		fiod;			/* FIOD that should respond */
 
 	FIOMSG_TIMER		rx_timer;		/* RX Timer for pending resp */

@@ -51,23 +51,25 @@
 #define CHAR_ESC '\x1b'
 
 
-void set_focus( int);
-int get_focus( void );
-void send_to_current( char );
-void viewport_listener( char * );
+void set_focus(int);
+int get_focus(void);
+void send_to_current(char);
+void viewport_listener(char *);
+int parse_escape_seq(int, char *, int);
 
 
 int panel_fd = -1;
 bool display_present = false;
-
 extern void vt_lock( int );
 extern void load_screen( int, int );
 extern void vt_unlock( int );
 extern void tohex( char * );
-extern void routing_send_signal( int, int );
+extern void routing_send_signal( int );
 extern void routing_return(int, char *, char *s);
 extern int is_active( int );
 extern void virtual_terminal_return( int, char * );
+extern bool emergency_mode;
+bool emergency_flash = false;
 
 #define REGEX_INIT { .buffer = NULL }
 
@@ -97,12 +99,23 @@ int has_focus = MS_DEV;
 void set_focus( int term )
 {
 	DBG("%s: setting focus to device %d\n", __func__, term );
-	// signal process has_focus
+	// signal app losing focus
+	if ((has_focus < APP_OPENS) || (has_focus == SCI_DEV)) {
+		routing_send_signal(has_focus);
+	}
+
+	// change focus window
 	has_focus = term;
 	
+	// load virtual window screen to front panel
 	vt_lock( term );
 	load_screen( panel_fd, term );
 	vt_unlock( term );
+
+	// signal app gaining focus
+	if ((has_focus < APP_OPENS) /*|| (has_focus == SCM_DEV)*/) {
+		routing_send_signal(has_focus);
+	}
 }
 
 int get_focus( void )
@@ -152,9 +165,11 @@ bool check_screen_size( int fd )
 		sprintf( outbuf, "%c[6n", CHAR_ESC );
 		write( fd, outbuf, strlen(outbuf) );
 		if(poll( &ufds, 1, 200) == 1) {
-			if( (i = read( fd, inbuf, 40 )) > 0 ) {
-				inbuf[i] = '\0';
-				i = sscanf( inbuf, ESC "[%d;%dR", &row, &col ); // read cursor position
+			if (((i = read(fd, inbuf, 1)) == 1)
+				&& (inbuf[0] == CHAR_ESC)) {
+				if (parse_escape_seq(fd, inbuf, sizeof(inbuf)) != CUR_POS)
+					return false;
+				sscanf(inbuf, ESC "[%d;%dR", &row, &col); // read cursor position
 			}
 		} else {
 			return false;
@@ -243,13 +258,13 @@ void viewport_cleanup( void *arg )
 }
 
 
-void parse_escape_seq( int fd, char *buf, int len )
+int parse_escape_seq(int fd, char *buf, int len)
 {
-	int  i  = 0;
+	int i = 0;
 	char ch = ' ';
 	struct pollfd ufds;
-	ufds.fd      = fd;
-	ufds.events  = POLLIN;
+	ufds.fd = fd;
+	ufds.events = POLLIN;
 	ufds.revents = 0;
 
 	// we have already received the escape character
@@ -270,7 +285,7 @@ void parse_escape_seq( int fd, char *buf, int len )
 
 	switch (buf[2]) {
 	case 'A': case 'B': case 'C': case 'D':
-		if (poll(&ufds, 1, 0) != 1)
+		if (poll(&ufds, 1, 10) != 1)
 			goto out;
 		read(fd,&ch,1);
 		if (ch == 'R') {
@@ -300,6 +315,13 @@ void parse_escape_seq( int fd, char *buf, int len )
 	buf[i] = '\0';
 out:
 	DBG("%s: %02x %02x %02x %02x\n", __func__, buf[0], buf[1], buf[2], buf[3]);
+	// compare the sequence to the list of special strings
+	for(i = 0; i<SPECIAL_STRING_SIZE; i++) {
+		if(regexec(&special_string[i].preg, buf, 0, NULL, 0) == REG_NOERROR) {
+			break;
+		}
+	}
+	return i;
 }
 
 
@@ -329,7 +351,7 @@ void viewport_listener( char *filepath )
 	DBG( "%s: Starting on port %s\n", __func__, filepath );
 
 	// prepare the regular expression pattern buffers for the special strings.
-	for( i = 0; i < SPECIAL_STRING_SIZE; i++ ) {
+	for(i = 0; i < SPECIAL_STRING_SIZE; i++) {
 		if( (errcode = regcomp( &special_string[i].preg, special_string[i].pattern, REG_EXTENDED | REG_NOSUB )) != REG_NOERROR ) {
 			char errbuf[128];
 			regerror( errcode, &special_string[i].preg, errbuf, sizeof( errbuf ) );
@@ -357,7 +379,7 @@ void viewport_listener( char *filepath )
 		port_attr.c_oflag = OPOST|ONLCR;
 		port_attr.c_lflag = 0;
 		port_attr.c_cc[VTIME] = 0;
-		port_attr.c_cc[VMIN] = 0;
+		port_attr.c_cc[VMIN] = 1;
 		tcflush(fd,TCIFLUSH);
 		tcsetattr(fd,TCSANOW,&port_attr);
 
@@ -382,13 +404,14 @@ void viewport_listener( char *filepath )
 						// do 5 second things.
 						//
 						if( ping ) {	// did we send a ping and not get a response
+							//screen_YY = 0;
+							//screen_XX = 0;
 							if( display_present ) {
-								DBG( "%s: Display has been disconnected.\n", __func__ );
+								display_present = false;
+								/*DBG*/printf( "%s: Display has been disconnected.\n", __func__ );
 								// TODO we need to signal the change
+								routing_send_signal(FP_MAX_DEVS);
 							}
-							display_present = false;
-							screen_YY = 0;
-							screen_XX = 0;
 						}
                                                 // Send ping (now enquire AUX switch state)
 						write( fd, ESC "[An", 4 );
@@ -412,9 +435,20 @@ void viewport_listener( char *filepath )
 							virtual_terminal_return( has_focus, buf );		//   send the string to the virtual terminals
 							state = 0;
 						}
+						if (/*(has_focus != MS_DEV) &&*/ emergency_mode) {
+							DBG("%s: emergency_flash %s\n", __func__, emergency_flash?"ON":"OFF");
+							// toggle backlight for window with focus to effect flash
+							sprintf( buf, ESC "[<5%c", emergency_flash?'h':'l');  
+							write( fd, buf, 5 );
+							emergency_flash = !emergency_flash;
+							timeout = SHORT_TIMEOUT;
+							break;
+						}
 					}
-					timeout = LONG_TIMEOUT;		
-
+					if (emergency_mode)
+						timeout = SHORT_TIMEOUT;
+					else
+						timeout = LONG_TIMEOUT;		
 					break;
 
 				default:	// this will probably be '1'
@@ -424,20 +458,18 @@ void viewport_listener( char *filepath )
 						fprintf( stderr, "%s: Fgetc EOF (%s)\n", __func__, strerror( errno ) );
 					} else if (!display_present) {
 						// Panel must be present now
+						/*DBG*/printf( "%s: Display has been reconnected.\n", __func__ );
 						display_present = true;
 						tcflush(fd,TCIFLUSH);
 						check_screen_size( fd );
+						set_focus(has_focus);
+						routing_send_signal(FP_MAX_DEVS);
+						ping = false;
 						break;
 					} else if( ch == CHAR_ESC ) {
 						// get as much of the escape sequence as we can recognize
-						parse_escape_seq( fd, buf, sizeof( buf ) );
-
-						// compare the sequence to the list of special strings
-						for( i = 0; i < SPECIAL_STRING_SIZE; i++ ) {
-							if( (errcode = regexec( &special_string[i].preg, buf, 0, NULL, 0 )) == REG_NOERROR ) {
-								break;
-							}
-						}
+						if ((i = parse_escape_seq(fd, buf, sizeof(buf))) < 0)
+							break;
 
 						// finally handle the special string, or pass any other string up thre channel.
 						switch( i ) {
@@ -457,17 +489,24 @@ void viewport_listener( char *filepath )
 								break;
 							case NXT_KEY:
 								if( state == 2 ) {				    // we got two '*'s and the <NEXT> key
-									if (is_active(SC_DEV)) {
-										set_focus( SC_DEV );				//   set the SC_DEV to focus
-										DBG( "%s: SC focus sequence\n", __func__ );
-										// also send ESC to SC in case in submenu
-										sprintf(buf, ESC "OS");
-										virtual_terminal_return( has_focus, buf );	//   send the string to the virtual terminals
+									if (has_focus == SCI_DEV) {
+										// signal SCM_DEV only (terminate utility)
+										routing_send_signal(SCM_DEV);
+										DBG( "%s: SCI terminate sequence\n", __func__ );
+									} /*else if (is_active(SCI_DEV)) {
+										set_focus( SCI_DEV );
+										routing_send_signal(SCM_DEV);
+										DBG( "%s: SCI focus sequence\n", __func__ );
+									} */else if (is_active(SCM_DEV) && (has_focus != SCM_DEV)) {
+										set_focus( SCM_DEV );		//   set the SCM_DEV to focus
+										if (is_active(SCI_DEV))
+											routing_send_signal(SCM_DEV);
+										DBG( "%s: SCM focus sequence\n", __func__ );
 									}
 								} else if( state == 1 ) {			    // we got one '*' and the <NEXT> key
 									    sprintf( buf, "*" );			//   prepare a string buffer
 									    virtual_terminal_return( has_focus, buf );	//   send the string to the virtual terminals
-								} else if( has_focus == SC_DEV ){
+								} else if( has_focus == SCM_DEV ){
 									set_focus(MS_DEV);				// isolated <NEXT> in SC_DEV
 									DBG( "%s: MS focus sequence\n", __func__ );
 								} else {
@@ -494,13 +533,15 @@ void viewport_listener( char *filepath )
 								break;
 							}
 							case AUX_STATE: // response to a query for AUX switch state
-								DBG( "%s: AUX switch status sequence\n", __func__ );
+								DBG("%s: AUX switch status sequence (ping=%d)\n", __func__, ping);
 								if( ping ) {
 									if( !display_present ) {
-										DBG( "%s: Display has been reconnected.\n", __func__ );
+										/*DBG*/printf( "%s: Display has been reconnected (ping).\n", __func__ );
 										// TODO we need to signal the change
 										display_present = true;
 										check_screen_size( fd );
+										routing_send_signal(FP_MAX_DEVS); //signal all
+										set_focus(has_focus);
 									}
 									ping = false;
 								}
@@ -582,10 +623,10 @@ void viewport_listener( char *filepath )
 
 void viewport_copy_out( int term, char *s )
 {
-	//int fd = fileno(panel);
+	int ret = 0;
 	if( term == has_focus ) {
-		write( panel_fd, s, strlen(s)/*+1*/ );
-		DBG( "%s: done\n", __func__ );
+		ret = write( panel_fd, s, strlen(s)/*+1*/ );
+		DBG( "%s: copy %d bytes\n", __func__, ret );
 	} else {
 		DBG( "%s: Terminal %d does not have focus\n", __func__, term );
 	}

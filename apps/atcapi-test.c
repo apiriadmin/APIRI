@@ -27,9 +27,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <fio.h>			/* FIO API Definitions */
 #include <fpui.h>
 #include <tod.h>
+
+bool panel_change = false;
+void signal_handler(int sig)
+{
+	panel_change = true;
+}
 
 int main(int argc, char **argv)
 {
@@ -39,6 +46,7 @@ int main(int argc, char **argv)
         unsigned char inputs[FIO_INPUT_POINTS_BYTES] = {0};
         FIO_APP_HANDLE fio_handle;
         FIO_DEV_HANDLE dev_handle;
+	struct sigaction act;
         fpui_handle fpi;
         int i, err = 0;
         int appno = 0;
@@ -88,6 +96,13 @@ int main(int argc, char **argv)
                 }
         }
 
+
+	// Install signal handler for panel change signal
+	memset(&act, 0, sizeof(act));
+	act.sa_handler = signal_handler;
+	act.sa_flags = 0;
+	sigaction(SIGWINCH, &act, NULL);
+	
         // register with FPUAPI using app name based on output point
         sprintf(appname,"atcapi_test%d", appno);
 	if ((fpi = fpui_open(O_RDWR, appname)) <= 0) {

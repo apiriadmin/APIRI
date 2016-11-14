@@ -2,20 +2,20 @@ SOURCES := tod.c
 
 LIBRARIES := 
 
-INCLUDES := ./tod.h ./atc.h
+INCLUDES := -I. -I../../include 
 
 OBJECTS := $(SOURCES:.c=.o)
 
 .c.o:
-	$(CC) -g -O -fPIC -Wall -c $<
+	$(CC) -g -O2 -fPIC -Wall $(INCLUDES) -c $<
 
 ## Targets
 TARGET := libtod.so.1.0
 
 all: $(TARGET)
 
-$(TARGET) : $(OBJECTS) $(INCLUDES)
-	$(CC) -shared -Wl,-soname,libtod.so.1 -fPIC -O -o $@ $(OBJECTS) $(LIBRARIES)
+$(TARGET) : $(OBJECTS)
+	$(CC) -shared -Wl,-soname,libtod.so.1 -fPIC -O2 $(INCLUDES) $(LIBRARIES) -o $@ $(OBJECTS)
 	ln -s $@ libtod.so.1
 	ln -s $@ libtod.so
 
