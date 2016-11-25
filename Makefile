@@ -47,6 +47,12 @@ clean_kmods := $(addsuffix /, $(all_kmods))
 $(clean_kmods):
 	find $(TOP)$@ -regex ".*\.\(o\|ko\)" -type f -delete
 
+.PHONY: api
+api: $(all_projects)
+
+.PHONY: kmods
+kmods: $(all_kmods)
+
 all: $(all_projects) $(all_kmods)
 clean: $(clean_projects) $(clean_kmods)
 
