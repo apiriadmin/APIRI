@@ -240,6 +240,15 @@ static FIOMSG_TX_FRAME frame_20_23_init =
 	.len		= FIOMAN_FRAME_NO_20_SIZE
 };
 
+/* Frame 24_27: BIU Reset/Diagnostic Request */
+static FIOMSG_TX_FRAME frame_24_27_init =
+{
+	.def_freq	= FIO_HZ_1,
+	.cur_freq	= FIO_HZ_1,
+	.resp		= true,
+	.len		= FIOMAN_FRAME_NO_24_SIZE
+};
+
 /*  Private API declaration (prototype) section.
 -----------------------------------------------------------------------------*/
 
@@ -907,10 +916,28 @@ fioman_tx_frame_55
 				FIO_BIT_CLEAR(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, 79);
 		}
 	}
-
+#ifdef NEW_WATCHDOG
+        if ((p_sys_fiod->watchdog_output >= 0)
+                && (p_sys_fiod->watchdog_rate > FIO_HZ_ONCE) 
+                && (p_tx_frame->cur_freq > FIO_HZ_ONCE)) {
+                if (p_sys_fiod->watchdog_countdown == 0) {
+                        /* toggle output */
+                        p_sys_fiod->watchdog_state = !p_sys_fiod->watchdog_state;
+                        /* refresh count */
+                        p_sys_fiod->watchdog_countdown = 
+                                fiomsg_get_hertz(p_tx_frame->cur_freq) / fiomsg_get_hertz(p_sys_fiod->watchdog_rate);
+                }
+                p_sys_fiod->watchdog_countdown--;
+                FIO_BIT_CLEAR(&FIOMSG_PAYLOAD(p_tx_frame)->frame_info[count], p_sys_fiod->watchdog_output);
+                if (p_sys_fiod->watchdog_state)
+                        FIO_BIT_SET(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, p_sys_fiod->watchdog_output);
+                else
+                        FIO_BIT_CLEAR(FIOMSG_PAYLOAD(p_tx_frame)->frame_info, p_sys_fiod->watchdog_output);
+        }
+#else
 	/* Clear the trigger condition now that the watchdog output is sent */
 	p_sys_fiod->watchdog_trigger_condition = false;
-	
+#endif
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 	pr_debug( "UPDATING Frame 55: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
 		p_tx_frame->frame[3], p_tx_frame->frame[4], p_tx_frame->frame[5],
@@ -1957,6 +1984,52 @@ fioman_ready_frame_20_23
 
 /*****************************************************************************/
 /*
+This function is used to ready request frame 24 to be placed into the
+request frame queue for transmission, for one port
+*/
+/*****************************************************************************/
+
+void *
+fioman_ready_frame_24_27
+(
+	FIOMAN_SYS_FIOD	*p_sys_fiod,		/* FIOD of destined frame */
+	u8 frame_no
+)
+{
+	FIOMSG_TX_FRAME	*p_tx;		/* Ptr of frame buffer */
+
+	/* kalloc the actual frame 24 for this port */
+	/* -1 is for the one byte of frame payload defined in FIOMSG_TX_FRAME */
+	if ( ( p_tx = (FIOMSG_TX_FRAME *)kzalloc( sizeof( FIOMSG_TX_FRAME ) - 1
+		+ FIOMAN_FRAME_NO_24_SIZE, GFP_KERNEL ) ) )
+	{
+		/* kmalloc succeeded, therefore init buffer */
+		memcpy( p_tx, &frame_24_27_init, sizeof( frame_24_27_init ) );
+		FIOMSG_PAYLOAD( p_tx )->frame_addr = 8 + (frame_no - FIOMAN_FRAME_NO_24);
+		FIOMSG_PAYLOAD( p_tx )->frame_ctrl = 0x83;
+		FIOMSG_PAYLOAD( p_tx )->frame_no = frame_no;
+
+		INIT_LIST_HEAD( &p_tx->elem );
+		p_tx->when = fiomsg_tx_frame_when(p_tx->cur_freq, true);	/* Set when to send first frame */
+		p_tx->fioman_context = (void *)p_sys_fiod;
+		p_tx->fiod = p_sys_fiod->fiod;
+		pr_debug("frame %d ready(%llu), when=%llu\n", frame_no, FIOMSG_CURRENT_TIME.tv64,
+				p_tx->when.tv64);
+                if (p_sys_fiod->frame_frequency_table[frame_no] == -1)
+                        p_sys_fiod->frame_frequency_table[frame_no] = p_tx->cur_freq;
+	}
+	else
+	{
+		/* Could not kalloc */
+		return ( ERR_PTR( -ENOMEM ) );
+	}
+
+	/* Return what we prepared */
+	return ( (void *)p_tx );
+}
+
+/*****************************************************************************/
+/*
  * Common initialization for FIOMSG_RX_FRAME type
  */
 void fioman_rx_frame_init(FIOMAN_SYS_FIOD *p_sys_fiod, FIOMSG_RX_FRAME *p_rx_frame)
@@ -2073,6 +2146,42 @@ fioman_ready_frame_148_151
 		FIOMSG_PAYLOAD( p_rx )->frame_no = frame_no;
 		p_rx->rx_func = &fioman_rx_frame_148_151;
 		p_rx->len = FIOMAN_FRAME_NO_148_SIZE;
+	}
+	else
+	{
+		/* Could not kalloc */
+		return ( ERR_PTR( -ENOMEM ) );
+	}
+
+	/* Return what we prepared */
+	return ( (void *)p_rx );
+}
+
+/*****************************************************************************/
+/*
+This function is used to ready response frame 152/155 to be placed into the
+response frame list for this fiod for this port.
+*/
+/*****************************************************************************/
+
+void *
+fioman_ready_frame_152_155
+(
+	FIOMAN_SYS_FIOD	*p_sys_fiod,		/* FIOD of destined frame */
+	u8 frame_no
+)
+{
+	FIOMSG_RX_FRAME	*p_rx;		/* Ptr of frame buffer */
+
+	/* kalloc the actual frame 152/153/154/155 for this port */
+	/* -1 is for the one byte of frame payload defined in FIOMSG_RX_FRAME */
+	if ( ( p_rx = (FIOMSG_RX_FRAME *)kzalloc( sizeof( FIOMSG_RX_FRAME ) - 1
+		  + FIOMAN_FRAME_NO_152_SIZE, GFP_KERNEL ) ) )
+	{
+		/* kmalloc succeeded, therefore init buffer */
+		fioman_rx_frame_init(p_sys_fiod, p_rx);
+		FIOMSG_PAYLOAD( p_rx )->frame_no = frame_no;
+		p_rx->len = FIOMAN_FRAME_NO_152_SIZE;
 	}
 	else
 	{

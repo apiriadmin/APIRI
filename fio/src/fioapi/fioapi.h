@@ -228,6 +228,16 @@ enum fio_ts1_vm_state
 };
 typedef enum fio_ts1_vm_state FIO_TS1_VM_STATE;
 
+#ifdef TS2_PORT1_STATE
+/* TS2 Port 1 state */
+enum fio_ts2_port1_state
+{
+        FIO_TS2_PORT1_DISABLED,
+        FIO_TS2_PORT1_ENABLED
+};
+typedef enum fio_ts2_port1_state FIO_TS2_PORT1_STATE;
+#endif
+
 enum fio_cmu_dc_mask
 {
 	FIO_CMU_DC_MASK1,

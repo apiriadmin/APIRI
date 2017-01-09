@@ -211,7 +211,7 @@ static char lkm_version[80] = "";
 char *fio_apiver( FIO_APP_HANDLE app_handle, FIO_VERSION which )
 {
 	if (which == FIO_VERSION_LIBRARY)
-		return( "APIRI, 1.1, 2.17" );
+		return( "Intelight, 2.01, 2.17" );
 	if (which == FIO_VERSION_LKM) {
 		if (ioctl( (int)app_handle, FIOMAN_IOC_VERSION_GET, lkm_version) != -1) {
 			return lkm_version;
@@ -670,7 +670,28 @@ fio_fiod_ts1_volt_monitor_set
 
 	return ( ioctl( (int)app_handle, FIOMAN_IOC_TS1_VM_SET, &ts1_vms ) );
 }
+#ifdef TS2_PORT1_STATE
+/*****************************************************************************/
+/*
+This function is used to return the state of the TS2 port1 disable pin.
+*/
+/*****************************************************************************/
 
+int
+fio_ts2_port1_state
+(
+	FIO_APP_HANDLE	app_handle,     /* FIO APP Handle from fio_register() */
+	FIO_PORT	port,           /* TS2 serial port in use */
+        FIO_TS2_PORT1_STATE *state
+)
+{
+        FIO_IOC_TS2_PORT1_STATE port1_state;
+        port1_state.port = port;
+        port1_state.state = state;
+        
+	return ( ioctl( (int)app_handle, FIOMAN_IOC_TS2_PORT1_STATE, &port1_state ) );
+}
+#endif
 /*****************************************************************************/
 /*
 This function is used to return the CMU configuration change count.
@@ -1237,7 +1258,30 @@ fio_fiod_wd_reservation_set
 
 	return ( ioctl( (int)app_handle, FIOMAN_IOC_WD_RES_SET, &request ) );
 }
+#ifdef NEW_WATCHDOG
+/*****************************************************************************/
+/*
+This function is used to set the watchdog toggle rate.
+*/
+/*****************************************************************************/
 
+int
+fio_fiod_wd_rate_set
+(
+	FIO_APP_HANDLE		app_handle,	/* FIO APP Handle from fio_register() */
+	FIO_DEV_HANDLE		dev_handle,	/* FIOD Handle fio_fiod_register() */
+	FIO_HZ		        rate		/* watchdog toggle rate enum */
+)
+{
+	FIO_IOC_FIOD_WD_RATE_SET        request;        /* IOCTL argument structure */
+
+	/* Set up IOCTL structure */
+	request.dev_handle = dev_handle;
+	request.rate = rate;
+
+	return ( ioctl( (int)app_handle, FIOMAN_IOC_WD_RATE_SET, &request ) );
+}
+#endif
 /*****************************************************************************/
 /*
 This function is used to toggle the watchdog output.

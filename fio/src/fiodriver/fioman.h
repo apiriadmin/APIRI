@@ -37,16 +37,21 @@ This file contains all definitions for the FIOMAN.
 
 /* System includes. */
 #include <linux/fs.h>
-#include	<linux/list.h>		/* List definitions */
-#include	<linux/kfifo.h>
+#include <linux/list.h>		/* List definitions */
+#include <linux/kfifo.h>
 
 /* Local includes. */
-#include	"fiodriver.h"			/* FIO Driver Definitions */
+#define LAZY_CLOSE 1
+#define FAULTMON_GPIO 1
+#define NEW_WATCHDOG 1
+#define TS2_PORT1_STATE 1
+#include "fiodriver.h"			/* FIO Driver Definitions */
 
 /*  Definition section.
 -----------------------------------------------------------------------------*/
+
 /*  Module public structure/enum definition.*/
-#include        <linux/version.h>
+#include <linux/version.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
 typedef struct kfifo *FIOMAN_FIFO;
@@ -78,6 +83,9 @@ struct fioman_priv_data
 	bool                    hm_fault;                /* Health Monitor fault/timeout indication */
         FIOMAN_FIFO             frame_notification_fifo; /* fifo of FIO_NOTIFY_INFO entries */
         bool                    transaction_in_progress; /* Buffer app_fiods outputs if true */ 
+#ifdef LAZY_CLOSE
+        struct list_head        elem;           /* Allow structure in list */
+#endif
 };
 typedef	struct	fioman_priv_data	FIOMAN_PRIV_DATA;
 
@@ -125,7 +133,12 @@ struct fioman_sys_fiod
 	u32	cmu_config_change_count;
 	int 	watchdog_output;
 	bool	watchdog_state;
+#ifdef NEW_WATCHDOG
+        FIO_HZ  watchdog_rate;
+        int     watchdog_countdown;
+#else
 	bool	watchdog_trigger_condition;
+#endif
 	u32	success_rx;					/* Cumulative count of successful responses */
 	u32	error_rx;					/* Cumulative count of response errors */
 };
@@ -165,6 +178,9 @@ struct fioman_app_fiod
 	FIO_CMU_DC_MASK		cmu_mask;
 	bool			watchdog_reservation;
 	bool			watchdog_toggle_pending;
+#ifdef NEW_WATCHDOG
+        FIO_HZ                  watchdog_rate;
+#endif
 	bool			hm_disabled;
 };
 typedef	struct	fioman_app_fiod	FIOMAN_APP_FIOD;

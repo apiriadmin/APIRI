@@ -135,6 +135,8 @@ enum fioman_iocs
 	FIOMAN_IOC_53,			/* Query if device exists on port */
         FIOMAN_IOC_54,                  /* Begin outputs set transaction */
         FIOMAN_IOC_55,                  /* Commit outputs set transaction */	
+        FIOMAN_IOC_56,                  /* Get state of TS2 port 1 disable pin */
+        FIOMAN_IOC_57,                  /* Set watchdog toggle rate */
 	FIOMAN_IOC_MAX			/* End of FIOMSG Range */
 };
 typedef	enum fioman_iocs	FIOMAN_IOCS;
@@ -416,6 +418,18 @@ typedef	struct fio_ioc_ts1_vm_get FIO_IOC_TS1_VM_GET;
 					FIO_IOCTL( FIOMAN_IOC_23 ), \
 					FIO_IOC_TS1_VM_GET )
 
+#ifdef TS2_PORT1_STATE
+struct fio_ioc_ts2_port1_state
+{
+        FIO_PORT                port;
+        FIO_TS2_PORT1_STATE     *state;
+};
+typedef struct fio_ioc_ts2_port1_state FIO_IOC_TS2_PORT1_STATE;
+
+#define FIOMAN_IOC_TS2_PORT1_STATE    _IOR( FIO_IOC_MAGIC, \
+                                                FIO_IOCTL( FIOMAN_IOC_56 ), \
+                                                FIO_IOC_TS2_PORT1_STATE )
+#endif
 
 struct	fio_ioc_fiod_frame_schd_set
 {
@@ -606,6 +620,18 @@ typedef struct fio_ioc_wd_res_set	FIO_IOC_FIOD_WD_RES_SET;
 #define FIOMAN_IOC_WD_RES_SET		_IOW( FIO_IOC_MAGIC, \
 						FIO_IOCTL( FIOMAN_IOC_43 ), \
 						FIO_IOC_FIOD_WD_RES_SET )
+#ifdef NEW_WATCHDOG
+struct fio_ioc_wd_rate_set
+{
+	FIO_DEV_HANDLE		dev_handle;	/* FIOD being requested */
+	FIO_HZ                  rate;		/* Frequency enum (toggle rate) */
+};							
+typedef struct fio_ioc_wd_rate_set	FIO_IOC_FIOD_WD_RATE_SET;
+#define FIOMAN_IOC_WD_RATE_SET		_IOW( FIO_IOC_MAGIC, \
+						FIO_IOCTL( FIOMAN_IOC_57 ), \
+						FIO_IOC_FIOD_WD_RATE_SET )                                                
+#endif
+
 #define FIOMAN_IOC_WD_HB		_IOW( FIO_IOC_MAGIC, \
 						FIO_IOCTL( FIOMAN_IOC_44 ), \
 						FIO_DEV_HANDLE )

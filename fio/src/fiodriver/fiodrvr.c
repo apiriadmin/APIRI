@@ -55,6 +55,12 @@ kernel module.
 -----------------------------------------------------------------------------*/
 /* Inlined C files */
 /*#include	"fioman.c"*/		/* FIOMAN Code */
+#ifdef FAULTMON_GPIO
+#include <linux/gpio.h>
+int faultmon_gpio = -1;
+module_param(faultmon_gpio, int, 0644);
+MODULE_PARM_DESC(faultmon_gpio, "Linux GPIO number for Fault Monitor output");
+#endif
 
 dev_t			fio_dev;		/* Major / Minor */
 struct cdev		fio_cdev;		/* character device */
@@ -130,6 +136,27 @@ fio_init( void )
 	fio_class->devnode = fio_devnode;
 	device_create(fio_class, NULL, fio_dev, NULL, "fio");
 #endif
+
+#ifdef FAULTMON_GPIO
+        if (faultmon_gpio >= 0) {
+                if (!gpio_is_valid(faultmon_gpio)) {
+                        faultmon_gpio = -1;
+                        printk( KERN_ALERT "fiodriver: fiomon_gpio not valid\n" );
+                } else {
+                        if (gpio_request(faultmon_gpio, "fiodriver") != 0) {
+                                faultmon_gpio = -1;
+                                printk( KERN_ALERT "fiodriver: fiomon_gpio request failed\n" );
+                        } else {
+                                gpio_direction_output(faultmon_gpio, 0);	/* initially OFF */
+                                if (gpio_cansleep(faultmon_gpio))
+                                        gpio_set_value_cansleep(faultmon_gpio, 0);
+                                else
+                                        gpio_set_value(faultmon_gpio, 0);
+                                printk( KERN_ALERT "fiodriver: using fiomon_gpio %d\n", faultmon_gpio);
+                        }
+                }
+	}
+#endif
 	/* DRIVER IS LIVE */
 
 	printk( KERN_ALERT "FIO Driver Loaded\n" );
@@ -154,6 +181,11 @@ This function cleans up the FIO Driver Module for unloading
 static void __exit
 fio_exit( void )
 {
+#ifdef FAULTMON_GPIO
+        if (faultmon_gpio >= 0) {
+                gpio_free(faultmon_gpio);
+        }
+#endif
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31)
 	device_destroy(fio_class, fio_dev);
 	class_destroy(fio_class);
@@ -255,6 +287,6 @@ $Log$
 /*****************************************************************************/
 MODULE_AUTHOR( "Thomas E. Gauger tgauger@vanteon.com" );
 MODULE_DESCRIPTION( "FIO API Module for ATC" );
-MODULE_VERSION( "01.00" );
+MODULE_VERSION( "02.01" );
 MODULE_LICENSE("GPL");
 
