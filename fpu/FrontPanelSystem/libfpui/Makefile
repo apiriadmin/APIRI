@@ -15,9 +15,9 @@ TARGET := libfpui.so.1.0
 all: $(TARGET)
 
 $(TARGET) : $(OBJECTS) $(INCLUDES)
-	$(CC) -shared -Wl,-soname,libfpui.so.1 -fPIC -O -o $@ $(OBJECTS) $(LIBRARIES)
-	ln -s $@ libfpui.so.1
-	ln -s $@ libfpui.so
+	$(CC) -shared -Wl,-soname,libfpui.so.1.0 -fPIC -O -o $@ $(OBJECTS) $(LIBRARIES)
+	ln -sf $@ libfpui.so.1
+	ln -sf $@ libfpui.so
 
 install:
 	cp $(TARGET) $(HOME)/bin

@@ -15,9 +15,9 @@ TARGET := libfio.so.1.0
 all: $(TARGET)
 
 $(TARGET) : $(OBJECTS) $(INCLUDES)
-	$(CC) -shared -Wl,-soname,libfio.so.1 -fPIC -O2 -o $@ $(OBJECTS) $(LIBRARIES)
-	ln -s $@ libfio.so.1
-	ln -s $@ libfio.so
+	$(CC) -shared -Wl,-soname,libfio.so.1.0 -fPIC -O2 -o $@ $(OBJECTS) $(LIBRARIES)
+	ln -sf $@ libfio.so.1
+	ln -sf $@ libfio.so
 
 install:
 	cp $(TARGET) $(HOME)/bin
