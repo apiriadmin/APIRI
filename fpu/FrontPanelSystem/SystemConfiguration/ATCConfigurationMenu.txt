@@ -6,11 +6,3 @@ Linux Info,/usr/bin/atc_sc_4
 API Info,/usr/bin/atc_sc_5
 Host EEPROM Info,/usr/bin/atc_sc_6
 Time Source Config,/usr/bin/atc_sc_7
-SCTestApp9,SCTestApp
-SCTestApp10,SCTestApp
-SCTestApp11,SCTestApp
-SCTestApp12,SCTestApp
-SCTestApp13,SCTestApp
-SCTestApp14,SCTestApp
-SCTestApp15,SCTestApp
-SCTestApp16,SCTestApp
