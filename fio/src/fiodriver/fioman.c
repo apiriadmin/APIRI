@@ -40,6 +40,7 @@ TEG - NO LOCKING IS IN PLACE.  THIS IS NOT AN ISSUE FOR INITIAL DEVELOPMENT
 #include	<linux/slab.h>		/* Memory Definitions */
 #include	<linux/time.h>
 #include	<linux/kfifo.h>
+#include	<linux/sched.h>
 #include	<asm/uaccess.h>		/* User Space Access Definitions */
 #include        <linux/termios.h>
 

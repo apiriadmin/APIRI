@@ -39,6 +39,8 @@ TEG - NO LOCKING IS IN PLACE.  THIS IS NOT AN ISSUE FOR INITIAL DEVELOPMENT
 /* System includes. */
 #include	<linux/fs.h>		/* File System Definitions */
 #include	<linux/poll.h>
+#include	<linux/signal.h>
+#include	<linux/sched.h>
 #include	"atc_spxs.h"
 
 /* Local includes. */
