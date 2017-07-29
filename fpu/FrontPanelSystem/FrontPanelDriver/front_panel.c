@@ -48,7 +48,7 @@
 //#define CONFIG_FP_PROC_FS
 // #define CONFIG_FP_DEV_FS
 
-#define FP_VERSION_STR "APIRI, 1.1, 2.17"
+#define FP_VERSION_STR "Intelight, 2.01, 2.17"
 
 
 

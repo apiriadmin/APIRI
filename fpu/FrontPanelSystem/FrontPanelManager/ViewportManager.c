@@ -134,21 +134,22 @@ int screen_XX = 40;
 bool check_screen_size( int fd )
 {
 	int i, t, row, col;
-
+	char panel_type;
+	
 	struct pollfd ufds;
 	ufds.fd      = fd;
 	ufds.events  = POLLIN;
 	ufds.revents = 0;
 
 	// Set Default values
-	screen_YY = 8;
+	screen_YY = 16;
 	screen_XX = 40;
 
 	// to determine the screen size, one idea is to set the cursor position
 	// to a position that is off the screen,
 	// and to read back the cursor position which should be at the bottom row of the screen
 	const int numScreenSizes = 4;
-	const int screenSizes[4][2] = {{80, 40}, {40, 16}, {40, 8}, {40, 4}};
+	const int screenSizes[4][2] = {{80, 24}, {40, 16}, {40, 8}, {40, 4}};
 	char outbuf[40], inbuf[40];
 	for (t = 0; t < numScreenSizes; t++) 
 	{
@@ -181,6 +182,35 @@ bool check_screen_size( int fd )
 			screen_XX = col;
 			DBG("screen size detected %d %d\n", row, col);
 			break;
+		}
+	}
+	if (t == numScreenSizes) {
+		// failed to obtain screen size using traditional method
+		sprintf(outbuf, "%c[c", CHAR_ESC);
+		write(fd, outbuf, strlen(outbuf));
+		if(poll( &ufds, 1, 200) == 1) {
+			// read panel type
+			if (((i = read(fd, inbuf, 1)) == 1)
+				&& (inbuf[0] == CHAR_ESC)) {
+				if ((parse_escape_seq(fd, inbuf, sizeof(inbuf)) != FP_TYPE)
+					|| (sscanf(inbuf, ESC "[%cR", &panel_type) != 1))
+					return false;
+				switch (panel_type) {
+				case 'A':
+					screen_YY = 4;
+					break;
+				case 'B':
+					screen_YY = 8;
+					break;
+				case 'D':
+					screen_YY =16;
+					break;
+				default: return false;
+				}
+				screen_XX = 40;
+			}
+		} else {
+			return false;
 		}
 	}
 	DBG( "%s: i=%d, screen_YY=%d, screen_XX=%d\n", __func__, i, screen_YY, screen_XX );
