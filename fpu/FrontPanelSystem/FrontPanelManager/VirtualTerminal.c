@@ -207,7 +207,7 @@ static struct command_table_s {
 	{ "^" ESC "[[]Bn",		REGEX_INIT, 0, inquiry,         INQUIRE_ATTRIBUTES },
 	{ "^" ESC "[[]An",		REGEX_INIT, 0, inquiry,         INQUIRE_AUX },
 	{ "^" ESC "[[]hn",		REGEX_INIT, 0, inquiry,         INQUIRE_HEATER },
-	{ "^" ESC "[[]c",		REGEX_INIT, 0, inquiry,         INQUIRE_TYPE },
+	{ "^" ESC "[[]c",		REGEX_INIT, 0, other,           INQUIRE_TYPE },
 	{ "^" ESC "[[]Fn",		REGEX_INIT, 0, other,           INQUIRE_FOCUS },
 	{ "^" ESC "[[]5n",		REGEX_INIT, 0, other,           PANEL_PRESENT },
 };
@@ -836,14 +836,6 @@ void inquiry( display_t *disp, int type, int args[] )
 		case INQUIRE_HEATER:
 			DBG( "%s(%d): [HEATER] \n", __func__, term );
 			break;
-		case INQUIRE_TYPE: {
-			char screen_type = 'B';
-			get_screen_type(&screen_type);
-			DBG( "%s(%d): [TYPE %c]\n", __func__, term, screen_type );
-			sprintf( buf, "\x1b[%cR", screen_type );
-			routing_return( term, buf, NULL );
-			break;
-		}
 	}
 }
 
@@ -869,6 +861,14 @@ void other( display_t *disp, int type, int args[] )
                         routing_return( term, buf, buf );
                         }
                         break;
+		case INQUIRE_TYPE: {
+			char screen_type = 'B';
+			get_screen_type(&screen_type);
+			DBG( "%s(%d): [TYPE %c]\n", __func__, term, screen_type );
+			sprintf( buf, "\x1b[%cR", screen_type );
+			routing_return( term, buf, buf );
+			break;
+		}
 	}
 }
 
