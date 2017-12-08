@@ -7,7 +7,7 @@ INCLUDES :=
 OBJECTS := $(SOURCES:.c=.o)
 
 .c.o:
-	$(CC) -g -O2 -fPIC -Wall -c $<
+	$(CC) $(EXTRA_CFLAGS) -g -O2 -fPIC -Wall -c $<
 
 ## Targets
 TARGET := libfio.so.1.0
@@ -15,7 +15,7 @@ TARGET := libfio.so.1.0
 all: $(TARGET)
 
 $(TARGET) : $(OBJECTS) $(INCLUDES)
-	$(CC) -shared -Wl,-soname,libfio.so.1.0 -fPIC -O2 -o $@ $(OBJECTS) $(LIBRARIES)
+	$(CC) $(EXTRA_CFLAGS) -shared -Wl,-soname,libfio.so.1.0 -fPIC -O2 -o $@ $(OBJECTS) $(LIBRARIES)
 	ln -sf $@ libfio.so.1
 	ln -sf $@ libfio.so
 
