@@ -1290,6 +1290,7 @@ fpui_set_cursor(display_data.file_descr, false);
 		case ETH_IPADDR_LINE:
 		case ETH_NETMASK_LINE:
 		case ETH_GWADDR_LINE:
+		case ETH_NSADDR_LINE:
 			for (i=0; i<4; i++) {
 				pCrt_field = &pCrt_line->fields[1 + (2*i)];
 				if ((pCrt_field->type == kModified) || (pCrt_field->type == kModified2)) {
@@ -1312,6 +1313,7 @@ fpui_set_cursor(display_data.file_descr, false);
 				"{print \"\t\" \"address %d.%d.%d.%d\";"
 				"print \"\t\" \"netmask %d.%d.%d.%d\";"
 				"%s"
+				"print \"\t\" \"up dns_nameservers_up %d.%d.%d.%d\";"
 				"print \"\";}"
 				"else{if($1==\"iface\"||$1==\"auto\")"
 				"{iface=0;print $0}else{if(!iface){print $0}}};next;}' /etc/network/interfaces >/tmp/ifs",
@@ -1324,7 +1326,12 @@ fpui_set_cursor(display_data.file_descr, false);
 				pCrt_screen->screen_lines[ETH_NETMASK_LINE].fields[ETH_NETMASK2_FIELD].internal_data,
 				pCrt_screen->screen_lines[ETH_NETMASK_LINE].fields[ETH_NETMASK3_FIELD].internal_data,
 				pCrt_screen->screen_lines[ETH_NETMASK_LINE].fields[ETH_NETMASK4_FIELD].internal_data,
-				gwstr );
+				gwstr,
+				pCrt_screen->screen_lines[ETH_NSADDR_LINE].fields[ETH_NSADDR1_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_NSADDR_LINE].fields[ETH_NSADDR2_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_NSADDR_LINE].fields[ETH_NSADDR3_FIELD].internal_data,
+				pCrt_screen->screen_lines[ETH_NSADDR_LINE].fields[ETH_NSADDR4_FIELD].internal_data
+				 );
 			eth_if_changed = true;
 			break;
 #else
@@ -1391,7 +1398,7 @@ fpui_set_cursor(display_data.file_descr, false);
 				}
 			}
 			break;
-#endif
+
 		case ETH_NSADDR_LINE:
 			for (i=0; i<4; i++) {
 				pCrt_field = &pCrt_line->fields[ETH_NSADDR1_FIELD + (2*i)];
@@ -1412,6 +1419,7 @@ fpui_set_cursor(display_data.file_descr, false);
 				}
 			}
 			break;
+#endif
 		case ETH_HOSTNAME_LINE:
 		{
 			char hostname[ETH_HOSTNAME_FIELDS + 1];
