@@ -60,7 +60,6 @@ void print_usage()
 	printf("Usage: fpuiexec [OPTIONS] program\n");
 	printf("  -n name                   application name for FrontPanelManager\n");
 	printf("  -p file                   process id file\n");
-	printf("  -d sec                    delay time in sec before starting program\n");
 	printf("  -r                        restart program if it exits\n");
 	printf("\n");
 }
@@ -72,10 +71,8 @@ int main( int argc, char * argv[] )
 	int restart=0;
 	char name[50];
 	char pid_buffer[50];
-	char delay_buffer[50];
 	char* program = 0;
 	FILE* pid_file_handle = 0;
-	long int delay;
 	char* end;
 
 	signal(SIGINT, signal_handler);
@@ -83,17 +80,15 @@ int main( int argc, char * argv[] )
 
 	name[0]=0;
 	pid_file[0]=0;
-	delay_buffer[0]=0;
 	sprintf(pid_buffer, "%d\n", getpid());
 
-	while ((opt = getopt(argc, argv, "rn:p:d:")) != -1) 
+	while ((opt = getopt(argc, argv, "rn:p:")) != -1) 
 	{
 		switch (opt) 
 		{
 			case 'r': restart=1; break;
 			case 'n': strcpy(name, optarg); break;	
-			case 'p': strcpy(pid_file, optarg); break;
-			case 'd': strcpy(delay_buffer, optarg); break;		
+			case 'p': strcpy(pid_file, optarg); break;	
 			default:
 				print_usage();
 				exit(EXIT_FAILURE);
@@ -118,12 +113,6 @@ int main( int argc, char * argv[] )
 			fwrite(pid_buffer, 1, strlen(pid_buffer), pid_file_handle);
 			fclose(pid_file_handle);
 		}
-	}
-
-	if(delay_buffer[0] != 0)
-	{
-		delay = strtol(delay_buffer,&end,10);
-		sleep(delay);
 	}
 	
 	fpi = fpui_open( O_RDWR, name);
