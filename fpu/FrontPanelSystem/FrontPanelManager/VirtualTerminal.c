@@ -493,7 +493,7 @@ int find_next_tab( display_t * disp )
 //
 void move_lines( display_t * disp, int src, int dest, int lines )
 {
-	int len = disp->screen.columns * sizeof( disp->terminal[0][0] );
+	int len = sizeof( disp->terminal[0] );
 	memmove( &disp->terminal[dest][0], &disp->terminal[src][0], len * lines );
 }
 
