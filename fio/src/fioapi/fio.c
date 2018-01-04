@@ -957,8 +957,7 @@ int fio_fiod_frame_read
 	unsigned int   rx_frame,
 	unsigned int   *seq_number,
 	unsigned char  *buf,
-	unsigned int   count,
-        unsigned int   timeout
+	unsigned int   count
 )
 {
 	FIO_IOC_FIOD_FRAME_READ request; /* IOCTL argument structure */
@@ -969,7 +968,7 @@ int fio_fiod_frame_read
         request.seq_number = seq_number;
         request.buf = buf;
         request.count = count;
-        request.timeout = timeout;
+        request.timeout = 0;
 
         return ( ioctl( (int)app_handle, FIOMAN_IOC_FIOD_FRAME_READ, &request ) );
 }

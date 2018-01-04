@@ -237,8 +237,7 @@ extern int fio_fiod_frame_read( FIO_APP_HANDLE fh,
                                 unsigned int rx_frame,
                                 unsigned int *seq_number,
                                 unsigned char *buf,
-                                unsigned int count,
-                                unsigned int timeout);
+                                unsigned int count);
                                 
 extern int fio_fiod_frame_size( FIO_APP_HANDLE,
                                 FIO_DEV_HANDLE,
