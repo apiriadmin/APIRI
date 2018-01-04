@@ -2591,9 +2591,11 @@ fioman_ts_fault_monitor_set
 	}
 
 	p_sys_fiod = p_app_fiod->p_sys_fiod;
-	if (p_arg->fms == FIO_TS_FM_ON)
-		p_sys_fiod->fm_state = p_app_fiod->fm_state = FIO_TS_FM_ON;
-	else if (p_arg->fms == FIO_TS_FM_OFF)
+	if (p_arg->fms == FIO_TS_FM_ON) {
+		p_app_fiod->fm_state = FIO_TS_FM_ON;
+                // make sure no other registered app has state FIO_TS_FM_OFF
+                p_sys_fiod->fm_state = FIO_TS_FM_ON;
+	} else if (p_arg->fms == FIO_TS_FM_OFF)
 		p_sys_fiod->fm_state = p_app_fiod->fm_state = FIO_TS_FM_OFF;
 	else
 		return (-EINVAL);
@@ -3457,7 +3459,7 @@ int fioman_ts1_volt_monitor_set
 		return ( -EINVAL );
 	}
 
-	if (p_app_fiod->fiod.fiod != FIOTS1) {
+	if ((p_app_fiod->fiod.fiod != FIOTS1) && (p_app_fiod->fiod.fiod != FIOTS2)) {
 		return (-EINVAL);
 	}
 
@@ -3491,7 +3493,7 @@ int fioman_ts1_volt_monitor_get
 		return ( -EINVAL );
 	}
 
-	if (p_app_fiod->fiod.fiod != FIOTS1) {
+	if ((p_app_fiod->fiod.fiod != FIOTS1) && (p_app_fiod->fiod.fiod != FIOTS2)) {
 		return (-EINVAL);
 	}
 	if (p_arg->vms == NULL)
