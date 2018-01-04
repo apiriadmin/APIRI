@@ -2,6 +2,7 @@
 all:
 
 CPPFLAGS += -Os
+LDFLAGS += -lutil
 
 %.o: %.c
 	$(COMPILE.c) -I../libfpui/ -o '$@' '$<'

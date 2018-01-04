@@ -20,138 +20,156 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with the APIRI.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <pty.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <signal.h>
-#include <string.h>
-#include <errno.h>
+#include <termios.h>
+#include <sys/select.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <fpui.h>
+#include <signal.h>
 
-volatile sig_atomic_t sig_flag = 0;
-static char pid_file[100];
 static pid_t child_pid = 0;
+static int restart = 0;
 
-void clean_up()
-{
-	if(child_pid != 0)
-	{
+void exit_handler(int sig) {
+	restart = 0;
+	if(child_pid != 0) {
 		kill(child_pid, SIGTERM);
 		child_pid=0;
 	}
-	if(strlen(pid_file) > 0)
-	{
-		remove(pid_file);
-	}
 }
 
-void signal_handler(int sig)
-{
-	clean_up();
-	exit(EXIT_FAILURE);
-}
-
-void print_usage()
-{
+void print_usage() {
 	printf("Usage: fpuiexec [OPTIONS] program\n");
-	printf("  -n name                   application name for FrontPanelManager\n");
-	printf("  -p file                   process id file\n");
-	printf("  -r                        restart program if it exits\n");
+	printf("  -n name             application name for FrontPanelManager\n");
+	printf("  -p file             process id file\n");
+	printf("  -r                  restart program if it exits\n");
 	printf("\n");
 }
 
-int main( int argc, char * argv[] )
+int main(int argc, char *argv[])
 {
-	int opt;
-	int fpi;
-	int restart=0;
-	char name[50];
-	char pid_buffer[50];
-	char* program = 0;
-	FILE* pid_file_handle = 0;
-	char* end;
+	int i;
+	int slave = 0;
+	int program_start_arg = 0;
+	char* name = "app";
+	char* pid_file = 0;
 
-	signal(SIGINT, signal_handler);
-	signal(SIGTERM, signal_handler);
+	signal(SIGINT, exit_handler);
+	signal(SIGTERM, exit_handler);
 
-	name[0]=0;
-	pid_file[0]=0;
-	sprintf(pid_buffer, "%d\n", getpid());
-
-	while ((opt = getopt(argc, argv, "rn:p:")) != -1) 
-	{
-		switch (opt) 
-		{
-			case 'r': restart=1; break;
-			case 'n': strcpy(name, optarg); break;	
-			case 'p': strcpy(pid_file, optarg); break;	
-			default:
-				print_usage();
-				exit(EXIT_FAILURE);
-		}
- 	}
-
-	if(optind < argc) 
-	{
-		program=argv[optind];
-	} 
-	else 
-	{
-		print_usage();
-		exit(EXIT_FAILURE);
+	for(i = 0; i < argc; i++) {
+		if (!strcmp(argv[i], "-n")) {
+        	name = argv[++i];
+			program_start_arg = i+1;
+        }
+		else if (!strcmp(argv[i], "-p")) {
+        	pid_file = argv[++i];
+			program_start_arg = i+1;
+        }
+		else if (!strcmp(argv[i], "-r")) {
+        	restart = 1;
+			program_start_arg = i+1;
+        }
+		else if (!strcmp(argv[i], "-h")) {
+			print_usage();
+			exit(0);
+        }
 	}
 
-	if(strlen(pid_file) > 0)
-	{
-		pid_file_handle = fopen(pid_file, "w");
-		if(pid_file_handle)
-		{
-			fwrite(pid_buffer, 1, strlen(pid_buffer), pid_file_handle);
+	if(program_start_arg == 0) {
+		fprintf(stderr, "child process not specified\n");
+		print_usage();
+		exit(-1);
+	} 
+
+	slave = fpui_open( O_RDWR, name);
+	if( slave <= 0 ) {
+		perror("open /dev/fpi failed");
+		exit(-1);
+	}
+
+	if(pid_file != 0) {
+		FILE* pid_file_handle = fopen(pid_file, "w");
+		if(pid_file_handle) {
+			fprintf(pid_file_handle, "%d\n", getpid());
 			fclose(pid_file_handle);
 		}
 	}
-	
-	fpi = fpui_open( O_RDWR, name);
-	if( fpi <= 0 ) 
-	{
-		fprintf( stderr, "open /dev/fpi failed (%s)\n", strerror( errno ) );
-		exit( 1 );
+
+	do {
+
+	struct winsize winp = {16, 40, 240, 128};
+	int master;
+	child_pid = forkpty(&master, NULL, NULL, &winp);    // opentty + login_tty + fork
+
+	if (child_pid < 0) {
+		return 1; // fork with pseudo terminal failed
 	}
-	
-	do
-	{
-		child_pid = fork();
-		if (child_pid == 0) 
-		{
-			// Child process
-			// Redirect standard input
-			close(STDIN_FILENO);
-			dup2(fpi, STDIN_FILENO);
 
-			// Redirect standard output
-			close(STDOUT_FILENO);
-			dup2(fpi, STDOUT_FILENO);
+	else if (child_pid == 0) {   // child
+		execvp(argv[program_start_arg], &argv[program_start_arg]);
+	}
 
-			// Redirect standard error
-			close(STDERR_FILENO);
-			dup2(fpi, STDERR_FILENO);
+	else {   // parent
+		char buf[1024];
+		int escapeCounter = 0;
+		struct termios tios;
+		tcgetattr(master, &tios);
+		tios.c_lflag &= ~(ECHO | ECHONL);
+		tcsetattr(master, TCSAFLUSH, &tios);
 
-			execvp(program, &argv[2]);
+		for(;;) {
+			fd_set read_fd, write_fd, err_fd;
+
+			FD_ZERO(&read_fd);
+			FD_ZERO(&write_fd);
+			FD_ZERO(&err_fd);
+			FD_SET(master, &read_fd);
+			FD_SET(slave, &read_fd);
+
+			select(master+1, &read_fd, &write_fd, &err_fd, NULL);
+
+			if (FD_ISSET(master, &read_fd))
+			{
+				char ch;
+				int c = read(master, buf, 1024); // read from program
+				if (c > 0)
+					write(slave, buf, c);    // write to fpi
+				else if (c == -1)
+					break; // exit when end of communication channel with program
+			}
+
+			if (FD_ISSET(slave, &read_fd))
+			{
+				char ch;
+				int c=read(slave, &ch, 1);   // read from fpi
+				if(ch == '\x1b') {
+					escapeCounter = 3;
+				} else if (escapeCounter == 1 && ch == 'S') {
+					// convert fpui esc key "ESC O S" to standard linux tty
+					ch = '\x1b';
+					write(master, &ch, 1);
+				} else if (escapeCounter == 0) {
+					if(ch >= '\x80' && ch <= '\x83') {
+						// convert fpui arrow keys into standard linux tty
+						char arrow[3];
+						arrow[0] = '\x1b';
+						arrow[1] = '[';
+						arrow[2] = ch - '\x80' + 'A';
+						write(master, &arrow, 3);
+					} else {
+						write(master, &ch, 1); // write to program
+					}
+				}
+				if(escapeCounter > 0) {
+					escapeCounter--;
+				}
+			}
 		}
-		else if(child_pid > 0)
-		{
-			int childExitStatus;
-			pid_t ws = waitpid( child_pid, &childExitStatus, 0);
-			child_pid=0;
-		}
+	}
 	} while(restart);
-	
-	fpui_close(fpi);
-	clean_up();
 	return 0;
 }
-	
