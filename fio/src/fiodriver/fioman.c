@@ -3148,8 +3148,16 @@ int fioman_fiod_frame_read
                                 if (ret == 0)
                                         return -ETIMEDOUT;
                         }
+#ifdef OLD_FRAME_READ
+			/* Copy frame addr+ctrl+frameno+frameinfo */
+			count = (p_rx_frame->len < p_arg->count) ? p_rx_frame->len : p_arg->count;
+			if (copy_to_user(p_arg->buf, FIOMSG_PAYLOAD( p_rx_frame )->frame_info,
+					count )) {
+#else
+			/* Copy frameno+frameinfo */
                         count = ((p_rx_frame->len - 2) < p_arg->count) ? (p_rx_frame->len - 2) : p_arg->count;
                         if (copy_to_user(p_arg->buf, &FIOMSG_PAYLOAD(p_rx_frame)->frame_no, count )) {
+#endif
                                 /* Could not copy for some reason */
                                 return ( -EFAULT );
                         }
