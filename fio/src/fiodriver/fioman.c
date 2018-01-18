@@ -218,7 +218,7 @@ fioman_do_disable_fiod
 	fiomsg_port_disable( &p_app_fiod->fiod );
 
 	/* If comm has now been disabled */
-	if ( 0 == fiomsg_port_comm_status( &p_app_fiod->fiod ) )
+	if ( 0 == fiomsg_port_comm_status( p_app_fiod->fiod.port ) )
 	{
 		FIO_IOC_FIOD	fiod;	/* Tmp FIOD for clean up */
 
@@ -1461,7 +1461,7 @@ fioman_enable_fiod
 	}
 
 	/* See if comm is already enabled to port */
-	if ( 0 > ( result = fiomsg_port_comm_status( &p_app_fiod->fiod ) ) )
+	if ( 0 > ( result = fiomsg_port_comm_status( p_app_fiod->fiod.port ) ) )
 	{
 		/* Error with this port */
 		return ( result );
@@ -3527,7 +3527,7 @@ int fioman_ts2_port1_state
         
         /* Make sure serial port is opened */
         pr_debug("fioman_ts2_port1_state: check if port %d is open\n", port); 
-	if (p_port->port_opened) {
+	if (fiomsg_port_comm_status(port) > 0) {
                 pr_debug("fioman_ts2_port1_state: port %d is open\n", port); 
 		p_port = &fio_port_table[port];
                 /* get modem pin status from port */

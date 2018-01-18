@@ -880,13 +880,13 @@ port.
 int
 fiomsg_port_comm_status
 (
-	FIO_IOC_FIOD	*p_fiod		/* FIOD being looked at */
+	FIO_PORT	port		/* port being looked at */
 )
 {
 	FIOMSG_PORT		*p_port;	/* Port on which to enable FIOD */
 
 	/* Get the port */
-	p_port = FIOMSG_P_PORT( p_fiod->port );
+	p_port = FIOMSG_P_PORT( port );
 
 	/* Return number of APPS that have enabled comm */
 	return ( p_port->comm_enabled );

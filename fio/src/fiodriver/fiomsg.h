@@ -249,7 +249,7 @@ void fiomsg_exit( void );
 void fiomsg_tx_remove_fiod( FIO_IOC_FIOD* );
 void fiomsg_rx_remove_fiod( FIO_IOC_FIOD* );
 void fiomsg_port_disable( FIO_IOC_FIOD* );
-int fiomsg_port_comm_status( FIO_IOC_FIOD* );
+int fiomsg_port_comm_status( FIO_PORT );
 int fiomsg_port_enable( FIOMSG_PORT* );
 void fiomsg_tx_add_frame( FIOMSG_PORT*,	FIOMSG_TX_FRAME*);
 void fiomsg_rx_add_frame( FIOMSG_PORT*, FIOMSG_RX_FRAME*);
