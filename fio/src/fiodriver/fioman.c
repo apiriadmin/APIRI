@@ -1211,7 +1211,8 @@ fioman_reg_fiod
 	struct list_head	tx_frames;		/* List of TX frames to add */
 	struct list_head	rx_frames;		/* List of RX frames to add */
 	int			result;			/* Result of FIOMSG enable */
-	bool			sys_present;	/* Is FIOMAN Combo present */
+	bool                    any_present = false;    /* Any fiod on same port? */
+	bool                    fiod_present = false;   /* Same fiod on same port? */
 	int i = 0;
 
 	/* Set up our private data */
@@ -1242,8 +1243,10 @@ fioman_reg_fiod
 
 		/* Check if fiod on same port */
 		if (fiod->port == p_sys_fiod->fiod.port) {
+			any_present = true;
 			if (fiod->fiod == p_sys_fiod->fiod.fiod) {
 				/* already exists -- don't re-add */
+				fiod_present = true;
 				break;
 			}
 			/* Check for conflicts */
@@ -1262,8 +1265,8 @@ fioman_reg_fiod
 		return ( (FIO_DEV_HANDLE)( -ENOMEM ) );
 	}
 
-	/* See if we found this FIOMAN FIOD / Port Combination, in global list */
-	if ( NULL == p_sys_fiod )
+	/* Add this FIOD / Port to FIOMAN List, if not already present */
+	if ( fiod_present == false )
 	{
 		if ( ! ( p_sys_fiod = (FIOMAN_SYS_FIOD *)kzalloc( sizeof( FIOMAN_SYS_FIOD ),
 									GFP_KERNEL ) ) )
@@ -1274,16 +1277,6 @@ fioman_reg_fiod
 			return ( (FIO_DEV_HANDLE)( -ENOMEM ) );
 		}
 
-		sys_present = false;
-	}
-	else
-	{
-		sys_present = true;
-	}
-
-	/* Add this FIOD / Port to FIOMAN List, if not already present */
-	if ( ! sys_present )
-	{
 		/* New FIOD / Port combination for FIOMAN */
 		INIT_LIST_HEAD( &p_sys_fiod->elem );
 		INIT_LIST_HEAD( &p_sys_fiod->app_fiod_list );
@@ -1309,19 +1302,20 @@ fioman_reg_fiod
 			p_sys_fiod->frame_frequency_table[i] = -1;
 		}
 
-#if 1
-	/* Prepare lists of frames to add */
-	INIT_LIST_HEAD( &tx_frames );
-	INIT_LIST_HEAD( &rx_frames );
+		/* Prepare lists of frames to add */
+		INIT_LIST_HEAD( &tx_frames );
+		INIT_LIST_HEAD( &rx_frames );
 
-		/* We must add port specific TX frames first */
-		if ( 0 > ( result = fioman_add_def_port_frames( p_sys_fiod, &tx_frames, &rx_frames ) ) )
-		{
-			/* Clean up lists that may have been built */
-			fioman_free_frames( &tx_frames, &rx_frames );
-
-			/* Error adding frames */
-			return ( result );
+		/* If this is first fiod on this port */
+		if (any_present == false) {
+			/* We must add port specific TX frames first */
+			if ( 0 > ( result = fioman_add_def_port_frames( p_sys_fiod, &tx_frames, &rx_frames ) ) )
+			{
+				/* Clean up lists that may have been built */
+				fioman_free_frames( &tx_frames, &rx_frames );
+				/* Error adding frames */
+				return ( result );
+			}
 		}
 
 		/* Add request frames for this FIOD on this PORT */
@@ -1334,15 +1328,15 @@ fioman_reg_fiod
 			return ( result );
 		}
 
-	/* Add built list to TX & RX queues */
-	fioman_add_frames( &p_sys_fiod->fiod, &tx_frames, &rx_frames );
+		/* Add built list to TX & RX queues */
+		fioman_add_frames( &p_sys_fiod->fiod, &tx_frames, &rx_frames );
 
-#endif //JMG add frame lists at first reg
 
                 for(i=0; i<(FIO_INPUT_POINTS_BYTES * 8); i++) {
                         p_sys_fiod->input_filters_leading[i] = FIO_FILTER_DEFAULT;
                         p_sys_fiod->input_filters_trailing[i] = FIO_FILTER_DEFAULT;
                 }
+
 		list_add_tail( &p_sys_fiod->elem, &fioman_fiod_list );
 	}
 	else
