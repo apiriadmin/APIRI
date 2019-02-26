@@ -36,7 +36,7 @@ FIOFRAME Code Module.
 #include	<linux/err.h>
 #include	<linux/slab.h>		/* Memory Definitions */
 #include	<linux/time.h>
-#include	<asm/uaccess.h>		/* User Space Access Definitions */
+#include	<linux/uaccess.h>		/* User Space Access Definitions */
 #include        <linux/version.h>
 /* Local includes. */
 #include	"fiomsg.h"
@@ -2015,8 +2015,8 @@ fioman_ready_frame_24_27
 		p_tx->when = fiomsg_tx_frame_when(p_tx->cur_freq, true);	/* Set when to send first frame */
 		p_tx->fioman_context = (void *)p_sys_fiod;
 		p_tx->fiod = p_sys_fiod->fiod;
-		pr_debug("frame %d ready(%llu), when=%llu\n", frame_no, FIOMSG_CURRENT_TIME.tv64,
-				p_tx->when.tv64);
+		pr_debug("frame %d ready(%llu), when=%llu\n", frame_no, FIOMSG_CURRENT_TIME,
+				p_tx->when);
                 if (p_sys_fiod->frame_frequency_table[frame_no] == -1)
                         p_sys_fiod->frame_frequency_table[frame_no] = p_tx->cur_freq;
 	}

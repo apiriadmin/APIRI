@@ -3014,15 +3014,15 @@ fioman_fiod_status_get
 		p_rx_frame = list_entry( p_elem, FIOMSG_RX_FRAME, elem );
 
 		/* Update fiod cummulative totals */
-		if (success_rx < (424294967295L - p_rx_frame->info.success_rx))
+		if (success_rx < (4294967295U - p_rx_frame->info.success_rx))
 			success_rx += p_rx_frame->info.success_rx;
 		else
-			success_rx = 424294967295L;
+			success_rx = 4294967295U;
 			
-		if (error_rx < (424294967295L - p_rx_frame->info.error_rx))
+		if (error_rx < (4294967295U - p_rx_frame->info.error_rx))
 			error_rx += p_rx_frame->info.error_rx;
 		else
-			error_rx = 424294967295L;
+			error_rx = 4294967295U;
 		
 		/* Update corresponding frame info in response */
 		index = FIOMSG_PAYLOAD( p_rx_frame )->frame_no - 128;
@@ -4299,9 +4299,9 @@ void hm_timeout(struct work_struct *work)
 This function is the health monitor service timeout handler.
 */
 /*****************************************************************************/
-void hm_timer_alarm( unsigned long arg )
+void hm_timer_alarm(struct timer_list *t)
 {
-	FIOMAN_PRIV_DATA 	*p_priv = (FIOMAN_PRIV_DATA *)arg;	/* Access Apps data */
+	FIOMAN_PRIV_DATA *p_priv = from_timer(p_priv, t, hm_timer); /* Access Apps data */
 	
 	/* app hm timer has expired */
 	p_priv->hm_fault = true;
@@ -4386,7 +4386,7 @@ fioman_hm_heartbeat
 	if (p_priv->hm_timeout == 0)
                 return -EACCES;        /* not registered for hb service */
                 
-		mod_timer(&p_priv->hm_timer,
+	mod_timer(&p_priv->hm_timer,
 			jiffies + msecs_to_jiffies(p_priv->hm_timeout*100));
         pr_debug("fioman_hm_heartbeat: app %p mod_timer now=%ld expire=%ld\n", p_priv, jiffies, msecs_to_jiffies(p_priv->hm_timeout*100));
 
@@ -4511,9 +4511,7 @@ fioman_open
 	INIT_LIST_HEAD( &p_priv->fiod_list );
 	
 	/* Initialize hm timer for this app */
-        init_timer(&p_priv->hm_timer);
-	p_priv->hm_timer.function = hm_timer_alarm;
-	p_priv->hm_timer.data = (unsigned long)p_priv;
+	timer_setup(&p_priv->hm_timer, hm_timer_alarm, 0);
         p_priv->hm_timeout = 0;
         p_priv->hm_fault = false;
         p_priv->transaction_in_progress = false;
