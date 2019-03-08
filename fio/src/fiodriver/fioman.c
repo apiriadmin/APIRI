@@ -52,10 +52,8 @@ TEG - NO LOCKING IS IN PLACE.  THIS IS NOT AN ISSUE FOR INITIAL DEVELOPMENT
 /* Inlined C files */
 /*#include	"fiomsg.c"*/		/* FIOMSG Code */
 /*#include	"fioframe.c"*/
-#ifdef FAULTMON_GPIO
 #include <linux/gpio.h>
 extern int faultmon_gpio;
-#endif
 
 /*  Definition section.
 -----------------------------------------------------------------------------*/
@@ -1052,14 +1050,13 @@ fioman_add_def_fiod_frames
 		case FIOOUT14SIU1:case FIOOUT14SIU2:
 		case FIO332:case FIOTS1:case FIOTS2:
 		{
-#ifdef FAULTMON_GPIO
                         if (faultmon_gpio != -1) {
                                 if (p_fiod->fiod.fiod == FIOTS2) {
                                         
                                         break;
                                 }
 			}
-#endif
+
 			/* Ready frame 49 for this device */
 			tx_frame = fioman_ready_frame_49( p_fiod );
 
@@ -2595,14 +2592,12 @@ fioman_ts_fault_monitor_set
 		return (-EINVAL);
 
 pr_debug("fioman_ts_fault_monitor_set: %d\n", p_sys_fiod->fm_state);
-#ifdef FAULTMON_GPIO
         if (faultmon_gpio != -1) {
                 if (gpio_cansleep(faultmon_gpio))
                         gpio_set_value_cansleep(faultmon_gpio, p_sys_fiod->fm_state?1:0);
                 else
                         gpio_set_value(faultmon_gpio, p_sys_fiod->fm_state?1:0);
         }
-#endif
                 
 	return 0;
 }
@@ -5229,7 +5224,7 @@ fioman_ioctl
 		case FIOMAN_IOC_VERSION_GET:
 		{
 			FIO_IOC_VERSION_GET *p_arg = (FIO_IOC_VERSION_GET *)arg;
-			char ver[80] = "Intelight, 2.01, 2.17";
+			char ver[80] = "Intelight, 3.01, 2.17";
 			
 			if (copy_to_user(p_arg, ver, strlen(ver) )) {
 				/* Could not copy for some reason */
