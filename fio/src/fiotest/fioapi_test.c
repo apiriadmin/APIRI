@@ -1,5 +1,5 @@
 /*
- * fioloop.c
+ * fioapi_test.c
  * 
  * Copyright 2019 Q-Free Intelight <mike.gallagher@intelight-its.com>
  * 
@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <time.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -96,7 +97,7 @@ int loop_test(FIO_DEVICE_TYPE type, unsigned char *outputs_plus, int len)
 {
 	unsigned char outputs_minus[FIO_INPUT_POINTS_BYTES] = {0};
 	unsigned char inputs[FIO_INPUT_POINTS_BYTES] = {0};
-	
+	struct timespec to_sleep = { .tv_sec = 0, .tv_nsec = 200000000 };
 	fio_hm_heartbeat(fio_handle);
 
 	if (type == FIOTS1) {
@@ -108,6 +109,7 @@ int loop_test(FIO_DEVICE_TYPE type, unsigned char *outputs_plus, int len)
 	
 	fio_fiod_outputs_set(fio_handle, dev_handle, outputs_plus, outputs_minus, FIO_OUTPUT_POINTS_BYTES);
 	fio_signal = false;
+	nanosleep(&to_sleep, NULL);
 	fio_fiod_frame_notify_register(fio_handle, dev_handle, 180, FIO_NOTIFY_ONCE);
 	// Wait for next input frame response (notification signal?)
 	sleep(1);
@@ -138,13 +140,22 @@ int main(int argc, char **argv)
 {
 	unsigned char output_map[FIO_OUTPUT_POINTS_BYTES];
 	unsigned char outputs_plus[FIO_INPUT_POINTS_BYTES];
+	int number_of_input_bytes = FIO_INPUT_POINTS_BYTES;
 	FIO_FRAME_SCHD frame_schedules[3];
 	struct sigaction act;
 	int err = 0;
 	FIO_DEVICE_TYPE fio_dev_type = FIO_UNDEF;
 
-	printf("ATC FIOAPI Loopback Test\n");
+	printf("\nATC FIOAPI Loopback Test\n");
 
+	if ((argc > 1) && (argv[1][0] == '-')) {
+		if (argv[1][1] == 'v') {
+			verbose_log = true;
+			printf("Verbose logging enabled\n");
+		} else if (argv[1][1] == 'q')
+			quiet_log = true;
+	}
+	
 	// Install signal handler for fio signal
 	memset(&act, 0, sizeof(act));
 	act.sa_handler = signal_handler;
@@ -174,6 +185,7 @@ int main(int argc, char **argv)
 			if (verbose_log)
 				printf("FIO_332 module type found\n");
 			fio_dev_type = FIO332;
+			number_of_input_bytes = 8;
 			break;
 		case 2:
 			// TS1 module type
@@ -217,11 +229,11 @@ int main(int argc, char **argv)
 	// Enable this FIO module
 	fio_fiod_enable(fio_handle, dev_handle);
 	// Perform "walking 1" bit pattern test
-	for (int iter = 0; iter<FIO_INPUT_POINTS_BYTES; iter++) {
+	for (int iter = 0; iter<number_of_input_bytes; iter++) {
 		memset(outputs_plus, 0, sizeof outputs_plus);
 		for(int j=0; j<8; j++) {
 			outputs_plus[iter] = (1<<j);
-			if (loop_test(fio_dev_type, outputs_plus, FIO_INPUT_POINTS_BYTES) != 0) {
+			if (loop_test(fio_dev_type, outputs_plus, number_of_input_bytes) != 0) {
 				printf("Error after %d iterations\n", iter+1);
 				goto error_dereg;
 			}
@@ -239,7 +251,7 @@ int main(int argc, char **argv)
 		read(rand_fd, outputs_plus, sizeof outputs_plus);
 		close (rand_fd);
 		
-		if (loop_test(fio_dev_type, outputs_plus, FIO_INPUT_POINTS_BYTES) != 0) {
+		if (loop_test(fio_dev_type, outputs_plus, number_of_input_bytes) != 0) {
 			printf("Error after %d iterations\n", iter+1);
 			goto error_dereg;
 		}
