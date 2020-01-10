@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: (GPL-2.0 or LGPL-2.1)
+
+config FIODRIVER
+	tristate "fiodriver"
+	help
+	  ATC APIRI implementaion of the ATC FIO API driver
+
+	  See https://github.com/apiriadmin/APIRI
+
+	  To compile as a set of modules, choose M here. To compile into
+	  the Linux kernel image, choose Y.
+
+	  If unsure, say N.
+
