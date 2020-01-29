@@ -4588,692 +4588,772 @@ This function is the ioctl interface for the FIOMAN psuedo driver.
 long
 fioman_ioctl
 (
-	struct file	*filp,	/* File Pointer */
-	unsigned int	cmd,	/* Command associated with this call */
-	unsigned long	arg	/* Argument for this command */
+        struct file	*filp,	/* File Pointer */
+        unsigned int	cmd,	/* Command associated with this call */
+        unsigned long	arg	/* Argument for this command */
 )
 {
-	int rt_code = 0;		/* IOCTL return code */
-
-	/* Switch on this command */
-	switch ( cmd )
-	{
-		case FIOMAN_IOC_REG_FIOD:
-		{
-			FIO_IOC_FIOD	*p_arg = (FIO_IOC_FIOD *)arg;
-			FIOMSG_PORT	*p_port;
+        int rt_code = 0;		/* IOCTL return code */
+
+        /* Switch on this command */
+        switch ( cmd )
+        {
+                case FIOMAN_IOC_REG_FIOD:
+                {
+                        FIO_IOC_FIOD fiod;
+                        FIOMSG_PORT *p_port;
+                        
+                        if (copy_from_user(&fiod, (void __user *)arg, sizeof(FIO_IOC_FIOD)) > 0)
+                                return -EFAULT;
+                        /*pr_debug( "fioman_ioctl REG_FIOD\n" );*/
+                        /* Error checking */
+                        if ( ( (0 > fiod.port) || (FIO_PORTS_MAX <= fiod.port) )
+                                || ( (0 > fiod.fiod) || (FIOD_MAX <= fiod.fiod) )
+                                /*|| ( !fio_port_table[p_arg->port].port_opened )*/ ) {
+                                /* Invalid argument */
+                                return ( -EINVAL );
+                        }
+
+                        /* Lock this port */
+                        p_port = &fio_port_table[fiod.port];
+                        if ( down_interruptible( &p_port->sema ) ) {
+                                /* Interrupted */
+                                return ( -ERESTARTSYS );
+                        }
+
+                        rt_code = fioman_reg_fiod( filp, &fiod );
+
+                        /* Unlock this port */
+                        up( &p_port->sema );
 
-			/*pr_debug( "fioman_ioctl REG_FIOD\n" );*/
-			/* Error checking */
-			if ( ( (0 > p_arg->port) || (FIO_PORTS_MAX <= p_arg->port) )
-				|| ( (0 > p_arg->fiod) || (FIOD_MAX <= p_arg->fiod) )
-				/*|| ( !fio_port_table[p_arg->port].port_opened )*/ ) {
-				/* Invalid argument */
-				return ( -EINVAL );
-			}
+                        break;
+                }
+
+                case FIOMAN_IOC_DEREG_FIOD:
+                {
+                        FIO_DEV_HANDLE	dev_handle = (FIO_DEV_HANDLE)arg;
+
+                        /*printk( KERN_ALERT "fioman_ioctl DEREG_FIOD\n" );*/
+
+                        rt_code = fioman_dereg_fiod( filp, dev_handle );
 
-			/* Lock this port */
-			p_port = &fio_port_table[p_arg->port];
-			if ( down_interruptible( &p_port->sema ) ) {
-				/* Interrupted */
-				return ( -ERESTARTSYS );
-			}
+                        break;
+                }
 
-			rt_code = fioman_reg_fiod( filp, p_arg );
+                /* Enable Communications for a FIOD on a port */
+                case FIOMAN_IOC_ENABLE_FIOD:
+                {
+                        FIO_DEV_HANDLE	dev_handle = (FIO_DEV_HANDLE)arg;
+
+                        /*printk( KERN_ALERT "fioman_ioctl ENABLE_FIOD\n" );*/
+
+                        rt_code = fioman_enable_fiod( filp, dev_handle );
 
-			/* Unlock this port */
-			/* TEG - TODO */
-			up( &p_port->sema );
+                        break;
+                }
 
-			break;
-		}
+                /* Disable Communications for a FIOD on a port */
+                case FIOMAN_IOC_DISABLE_FIOD:
+                {
+                        FIO_DEV_HANDLE	dev_handle = (FIO_DEV_HANDLE)arg;
 
-		case FIOMAN_IOC_DEREG_FIOD:
-		{
-			FIO_DEV_HANDLE	dev_handle = (FIO_DEV_HANDLE)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl DISABLE_FIOD\n" );*/
+
+                        rt_code = fioman_disable_fiod( filp, dev_handle );
 
-			/*printk( KERN_ALERT "fioman_ioctl DEREG_FIOD\n" );*/
+                        break;
+                }
 
-			rt_code = fioman_dereg_fiod( filp, dev_handle );
+                case FIOMAN_IOC_QUERY_FIOD:
+                {
+                        FIO_IOC_FIOD fiod;
+                        FIOMSG_PORT *p_port;
 
-			break;
-		}
+                        if (copy_from_user(&fiod, (void __user *)arg, sizeof(FIO_IOC_FIOD)) > 0)
+                                return -EFAULT;
 
-		/* Enable Communications for a FIOD on a port */
-		case FIOMAN_IOC_ENABLE_FIOD:
-		{
-			FIO_DEV_HANDLE	dev_handle = (FIO_DEV_HANDLE)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl REG_FIOD\n" );*/
+                        /* Error checking */
+                        if ( ( (0 > fiod.port) || (FIO_PORTS_MAX <= fiod.port) )
+                                || ( (0 > fiod.fiod) || (FIOD_MAX <= fiod.fiod) )
+                                /*|| ( !fio_port_table[p_arg->port].port_opened )*/ ) {
+                                /* Invalid argument */
+                                return ( -EINVAL );
+                        }
 
-			/*printk( KERN_ALERT "fioman_ioctl ENABLE_FIOD\n" );*/
+                        /* Lock this port */
+                        p_port = &fio_port_table[fiod.port];
+                        if ( down_interruptible( &p_port->sema ) ) {
+                                /* Interrupted */
+                                return ( -ERESTARTSYS );
+                        }
 
-			rt_code = fioman_enable_fiod( filp, dev_handle );
+                        rt_code = fioman_query_fiod( filp, &fiod );
 
-			break;
-		}
+                        /* Unlock this port */
+                        /* TEG - TODO */
+                        up( &p_port->sema );
 
-		/* Disable Communications for a FIOD on a port */
-		case FIOMAN_IOC_DISABLE_FIOD:
-		{
-			FIO_DEV_HANDLE	dev_handle = (FIO_DEV_HANDLE)arg;
+                        break;
+                }
 
-			/*printk( KERN_ALERT "fioman_ioctl DISABLE_FIOD\n" );*/
+                /* Set Output Point Reservations */
+                case FIOMAN_IOC_RESERVE_SET:
+                {
+                        FIO_IOC_RESERVE_SET res;
+                        if (copy_from_user(&res, (void __user *)arg, sizeof(FIO_IOC_RESERVE_SET)) > 0)
+                                return -EFAULT;
 
-			rt_code = fioman_disable_fiod( filp, dev_handle );
+                        /*printk( KERN_ALERT "fioman_ioctl RESERVE_SET\n" );*/
 
-			break;
-		}
+                        rt_code = fioman_reserve_set( filp, &res );
 
-		case FIOMAN_IOC_QUERY_FIOD:
-		{
-			FIO_IOC_FIOD	*p_arg = (FIO_IOC_FIOD *)arg;
-			FIOMSG_PORT	*p_port;
+                        break;
+                }
 
-			/*printk( KERN_ALERT "fioman_ioctl REG_FIOD\n" );*/
-			/* Error checking */
-			if ( ( (0 > p_arg->port) || (FIO_PORTS_MAX <= p_arg->port) )
-				|| ( (0 > p_arg->fiod) || (FIOD_MAX <= p_arg->fiod) )
-				/*|| ( !fio_port_table[p_arg->port].port_opened )*/ ) {
-				/* Invalid argument */
-				return ( -EINVAL );
-			}
+                /* Get Output Point Reservations */
+                case FIOMAN_IOC_RESERVE_GET:
+                {
+                        FIO_IOC_RESERVE_GET res;
+                        if (copy_from_user(&res, (void __user *)arg, sizeof(FIO_IOC_RESERVE_GET)) > 0)
+                                return -EFAULT;
 
-			/* Lock this port */
-			p_port = &fio_port_table[p_arg->port];
-			if ( down_interruptible( &p_port->sema ) ) {
-				/* Interrupted */
-				return ( -ERESTARTSYS );
-			}
+                        /*printk( KERN_ALERT "fioman_ioctl RESERVE_GET\n" );*/
 
-			rt_code = fioman_query_fiod( filp, p_arg );
+                        rt_code = fioman_reserve_get( filp, &res );
 
-			/* Unlock this port */
-			/* TEG - TODO */
-			up( &p_port->sema );
+                        break;
+                }
 
-			break;
-		}
+                /* Set Output Point */
+                case FIOMAN_IOC_OUTPUTS_SET:
+                {
+                        FIO_IOC_OUTPUTS_SET op;
+                        if (copy_from_user(&op, (void __user *)arg, sizeof(FIO_IOC_OUTPUTS_SET)) > 0)
+                                return -EFAULT;
 
-		/* Set Output Point Reservations */
-		case FIOMAN_IOC_RESERVE_SET:
-		{
-			FIO_IOC_RESERVE_SET	*p_arg = (FIO_IOC_RESERVE_SET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl OUTPUTS_SET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl RESERVE_SET\n" );*/
+                        rt_code = fioman_outputs_set( filp, &op );
 
-			rt_code = fioman_reserve_set( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get Output Points */
+                case FIOMAN_IOC_OUTPUTS_GET:
+                {
+                        FIO_IOC_OUTPUTS_GET op;
+                        if (copy_from_user(&op, (void __user *)arg, sizeof(FIO_IOC_OUTPUTS_GET)) > 0)
+                                return -EFAULT;
 
-		/* Get Output Point Reservations */
-		case FIOMAN_IOC_RESERVE_GET:
-		{
-			FIO_IOC_RESERVE_GET	*p_arg = (FIO_IOC_RESERVE_GET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl OUTPUTS_GET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl RESERVE_GET\n" );*/
+                        rt_code = fioman_outputs_get( filp, &op );
 
-			rt_code = fioman_reserve_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Set Channel Reservations */
+                case FIOMAN_IOC_CHANNEL_RESERVE_SET:
+                {
+                        FIO_IOC_CHANNEL_RESERVE_SET res;
+                        if (copy_from_user(&res, (void __user *)arg, sizeof(FIO_IOC_CHANNEL_RESERVE_SET)) > 0)
+                                return -EFAULT;
 
-		/* Set Output Point */
-		case FIOMAN_IOC_OUTPUTS_SET:
-		{
-			FIO_IOC_OUTPUTS_SET	*p_arg = (FIO_IOC_OUTPUTS_SET *)arg;
+                        pr_debug( "fioman_ioctl CHANNEL_RESERVE_SET\n" );
 
-			/*printk( KERN_ALERT "fioman_ioctl OUTPUTS_SET\n" );*/
+                        rt_code = fioman_channel_reserve_set( filp, &res );
 
-			rt_code = fioman_outputs_set( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get Channel Reservations */
+                case FIOMAN_IOC_CHANNEL_RESERVE_GET:
+                {
+                        FIO_IOC_CHANNEL_RESERVE_GET res;
+                        if (copy_from_user(&res, (void __user *)arg, sizeof(FIO_IOC_CHANNEL_RESERVE_GET)) > 0)
+                                return -EFAULT;
 
-		/* Get Output Points */
-		case FIOMAN_IOC_OUTPUTS_GET:
-		{
-			FIO_IOC_OUTPUTS_GET	*p_arg = (FIO_IOC_OUTPUTS_GET *)arg;
+                        pr_debug( "fioman_ioctl CHANNEL_RESERVE_GET\n" );
 
-			/*printk( KERN_ALERT "fioman_ioctl OUTPUTS_GET\n" );*/
+                        rt_code = fioman_channel_reserve_get( filp, &res );
 
-			rt_code = fioman_outputs_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Set Channel Map */
+                case FIOMAN_IOC_CHAN_MAP_SET:
+                {
+                        FIO_IOC_CHAN_MAP_SET map;
+                        if (copy_from_user(&map, (void __user *)arg, sizeof(FIO_IOC_CHAN_MAP_SET)) > 0)
+                                return -EFAULT;
 
-		/* Set Channel Reservations */
-		case FIOMAN_IOC_CHANNEL_RESERVE_SET:
-		{
-			FIO_IOC_CHANNEL_RESERVE_SET	*p_arg = (FIO_IOC_CHANNEL_RESERVE_SET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CHANNEL_MAP_SET\n" );*/
 
-			pr_debug( "fioman_ioctl CHANNEL_RESERVE_SET\n" );
+                        rt_code = fioman_channel_map_set( filp, &map );
 
-			rt_code = fioman_channel_reserve_set( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get Channel Map */
+                case FIOMAN_IOC_CHAN_MAP_GET:
+                {
+                        FIO_IOC_CHAN_MAP_GET map;
+                        if (copy_from_user(&map, (void __user *)arg, sizeof(FIO_IOC_CHAN_MAP_GET)) > 0)
+                                return -EFAULT;
 
-		/* Get Channel Reservations */
-		case FIOMAN_IOC_CHANNEL_RESERVE_GET:
-		{
-			FIO_IOC_CHANNEL_RESERVE_GET	*p_arg = (FIO_IOC_CHANNEL_RESERVE_GET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CHANNEL_MAP_GET\n" );*/
 
-			pr_debug( "fioman_ioctl CHANNEL_RESERVE_GET\n" );
+                        rt_code = fioman_channel_map_get( filp, &map );
 
-			rt_code = fioman_channel_reserve_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get Channel Map Count */
+                case FIOMAN_IOC_CHAN_MAP_COUNT:
+                {
+                        FIO_IOC_CHAN_MAP_COUNT count;
+                        if (copy_from_user(&count, (void __user *)arg, sizeof(FIO_IOC_CHAN_MAP_COUNT)) > 0)
+                                return -EFAULT;
 
-		/* Set Channel Map */
-		case FIOMAN_IOC_CHAN_MAP_SET:
-		{
-			FIO_IOC_CHAN_MAP_SET	*p_arg = (FIO_IOC_CHAN_MAP_SET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CHANNEL_MAP_COUNT\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CHANNEL_MAP_SET\n" );*/
+                        rt_code = fioman_channel_map_count( filp, &count );
 
-			rt_code = fioman_channel_map_set( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Set MMU flash bit */
+                case FIOMAN_IOC_MMU_FLASH_BIT_SET:
+                {
+                        FIO_IOC_MMU_FLASH_BIT_SET bit;
+                        if (copy_from_user(&bit, (void __user *)arg, sizeof(FIO_IOC_MMU_FLASH_BIT_SET)) > 0)
+                                return -EFAULT;
 
-		/* Get Channel Map */
-		case FIOMAN_IOC_CHAN_MAP_GET:
-		{
-			FIO_IOC_CHAN_MAP_GET	*p_arg = (FIO_IOC_CHAN_MAP_GET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl MMU_FLASH_BIT_SET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CHANNEL_MAP_GET\n" );*/
+                        rt_code = fioman_mmu_flash_bit_set( filp, &bit );
 
-			rt_code = fioman_channel_map_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get MMU flash bit */
+                case FIOMAN_IOC_MMU_FLASH_BIT_GET:
+                {
+                        FIO_IOC_MMU_FLASH_BIT_GET bit;
+                        if (copy_from_user(&bit, (void __user *)arg, sizeof(FIO_IOC_MMU_FLASH_BIT_GET)) > 0)
+                                return -EFAULT;
 
-		/* Get Channel Map Count */
-		case FIOMAN_IOC_CHAN_MAP_COUNT:
-		{
-			FIO_IOC_CHAN_MAP_COUNT	*p_arg = (FIO_IOC_CHAN_MAP_COUNT *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl MMU_FLASH_BIT_GET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CHANNEL_MAP_COUNT\n" );*/
+                        rt_code = fioman_mmu_flash_bit_get( filp, &bit );
 
-			rt_code = fioman_channel_map_count( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Set Fault Monitor state */
+                case FIOMAN_IOC_TS_FMS_SET:
+                {
+                        FIO_IOC_TS_FMS_SET fms;
+                        if (copy_from_user(&fms, (void __user *)arg, sizeof(FIO_IOC_TS_FMS_SET)) > 0)
+                                return -EFAULT;
 
-		/* Set MMU flash bit */
-		case FIOMAN_IOC_MMU_FLASH_BIT_SET:
-		{
-			FIO_IOC_MMU_FLASH_BIT_SET	*p_arg = (FIO_IOC_MMU_FLASH_BIT_SET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl TS_FAULT_MONITOR_SET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl MMU_FLASH_BIT_SET\n" );*/
+                        rt_code = fioman_ts_fault_monitor_set( filp, &fms );
 
-			rt_code = fioman_mmu_flash_bit_set( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get Fault Monitor state */
+                case FIOMAN_IOC_TS_FMS_GET:
+                {
+                        FIO_IOC_TS_FMS_GET fms;
+                        if (copy_from_user(&fms, (void __user *)arg, sizeof(FIO_IOC_TS_FMS_GET)) > 0)
+                                return -EFAULT;
 
-		/* Get MMU flash bit */
-		case FIOMAN_IOC_MMU_FLASH_BIT_GET:
-		{
-			FIO_IOC_MMU_FLASH_BIT_GET *p_arg = (FIO_IOC_MMU_FLASH_BIT_GET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl TS_FAULT_MONITOR_GET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl MMU_FLASH_BIT_GET\n" );*/
+                        rt_code = fioman_ts_fault_monitor_get( filp, &fms );
 
-			rt_code = fioman_mmu_flash_bit_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get CMU Configuration change count */
+                case FIOMAN_IOC_CMU_CFG_CHANGE_COUNT:
+                {
+                        FIO_DEV_HANDLE p_arg = (FIO_DEV_HANDLE)arg;
 
-		/* Set Fault Monitor state */
-		case FIOMAN_IOC_TS_FMS_SET:
-		{
-			FIO_IOC_TS_FMS_SET *p_arg = (FIO_IOC_TS_FMS_SET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CMU_CFG_CHANGE_COUNT\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl TS_FAULT_MONITOR_SET\n" );*/
+                        rt_code = fioman_cmu_config_change_count( filp, p_arg );
 
-			rt_code = fioman_ts_fault_monitor_set( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Set CMU Dark Channel Mask */
+                case FIOMAN_IOC_CMU_DC_SET:
+                {
+                        FIO_IOC_CMU_DC_SET mask;
+                        if (copy_from_user(&mask, (void __user *)arg, sizeof(FIO_IOC_CMU_DC_SET)) > 0)
+                                return -EFAULT;
 
-		/* Get Fault Monitor state */
-		case FIOMAN_IOC_TS_FMS_GET:
-		{
-			FIO_IOC_TS_FMS_GET *p_arg = (FIO_IOC_TS_FMS_GET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CMU_DC_SET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl TS_FAULT_MONITOR_GET\n" );*/
+                        rt_code = fioman_cmu_dark_channel_set( filp, &mask );
 
-			rt_code = fioman_ts_fault_monitor_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get CMU Dark Channel Mask */
+                case FIOMAN_IOC_CMU_DC_GET:
+                {
+                        FIO_IOC_CMU_DC_GET mask;
+                        if (copy_from_user(&mask, (void __user *)arg, sizeof(FIO_IOC_CMU_DC_GET)) > 0)
+                                return -EFAULT;
 
-		/* Get CMU Configuration change count */
-		case FIOMAN_IOC_CMU_CFG_CHANGE_COUNT:
-		{
-			FIO_DEV_HANDLE	p_arg = (FIO_DEV_HANDLE)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CMU_DC_GET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CMU_CFG_CHANGE_COUNT\n" );*/
+                        rt_code = fioman_cmu_dark_channel_get( filp, &mask );
 
-			rt_code = fioman_cmu_config_change_count( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Set CMU Failed State (Fault) Action */
+                case FIOMAN_IOC_CMU_FSA_SET:
+                {
+                        FIO_IOC_CMU_FSA_SET fsa;
+                        if (copy_from_user(&fsa, (void __user *)arg, sizeof(FIO_IOC_CMU_FSA_SET)) > 0)
+                                return -EFAULT;
 
-		/* Set CMU Dark Channel Mask */
-		case FIOMAN_IOC_CMU_DC_SET:
-		{
-			FIO_IOC_CMU_DC_SET	*p_arg = (FIO_IOC_CMU_DC_SET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CMU_FSA_SET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CMU_DC_SET\n" );*/
+                        rt_code = fioman_cmu_fault_set( filp, &fsa );
 
-			rt_code = fioman_cmu_dark_channel_set( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get CMU Failed State (Fault) Action */
+                case FIOMAN_IOC_CMU_FSA_GET:
+                {
+                        FIO_IOC_CMU_FSA_GET fsa;
+                        if (copy_from_user(&fsa, (void __user *)arg, sizeof(FIO_IOC_CMU_FSA_GET)) > 0)
+                                return -EFAULT;
 
-		/* Get CMU Dark Channel Mask */
-		case FIOMAN_IOC_CMU_DC_GET:
-		{
-			FIO_IOC_CMU_DC_GET	*p_arg = (FIO_IOC_CMU_DC_GET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CMU_FSA_GET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CMU_DC_GET\n" );*/
+                        rt_code = fioman_cmu_fault_get( filp, &fsa );
 
-			rt_code = fioman_cmu_dark_channel_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get Input Points */
+                case FIOMAN_IOC_INPUTS_GET:
+                {
+                        FIO_IOC_INPUTS_GET ip;
+                        if (copy_from_user(&ip, (void __user *)arg, sizeof(FIO_IOC_INPUTS_GET)) > 0)
+                                return -EFAULT;
 
-		/* Set CMU Failed State (Fault) Action */
-		case FIOMAN_IOC_CMU_FSA_SET:
-		{
-			FIO_IOC_CMU_FSA_SET	*p_arg = (FIO_IOC_CMU_FSA_SET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl INPUTS_GET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CMU_FSA_SET\n" );*/
+                        rt_code = fioman_inputs_get( filp, &ip );
 
-			rt_code = fioman_cmu_fault_set( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Get FIOD Status */
+                case FIOMAN_IOC_FIOD_STATUS_GET:
+                {
+                        FIO_IOC_FIOD_STATUS stat;
+                        if (copy_from_user(&stat, (void __user *)arg, sizeof(FIO_IOC_FIOD_STATUS)) > 0)
+                                return -EFAULT;
 
-		/* Get CMU Failed State (Fault) Action */
-		case FIOMAN_IOC_CMU_FSA_GET:
-		{
-			FIO_IOC_CMU_FSA_GET	*p_arg = (FIO_IOC_CMU_FSA_GET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_STATUS_GET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CMU_FSA_GET\n" );*/
+                        rt_code = fioman_fiod_status_get( filp, &stat );
 
-			rt_code = fioman_cmu_fault_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Reset FIOD Status */
+                case FIOMAN_IOC_FIOD_STATUS_RESET:
+                {
+                        FIO_DEV_HANDLE dev_handle = (FIO_DEV_HANDLE)arg;
 
-		/* Get Input Points */
-		case FIOMAN_IOC_INPUTS_GET:
-		{
-			FIO_IOC_INPUTS_GET	*p_arg = (FIO_IOC_INPUTS_GET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_STATUS_RESET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl INPUTS_GET\n" );*/
+                        rt_code = fioman_fiod_status_reset( filp, dev_handle );
 
-			rt_code = fioman_inputs_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Read Frame Data */
+                case FIOMAN_IOC_FIOD_FRAME_READ:
+                {
+                        FIO_IOC_FIOD_FRAME_READ frame;
+                        if (copy_from_user(&frame, (void __user *)arg, sizeof(FIO_IOC_FIOD_FRAME_READ)) > 0)
+                                return -EFAULT;
 
-		/* Get FIOD Status */
-		case FIOMAN_IOC_FIOD_STATUS_GET:
-		{
-			FIO_IOC_FIOD_STATUS	*p_arg = (FIO_IOC_FIOD_STATUS *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_READ\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_STATUS_GET\n" );*/
+                        rt_code = fioman_fiod_frame_read( filp, &frame );
 
-			rt_code = fioman_fiod_status_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Write Frame Data */
+                case FIOMAN_IOC_FIOD_FRAME_WRITE:
+                {
+                        FIO_IOC_FIOD_FRAME_WRITE frame;
+                        if (copy_from_user(&frame, (void __user *)arg, sizeof(FIO_IOC_FIOD_FRAME_WRITE)) > 0)
+                                return -EFAULT;
 
-		/* Reset FIOD Status */
-		case FIOMAN_IOC_FIOD_STATUS_RESET:
-		{
-			FIO_DEV_HANDLE	dev_handle = (FIO_DEV_HANDLE)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_WRITE\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_STATUS_RESET\n" );*/
+                        rt_code = fioman_fiod_frame_write( filp, &frame );
 
-			rt_code = fioman_fiod_status_reset( filp, dev_handle );
+                        break;
+                }
 
-			break;
-		}
+                /* Read Frame Size */
+                case FIOMAN_IOC_FIOD_FRAME_SIZE:
+                {
+                        FIO_IOC_FIOD_FRAME_SIZE size;
+                        if (copy_from_user(&size, (void __user *)arg, sizeof(FIO_IOC_FIOD_FRAME_SIZE)) > 0)
+                                return -EFAULT;
 
-		/* Read Frame Data */
-		case FIOMAN_IOC_FIOD_FRAME_READ:
-		{
-			FIO_IOC_FIOD_FRAME_READ	*p_arg = (FIO_IOC_FIOD_FRAME_READ *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_SIZE\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_READ\n" );*/
+                        rt_code = fioman_fiod_frame_size( filp, &size );
 
-			rt_code = fioman_fiod_frame_read( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Register Frame Notification */
+                case FIOMAN_IOC_FIOD_FRAME_NOTIFY_REG:
+                {
+                        FIO_IOC_FIOD_FRAME_NOTIFY_REG reg;
+                        if (copy_from_user(&reg, (void __user *)arg, sizeof(FIO_IOC_FIOD_FRAME_NOTIFY_REG)) > 0)
+                                return -EFAULT;
 
-		/* Write Frame Data */
-		case FIOMAN_IOC_FIOD_FRAME_WRITE:
-		{
-			FIO_IOC_FIOD_FRAME_WRITE *p_arg = (FIO_IOC_FIOD_FRAME_WRITE *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_NOTIFY_REG\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_WRITE\n" );*/
+                        rt_code = fioman_fiod_frame_notify_register( filp, &reg );
 
-			rt_code = fioman_fiod_frame_write( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Deregister Frame Notification */
+                case FIOMAN_IOC_FIOD_FRAME_NOTIFY_DEREG:
+                {
+                        FIO_IOC_FIOD_FRAME_NOTIFY_DEREG dereg;
+                        if (copy_from_user(&dereg, (void __user *)arg, sizeof(FIO_IOC_FIOD_FRAME_NOTIFY_DEREG)) > 0)
+                                return -EFAULT;
 
-		/* Read Frame Size */
-		case FIOMAN_IOC_FIOD_FRAME_SIZE:
-		{
-			FIO_IOC_FIOD_FRAME_SIZE	*p_arg = (FIO_IOC_FIOD_FRAME_SIZE *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_NOTIFY_DEREG\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_SIZE\n" );*/
+                        rt_code = fioman_fiod_frame_notify_deregister( filp, &dereg );
 
-			rt_code = fioman_fiod_frame_size( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Deregister Frame Notification */
+                case FIOMAN_IOC_QUERY_NOTIFY_INFO:
+                {
+                        FIO_IOC_QUERY_NOTIFY_INFO info;
+                        if (copy_from_user(&info, (void __user *)arg, sizeof(FIO_IOC_QUERY_NOTIFY_INFO)) > 0)
+                                return -EFAULT;
 
-		/* Register Frame Notification */
-		case FIOMAN_IOC_FIOD_FRAME_NOTIFY_REG:
-		{
-			FIO_IOC_FIOD_FRAME_NOTIFY_REG *p_arg = (FIO_IOC_FIOD_FRAME_NOTIFY_REG *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_NOTIFY_DEREG\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_NOTIFY_REG\n" );*/
+                        rt_code = fioman_query_frame_notify_status( filp, &info );
 
-			rt_code = fioman_fiod_frame_notify_register( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Set Local Time Offset */
+                case FIOMAN_IOC_SET_LOCAL_TIME_OFFSET:
+                {
+                        pr_debug( "fioman_ioctl SET_LOCAL_TIME_OFFSET\n" );
+                        rt_code = fioman_set_local_time_offset( filp, (int *)arg );
 
-		/* Deregister Frame Notification */
-		case FIOMAN_IOC_FIOD_FRAME_NOTIFY_DEREG:
-		{
-			FIO_IOC_FIOD_FRAME_NOTIFY_DEREG *p_arg = (FIO_IOC_FIOD_FRAME_NOTIFY_DEREG *)arg;
+                        break;
+                }
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_NOTIFY_DEREG\n" );*/
+                /* Set Volt Monitor state */
+                case FIOMAN_IOC_TS1_VM_SET:
+                {
+                        FIO_IOC_TS1_VM_SET vm;
+                        if (copy_from_user(&vm, (void __user *)arg, sizeof(FIO_IOC_TS1_VM_SET)) > 0)
+                                return -EFAULT;
 
-			rt_code = fioman_fiod_frame_notify_deregister( filp, p_arg );
+                        /*printk( KERN_ALERT "fioman_ioctl TS1_VOLT_MONITOR_SET\n" );*/
 
-			break;
-		}
+                        rt_code = fioman_ts1_volt_monitor_set( filp, &vm );
 
-		/* Deregister Frame Notification */
-		case FIOMAN_IOC_QUERY_NOTIFY_INFO:
-		{
-			FIO_IOC_QUERY_NOTIFY_INFO *p_arg = (FIO_IOC_QUERY_NOTIFY_INFO *)arg;
+                        break;
+                }
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_NOTIFY_DEREG\n" );*/
+                /* Get Volt Monitor state */
+                case FIOMAN_IOC_TS1_VM_GET:
+                {
+                        FIO_IOC_TS1_VM_GET vm;
+                        if (copy_from_user(&vm, (void __user *)arg, sizeof(FIO_IOC_TS1_VM_GET)) > 0)
+                                return -EFAULT;
 
-			rt_code = fioman_query_frame_notify_status( filp, p_arg );
+                        /*printk( KERN_ALERT "fioman_ioctl TS1_VOLT_MONITOR_GET\n" );*/
 
-			break;
-		}
+                        rt_code = fioman_ts1_volt_monitor_get( filp, &vm );
 
-		/* Set Local Time Offset */
-		case FIOMAN_IOC_SET_LOCAL_TIME_OFFSET:
-		{
-			pr_debug( "fioman_ioctl SET_LOCAL_TIME_OFFSET\n" );
-			rt_code = fioman_set_local_time_offset( filp, (int *)arg );
-
-			break;
-		}
-
-		/* Set Volt Monitor state */
-		case FIOMAN_IOC_TS1_VM_SET:
-		{
-			FIO_IOC_TS1_VM_SET *p_arg = (FIO_IOC_TS1_VM_SET *)arg;
-
-			/*printk( KERN_ALERT "fioman_ioctl TS1_VOLT_MONITOR_SET\n" );*/
-
-			rt_code = fioman_ts1_volt_monitor_set( filp, p_arg );
-
-			break;
-		}
-
-		/* Get Volt Monitor state */
-		case FIOMAN_IOC_TS1_VM_GET:
-		{
-			FIO_IOC_TS1_VM_GET *p_arg = (FIO_IOC_TS1_VM_GET *)arg;
-
-			/*printk( KERN_ALERT "fioman_ioctl TS1_VOLT_MONITOR_GET\n" );*/
-
-			rt_code = fioman_ts1_volt_monitor_get( filp, p_arg );
-
-			break;
-		}
+                        break;
+                }
 
 #ifdef TS2_PORT1_STATE
-		/* Request for TS2 port1 disable state */
-		case FIOMAN_IOC_TS2_PORT1_STATE:
-		{
-			FIO_IOC_TS2_PORT1_STATE *p_arg = (FIO_IOC_TS2_PORT1_STATE *)arg;
+                /* Request for TS2 port1 disable state */
+                case FIOMAN_IOC_TS2_PORT1_STATE:
+                {
+                        FIO_IOC_TS2_PORT1_STATE state;
+                        if (copy_from_user(&state, (void __user *)arg, sizeof(FIO_IOC_TS2_PORT1_STATE)) > 0)
+                                return -EFAULT;
 
-			printk( KERN_ALERT "fioman_ioctl TS2_PORT1_STATE\n" );
-			rt_code = fioman_ts2_port1_state( filp, p_arg );
+                        printk( KERN_ALERT "fioman_ioctl TS2_PORT1_STATE\n" );
+                        rt_code = fioman_ts2_port1_state( filp, &state );
 
-			break;
-		}
+                        break;
+                }
 #endif
-		/* Set Frame Schedule list */
-		case FIOMAN_IOC_FIOD_FRAME_SCHD_SET:
-		{
-			FIO_IOC_FIOD_FRAME_SCHD_SET *p_arg = (FIO_IOC_FIOD_FRAME_SCHD_SET *)arg;
+                /* Set Frame Schedule list */
+                case FIOMAN_IOC_FIOD_FRAME_SCHD_SET:
+                {
+                        FIO_IOC_FIOD_FRAME_SCHD_SET schd;
+                        if (copy_from_user(&schd, (void __user *)arg, sizeof(FIO_IOC_FIOD_FRAME_SCHD_SET)) > 0)
+                                return -EFAULT;
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_SCHD_SET\n" );*/
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_SCHD_SET\n" );*/
 
-			rt_code = fioman_frame_schedule_set( filp, p_arg );
+                        rt_code = fioman_frame_schedule_set( filp, &schd );
 
-			break;
-		}
+                        break;
+                }
 
-		/* Get Frame Schedule list */
-		case FIOMAN_IOC_FIOD_FRAME_SCHD_GET:
-		{
-			FIO_IOC_FIOD_FRAME_SCHD_GET *p_arg = (FIO_IOC_FIOD_FRAME_SCHD_GET *)arg;
+                /* Get Frame Schedule list */
+                case FIOMAN_IOC_FIOD_FRAME_SCHD_GET:
+                {
+                        FIO_IOC_FIOD_FRAME_SCHD_GET schd;
+                        if (copy_from_user(&schd, (void __user *)arg, sizeof(FIO_IOC_FIOD_FRAME_SCHD_GET)) > 0)
+                                return -EFAULT;
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_SCHD_GET\n" );*/
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_FRAME_SCHD_GET\n" );*/
 
-			rt_code = fioman_frame_schedule_get( filp, p_arg );
+                        rt_code = fioman_frame_schedule_get( filp, &schd );
 
-			break;
-		}
+                        break;
+                }
 
-		/* Set Input Filter Values */
-		case FIOMAN_IOC_FIOD_INPUTS_FILTER_SET:
-		{
-			FIO_IOC_FIOD_INPUTS_FILTER_SET *p_arg = (FIO_IOC_FIOD_INPUTS_FILTER_SET *)arg;
+                /* Set Input Filter Values */
+                case FIOMAN_IOC_FIOD_INPUTS_FILTER_SET:
+                {
+                        FIO_IOC_FIOD_INPUTS_FILTER_SET fltr;
+                        if (copy_from_user(&fltr, (void __user *)arg, sizeof(FIO_IOC_FIOD_INPUTS_FILTER_SET)) > 0)
+                                return -EFAULT;
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_INPUTS_FILTER_SET\n" );*/
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_INPUTS_FILTER_SET\n" );*/
 
-			rt_code = fioman_inputs_filter_set( filp, p_arg );
+                        rt_code = fioman_inputs_filter_set( filp, &fltr );
 
-			break;
-		}
+                        break;
+                }
 
-		/* Get Input Filter Values */
-		case FIOMAN_IOC_FIOD_INPUTS_FILTER_GET:
-		{
-			FIO_IOC_FIOD_INPUTS_FILTER_GET *p_arg = (FIO_IOC_FIOD_INPUTS_FILTER_GET *)arg;
+                /* Get Input Filter Values */
+                case FIOMAN_IOC_FIOD_INPUTS_FILTER_GET:
+                {
+                        FIO_IOC_FIOD_INPUTS_FILTER_GET fltr;
+                        if (copy_from_user(&fltr, (void __user *)arg, sizeof(FIO_IOC_FIOD_INPUTS_FILTER_GET)) > 0)
+                                return -EFAULT;
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_INPUTS_FILTER_GET\n" );*/
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_INPUTS_FILTER_GET\n" );*/
 
-			rt_code = fioman_inputs_filter_get( filp, p_arg );
+                        rt_code = fioman_inputs_filter_get( filp, &fltr );
 
-			break;
-		}
-		
-		/* Set Input Transitions to be monitored */
-		case FIOMAN_IOC_INPUTS_TRANS_SET:
-		{
-			FIO_IOC_INPUTS_TRANS_SET *p_arg = (FIO_IOC_INPUTS_TRANS_SET *)arg;
+                        break;
+                }
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_INPUTS_TRANS_SET\n" );*/
+                /* Set Input Transitions to be monitored */
+                case FIOMAN_IOC_INPUTS_TRANS_SET:
+                {
+                        FIO_IOC_INPUTS_TRANS_SET trans;
+                        if (copy_from_user(&trans, (void __user *)arg, sizeof(FIO_IOC_INPUTS_TRANS_SET)) > 0)
+                                return -EFAULT;
 
-			rt_code = fioman_inputs_trans_set( filp, p_arg );
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_INPUTS_TRANS_SET\n" );*/
 
-			break;
-		}
+                        rt_code = fioman_inputs_trans_set( filp, &trans );
 
-		/* Get Input Transitions being monitored */
-		case FIOMAN_IOC_INPUTS_TRANS_GET:
-		{
-			FIO_IOC_INPUTS_TRANS_GET *p_arg = (FIO_IOC_INPUTS_TRANS_GET *)arg;
+                        break;
+                }
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_INPUTS_TRANS_GET\n" );*/
+                /* Get Input Transitions being monitored */
+                case FIOMAN_IOC_INPUTS_TRANS_GET:
+                {
+                        FIO_IOC_INPUTS_TRANS_GET trans;
+                        if (copy_from_user(&trans, (void __user *)arg, sizeof(FIO_IOC_INPUTS_TRANS_GET)) > 0)
+                                return -EFAULT;
 
-			rt_code = fioman_inputs_trans_get( filp, p_arg );
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_INPUTS_TRANS_GET\n" );*/
 
-			break;
-		}
-		
-		/* Get Input transition buffer entries */
-		case FIOMAN_IOC_INPUTS_TRANS_READ:
-		{
-			FIO_IOC_INPUTS_TRANS_READ *p_arg = (FIO_IOC_INPUTS_TRANS_READ *)arg;
+                        rt_code = fioman_inputs_trans_get( filp, &trans );
 
-			/*printk( KERN_ALERT "fioman_ioctl FIOD_INPUTS_TRANS_READ\n" );*/
+                        break;
+                }
 
-			rt_code = fioman_inputs_trans_read( filp, p_arg );
+                /* Get Input transition buffer entries */
+                case FIOMAN_IOC_INPUTS_TRANS_READ:
+                {
+                        FIO_IOC_INPUTS_TRANS_READ trans;
+                        if (copy_from_user(&trans, (void __user *)arg, sizeof(FIO_IOC_INPUTS_TRANS_READ)) > 0)
+                                return -EFAULT;
 
-			break;
-		}
-		
-		/* Register for watchdog service */
-		case FIOMAN_IOC_WD_REG:
-		{
-			FIO_DEV_HANDLE	p_arg = (FIO_DEV_HANDLE)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl FIOD_INPUTS_TRANS_READ\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CMU_WD_REG\n" );*/
+                        rt_code = fioman_inputs_trans_read( filp, &trans );
 
-			rt_code = fioman_wd_register( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Register for watchdog service */
+                case FIOMAN_IOC_WD_REG:
+                {
+                        FIO_DEV_HANDLE p_arg = (FIO_DEV_HANDLE)arg;
 
-		/* Deregister from watchdog service */
-		case FIOMAN_IOC_WD_DEREG:
-		{
-			FIO_DEV_HANDLE	p_arg = (FIO_DEV_HANDLE)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CMU_WD_REG\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CMU_WD_DEREG\n" );*/
+                        rt_code = fioman_wd_register( filp, p_arg );
 
-			rt_code = fioman_wd_deregister( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Deregister from watchdog service */
+                case FIOMAN_IOC_WD_DEREG:
+                {
+                        FIO_DEV_HANDLE p_arg = (FIO_DEV_HANDLE)arg;
 
-		/* Reserve watchdog output pin */
-		case FIOMAN_IOC_WD_RES_SET:
-		{
-			FIO_IOC_FIOD_WD_RES_SET	*p_arg = (FIO_IOC_FIOD_WD_RES_SET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CMU_WD_DEREG\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CMU_WD_RES_SET\n" );*/
+                        rt_code = fioman_wd_deregister( filp, p_arg );
 
-			rt_code = fioman_wd_reservation_set( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Reserve watchdog output pin */
+                case FIOMAN_IOC_WD_RES_SET:
+                {
+                        FIO_IOC_FIOD_WD_RES_SET wd;
+                        if (copy_from_user(&wd, (void __user *)arg, sizeof(FIO_IOC_FIOD_WD_RES_SET)) > 0)
+                                return -EFAULT;
 
-		/* Return value of watchdog reserved output pin */
-		case FIOMAN_IOC_WD_RES_GET:
-		{
-			FIO_IOC_FIOD_WD_RES_GET	*p_arg = (FIO_IOC_FIOD_WD_RES_GET *)arg;
+                        /*printk( KERN_ALERT "fioman_ioctl CMU_WD_RES_SET\n" );*/
 
-			/*printk( KERN_ALERT "fioman_ioctl CMU_WD_RES_GET\n" );*/
+                        rt_code = fioman_wd_reservation_set( filp, &wd );
 
-			rt_code = fioman_wd_reservation_get( filp, p_arg );
+                        break;
+                }
 
-			break;
-		}
+                /* Return value of watchdog reserved output pin */
+                case FIOMAN_IOC_WD_RES_GET:
+                {
+                        FIO_IOC_FIOD_WD_RES_GET wd;
+                        if (copy_from_user(&wd, (void __user *)arg, sizeof(FIO_IOC_FIOD_WD_RES_GET)) > 0)
+                                return -EFAULT;
+
+                        /*printk( KERN_ALERT "fioman_ioctl CMU_WD_RES_GET\n" );*/
+
+                        rt_code = fioman_wd_reservation_get( filp, &wd );
+
+                        break;
+                }
 
 #ifdef NEW_WATCHDOG
-		/* Set watchdog output toggle rate */
-		case FIOMAN_IOC_WD_RATE_SET:
-		{
-			FIO_IOC_FIOD_WD_RATE_SET *p_arg = (FIO_IOC_FIOD_WD_RATE_SET *)arg;
+                /* Set watchdog output toggle rate */
+                case FIOMAN_IOC_WD_RATE_SET:
+                {
+                        FIO_IOC_FIOD_WD_RATE_SET wd;
+                        if (copy_from_user(&wd, (void __user *)arg, sizeof(FIO_IOC_FIOD_WD_RATE_SET)) > 0)
+                                return -EFAULT;
 
-			/*printk( KERN_ALERT "fioman_ioctl WD_RATE_SET\n" );*/
+                        /*printk( KERN_ALERT "fioman_ioctl WD_RATE_SET\n" );*/
 
-			rt_code = fioman_wd_rate_set( filp, p_arg );
+                        rt_code = fioman_wd_rate_set( filp, &wd );
 
-			break;
-		}
+                        break;
+                }
 #endif
-		/* Request toggle of watchdog output */
-		case FIOMAN_IOC_WD_HB:
-		{
-			FIO_DEV_HANDLE	p_arg = (FIO_DEV_HANDLE)arg;
+                /* Request toggle of watchdog output */
+                case FIOMAN_IOC_WD_HB:
+                {
+                        FIO_DEV_HANDLE p_arg = (FIO_DEV_HANDLE)arg;
                         FIOMAN_PRIV_DATA *p_priv = filp->private_data;
 
-			/*printk( KERN_ALERT "fioman_ioctl CMU_WD_HB\n" );*/
+                        /*printk( KERN_ALERT "fioman_ioctl CMU_WD_HB\n" );*/
 
-			rt_code = fioman_wd_heartbeat( p_priv, p_arg );
+                        rt_code = fioman_wd_heartbeat( p_priv, p_arg );
 
-			break;
-		}
+                        break;
+                }
 
-		/* Get FIO driver API Version */
-		case FIOMAN_IOC_VERSION_GET:
-		{
-			FIO_IOC_VERSION_GET *p_arg = (FIO_IOC_VERSION_GET *)arg;
-			char ver[80] = "Intelight, 3.03, 2.17";
-			
-			if (copy_to_user(p_arg, ver, strlen(ver) )) {
-				/* Could not copy for some reason */
-				rt_code = -EFAULT;
-			}
-			break;
-		}
+                /* Get FIO driver API Version */
+                case FIOMAN_IOC_VERSION_GET:
+                {
+                        FIO_IOC_VERSION_GET *p_arg = (FIO_IOC_VERSION_GET *)arg;
+                        char ver[80] = "Intelight, 3.03, 2.17";
 
-		/* Register for health monitor service */
-		case FIOMAN_IOC_HM_REG:
-		{
-			unsigned int	timeout = (unsigned int)arg;
+                        if (copy_to_user(p_arg, ver, strlen(ver) )) {
+                                /* Could not copy for some reason */
+                                rt_code = -EFAULT;
+                        }
+                        break;
+                }
 
-			/*printk( KERN_ALERT "fioman_ioctl HM_REG\n" );*/
+                /* Register for health monitor service */
+                case FIOMAN_IOC_HM_REG:
+                {
+                        unsigned int timeout = (unsigned int)arg;
 
-			rt_code = fioman_hm_register( filp, timeout );
+                        /*printk( KERN_ALERT "fioman_ioctl HM_REG\n" );*/
 
-			break;
-		}
+                        rt_code = fioman_hm_register( filp, timeout );
 
-		/* Deregister from health monitor service */
-		case FIOMAN_IOC_HM_DEREG:
-		{
-			/*printk( KERN_ALERT "fioman_ioctl HM_DEREG\n" );*/
+                        break;
+                }
 
-			rt_code = fioman_hm_deregister( filp );
+                /* Deregister from health monitor service */
+                case FIOMAN_IOC_HM_DEREG:
+                {
+                        /*printk( KERN_ALERT "fioman_ioctl HM_DEREG\n" );*/
 
-			break;
-		}
+                        rt_code = fioman_hm_deregister( filp );
 
-		/* Heartbeat the health monitor */
-		case FIOMAN_IOC_HM_HEARTBEAT:
-		{
-			/*printk( KERN_ALERT "fioman_ioctl HM_HEARTBEAT\n" );*/
+                        break;
+                }
 
-			rt_code = fioman_hm_heartbeat( filp );
+                /* Heartbeat the health monitor */
+                case FIOMAN_IOC_HM_HEARTBEAT:
+                {
+                        /*printk( KERN_ALERT "fioman_ioctl HM_HEARTBEAT\n" );*/
 
-			break;
-		}
+                        rt_code = fioman_hm_heartbeat( filp );
 
-		/* Reset the health monitor */
-		case FIOMAN_IOC_HM_RESET:
-		{
-			/*printk( KERN_ALERT "fioman_ioctl HM_RESET\n" );*/
+                        break;
+                }
 
-			rt_code = fioman_hm_fault_reset( filp );
+                /* Reset the health monitor */
+                case FIOMAN_IOC_HM_RESET:
+                {
+                        /*printk( KERN_ALERT "fioman_ioctl HM_RESET\n" );*/
 
-			break;
-		}
+                        rt_code = fioman_hm_fault_reset( filp );
+
+                        break;
+                }
 
                 case FIOMAN_IOC_TRANSACTION_BEGIN:
                         rt_code = fioman_transaction_begin( filp );
@@ -5283,17 +5363,17 @@ fioman_ioctl
                         rt_code = fioman_transaction_commit( filp );
                         break;
                         
-		/* Undefined command */
-		default:
-		{
-			/* Show invalid command passed */
-			printk( KERN_ALERT "Invalid FIOMAN ioctl(%d)\n", cmd );
-			rt_code = -EPERM;
-			break;
-		}
-	}
+                /* Undefined command */
+                default:
+                {
+                        /* Show invalid command passed */
+                        printk( KERN_ALERT "Invalid FIOMAN ioctl(%d)\n", cmd );
+                        rt_code = -EPERM;
+                        break;
+                }
+        }
 
-	return ( rt_code );
+        return ( rt_code );
 }
 
 /*****************************************************************************/
