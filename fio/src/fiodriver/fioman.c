@@ -3787,7 +3787,7 @@ int fioman_inputs_filter_get
 		/* error, invalid view specified */
 		return -EINVAL;
 
-	if (p_arg->count >= FIO_INPUT_POINTS_BYTES)
+	if (p_arg->count > (FIO_INPUT_POINTS_BYTES*8))
 		return -EINVAL;
 
 	/* VALIDATE array for valid input number */
