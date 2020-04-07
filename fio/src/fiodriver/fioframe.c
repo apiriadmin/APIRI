@@ -1551,7 +1551,8 @@ fioman_tx_frame_0
 		p_sys_fiod = list_entry( p_sys_elem, FIOMAN_SYS_FIOD, elem );
 		if (IS_TFBIU(p_sys_fiod->fiod.fiod)
 			|| (p_sys_fiod->fiod.fiod == FIOTS1)
-			|| (p_sys_fiod->fiod.fiod == FIO332)) {
+			|| (p_sys_fiod->fiod.fiod == FIO332)
+                        || IS_OUTSIU(p_sys_fiod->fiod.fiod)) {
 /*				pr_debug("Frame 0: out+: %x %x %x\n",	p_sys_fiod->outputs_plus[0],
 					p_sys_fiod->outputs_plus[1], p_sys_fiod->outputs_plus[2] );
 				pr_debug("Frame 0: out-: %x %x %x\n",	p_sys_fiod->outputs_minus[0],
