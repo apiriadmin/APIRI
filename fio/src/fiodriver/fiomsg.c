@@ -1025,7 +1025,7 @@ fiomsg_port_open
 {
 	int channel;
 	void *context;
-	atc_spxs_config_t config = {ATC_SDLC, ATC_B614400, ATC_CLK_INTERNAL, ATC_GATED};
+	atc_spxs_config_t config = {ATC_SDLC, ATC_B614400, ATC_CLK_INTERNAL, ATC_CONTINUOUS};
 /* TEG */
 	/* Initialize */
 	/* Open SDLC driver for indicated port */
