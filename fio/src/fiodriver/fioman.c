@@ -299,8 +299,8 @@ fioman_do_dereg_fiod
                                         trailing = p_app_fiod->input_filters_trailing[i];
                                 }
                         }
-                        p_sys_fiod->input_filters_leading[i] = leading;
-                        p_sys_fiod->input_filters_trailing[i] = trailing;
+                        p_sys_fiod->input_filters_leading[i] = (leading < 255)? leading: FIO_FILTER_DEFAULT;
+                        p_sys_fiod->input_filters_trailing[i] = (trailing < 255)? trailing: FIO_FILTER_DEFAULT;
                 }
 #ifdef NEW_WATCHDOG
                 /* re-assess the watchdog rate if required */
@@ -3736,7 +3736,7 @@ int fioman_inputs_filter_set
                 /* No, return error */
                 return -EINVAL;
 
-        if (p_arg->count >= (FIO_INPUT_POINTS_BYTES*8))
+	if (p_arg->count > (FIO_INPUT_POINTS_BYTES*8))
                 return ( -EFAULT );
 
         /* VALIDATE array for valid input number and filter values */

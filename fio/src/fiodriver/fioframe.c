@@ -607,7 +607,7 @@ fioman_tx_frame_51
 			input |= 0x80;
 		FIOMSG_PAYLOAD(p_tx_frame)->frame_info[(3*i)+1] = input;
 		FIOMSG_PAYLOAD(p_tx_frame)->frame_info[(3*i)+2] = p_sys_fiod->input_filters_leading[i];
-		FIOMSG_PAYLOAD(p_tx_frame)->frame_info[(3*i)+3] = p_sys_fiod->input_filters_leading[i];
+		FIOMSG_PAYLOAD(p_tx_frame)->frame_info[(3*i)+3] = p_sys_fiod->input_filters_trailing[i];
 	}
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 	pr_debug( "UPDATING Frame 51: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
