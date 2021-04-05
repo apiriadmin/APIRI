@@ -187,5 +187,5 @@ module_exit(fio_exit);
 
 MODULE_AUTHOR("J. Michael Gallagher, Intelight Inc. <support@intelight-its.com>");
 MODULE_DESCRIPTION( "FIO API Module for ATC" );
-MODULE_VERSION( "03.04" );
+MODULE_VERSION( "03.05" );
 MODULE_LICENSE("GPL");
