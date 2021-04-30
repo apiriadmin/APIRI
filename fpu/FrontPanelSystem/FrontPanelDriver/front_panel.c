@@ -42,6 +42,7 @@
 #include <linux/cdev.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
 
 #include "front_panel.h"
 
