@@ -764,7 +764,7 @@ printf("atc_sc: initialize LNUX Screen\n");
 				updays, ((updays!=1)?"s":""), uphours, ((uphours!=1)?"s":""), upmins, ((upmins!=1)?"s":"") );
 			memcpy((char *)&pScreen->screen_lines[6].line[8], buffer, byteCount);
 		}
-		if (statfs("/", &stat_fs) == 0) {
+		if (statfs("/opt", &stat_fs) == 0) {
 			byteCount = snprintf(buffer, 32, "%4dMB", (int)((stat_fs.f_blocks*stat_fs.f_bsize)>>20));
 			memcpy((char *)&pScreen->screen_lines[4].line[18], buffer, byteCount);
 			byteCount = snprintf(buffer, 32, "%4dMB", (int)((stat_fs.f_bavail*stat_fs.f_bsize)>>20));
@@ -2907,7 +2907,7 @@ void update_linux_screen(void *arg)
 		}
 
 		/* update Free Storage on rootfs */
-		if (statfs("/", &stat_fs) == 0) {
+		if (statfs("/opt", &stat_fs) == 0) {
 			count = snprintf(buffer, 32, "%4dMB", (int)((stat_fs.f_bavail*stat_fs.f_bsize)>>20));
 			memcpy((char *)&pLinux_screen->screen_lines[LNX_FS_LINE].line[31], buffer, count);                
 		}
