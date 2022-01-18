@@ -37,7 +37,7 @@ FIOFRAME Code Module.
 #include	<linux/slab.h>		/* Memory Definitions */
 #include	<linux/time.h>
 #include	<linux/uaccess.h>		/* User Space Access Definitions */
-#include        <linux/version.h>
+#include  <linux/version.h>
 /* Local includes. */
 #include	"fiomsg.h"
 #include	"fioframe.h"
@@ -259,123 +259,16 @@ static FIOMSG_TX_FRAME frame_24_27_init =
 
 /*  Private API implementation section.
 -----------------------------------------------------------------------------*/
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)
-/** The time_to_tm conversion utility, backported from later Linux kernel **/
-struct tm {
-	/*
-	 * the number of seconds after the minute, normally in the range
-	 * 0 to 59, but can be up to 60 to allow for leap seconds
-	 */
-	int tm_sec;
-	/* the number of minutes after the hour, in the range 0 to 59*/
-	int tm_min;
-	/* the number of hours past midnight, in the range 0 to 23 */
-	int tm_hour;
-	/* the day of the month, in the range 1 to 31 */
-	int tm_mday;
-	/* the number of months since January, in the range 0 to 11 */
-	int tm_mon;
-	/* the number of years since 1900 */
-	long tm_year;
-	/* the number of days since Sunday, in the range 0 to 6 */
-	int tm_wday;
-	/* the number of days since January 1, in the range 0 to 365 */
-	int tm_yday;
-};
-/*
- * Nonzero if YEAR is a leap year (every 4 years,
- * except every 100th isn't, and every 400th is).
- */
-static int __isleap(long year)
-{
-	return (year) % 4 == 0 && ((year) % 100 != 0 || (year) % 400 == 0);
-}
-
-/* do a mathdiv for long type */
-static long math_div(long a, long b)
-{
-	return a / b - (a % b < 0);
-}
-
-/* How many leap years between y1 and y2, y1 must less or equal to y2 */
-static long leaps_between(long y1, long y2)
-{
-	long leaps1 = math_div(y1 - 1, 4) - math_div(y1 - 1, 100)
-		+ math_div(y1 - 1, 400);
-	long leaps2 = math_div(y2 - 1, 4) - math_div(y2 - 1, 100)
-		+ math_div(y2 - 1, 400);
-	return leaps2 - leaps1;
-}
-
-/* How many days come before each month (0-12). */
-static const unsigned short __mon_yday[2][13] = {
-	/* Normal years. */
-	{0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365},
-	/* Leap years. */
-	{0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366}
-};
-
-#define SECS_PER_HOUR	(60 * 60)
-#define SECS_PER_DAY	(SECS_PER_HOUR * 24)
-
-/**
- * time_to_tm - converts the calendar time to local broken-down time
- *
- * @totalsecs	the number of seconds elapsed since 00:00:00 on January 1, 1970,
- *		Coordinated Universal Time (UTC).
- * @offset	offset seconds adding to totalsecs.
- * @result	pointer to struct tm variable to receive broken-down time
- */
-void time_to_tm(time_t totalsecs, int offset, struct tm *result)
-{
-	long days, rem, y;
-	const unsigned short *ip;
-
-	days = totalsecs / SECS_PER_DAY;
-	rem = totalsecs % SECS_PER_DAY;
-	rem += offset;
-	while (rem < 0) {
-		rem += SECS_PER_DAY;
-		--days;
-	}
-	while (rem >= SECS_PER_DAY) {
-		rem -= SECS_PER_DAY;
-		++days;
-	}
-
-	result->tm_hour = rem / SECS_PER_HOUR;
-	rem %= SECS_PER_HOUR;
-	result->tm_min = rem / 60;
-	result->tm_sec = rem % 60;
-
-	/* January 1, 1970 was a Thursday. */
-	result->tm_wday = (4 + days) % 7;
-	if (result->tm_wday < 0)
-		result->tm_wday += 7;
-
-	y = 1970;
-
-	while (days < 0 || days >= (__isleap(y) ? 366 : 365)) {
-		/* Guess a corrected year, assuming 365 days per year. */
-		long yg = y + math_div(days, 365);
-
-		/* Adjust DAYS and Y to match the guessed year. */
-		days -= (yg - y) * 365 + leaps_between(y, yg);
-		y = yg;
-	}
-
-	result->tm_year = y - 1900;
-
-	result->tm_yday = days;
-
-	ip = __mon_yday[__isleap(y)];
-	for (y = 11; days < ip[y]; y--)
-		continue;
-	days -= ip[y];
-
-	result->tm_mon = y;
-	result->tm_mday = days + 1;
-}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+#define TIMESTRUCT timeval
+#define TIME_GET_TS(ts) do_gettimeofday(&ts)
+#define TIME_TO_TM(ts, tm) time_to_tm(ts.tv_sec, local_time_offset, &tm)
+#define TIME_GET_TENTHS(ts) ts.tv_usec/100000L
+#else
+#define TIMESTRUCT timespec64
+#define TIME_GET_TS(ts) ktime_get_real_ts64(&ts)
+#define TIME_TO_TM(ts, tm) time64_to_tm(ts.tv_sec, local_time_offset, &tm)
+#define TIME_GET_TENTHS(ts) ts.tv_nsec/100000000L
 #endif
 
 u8 device_to_addr( FIO_DEVICE_TYPE device_type )
@@ -1225,22 +1118,21 @@ fioman_tx_frame_66
 	FIOMSG_TX_FRAME		*p_tx_frame		/* Frame about to be sent */
 )
 {
-	struct timeval tv;
+  struct TIMESTRUCT ts;
 	struct tm tm = {0};
-	int offset = 0; /* this is time adjust from fio_set_local_time_offset() */
 /* TEG DEL */
 /*pr_debug( "UPDATING Frame 66\n" );*/
 /* TEG DEL */
 	/* fill in payload with date/time */
-	do_gettimeofday(&tv);
-	time_to_tm(tv.tv_sec,offset,&tm);
+  TIME_GET_TS(ts);
+  TIME_TO_TM(ts, tm);
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[0] = tm.tm_mon+1;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[1] = tm.tm_mday;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[2] = tm.tm_year%100;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[3] = tm.tm_hour;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[4] = tm.tm_min;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[5] = tm.tm_sec;
-	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[6] = tv.tv_usec/100000L; /* tenths */
+	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[6] = TIME_GET_TENTHS(ts); /* tenths */
 }
 
 /*****************************************************************************/
@@ -1436,7 +1328,7 @@ fioman_tx_frame_9
 	FIOMSG_TX_FRAME		*p_tx_frame		/* Frame about to be sent */
 )
 {
-	struct timeval tv;
+  struct TIMESTRUCT ts;
 	struct tm tm = {0};
 	struct list_head	*p_sys_elem;	/* Element from FIOMAN FIOD list */
 	struct list_head	*p_next;		/* Temp for loop */
@@ -1447,15 +1339,15 @@ fioman_tx_frame_9
 /*pr_debug( "UPDATING Frame 9\n" );*/
 /* TEG DEL */
 	/* fill in payload date/time fields */
-	do_gettimeofday(&tv);
-	time_to_tm(tv.tv_sec,local_time_offset,&tm);
+  TIME_GET_TS(ts);
+  TIME_TO_TM(ts, tm);
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[0] = tm.tm_mon+1;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[1] = tm.tm_mday;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[2] = tm.tm_year%100;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[3] = tm.tm_hour;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[4] = tm.tm_min;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[5] = tm.tm_sec;
-	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[6] = tv.tv_usec/100000L; /* tenths */
+	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[6] = TIME_GET_TENTHS(ts); /* tenths */
 	/* fill in payload BIU presence map */
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[7] = 0;
 	FIOMSG_PAYLOAD( p_tx_frame )->frame_info[8] = 0;
