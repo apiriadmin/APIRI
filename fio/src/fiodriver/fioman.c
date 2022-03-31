@@ -4499,6 +4499,7 @@ fioman_open
         struct list_head        *p_priv_next;
         FIOMAN_PRIV_DATA        *p_priv_old;
         
+  if (!list_empty(&priv_list)) {
         p_priv_elem = NULL;
         list_for_each_safe( p_priv_elem, p_priv_next, &priv_list)
         {
@@ -4523,6 +4524,7 @@ fioman_open
 		/* Free the memory */
 		kfree( p_priv_old );
         }
+  }
 #endif
 	/* Allocate our new App private data */
 	if ( ! ( p_priv = (FIOMAN_PRIV_DATA *)kmalloc( sizeof( FIOMAN_PRIV_DATA ), GFP_KERNEL ) ) )
