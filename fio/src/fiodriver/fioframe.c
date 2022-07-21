@@ -696,11 +696,13 @@ fioman_tx_frame_54
 	FIOMSG_TX_FRAME		*p_tx_frame		/* Frame about to be sent */
 )
 {
+  FIOMAN_SYS_FIOD		*p_sys_fiod;	/* For access to System info */
 /* TEG DEL */
 pr_debug( "UPDATING Frame 54\n" );
 /* TEG DEL */
-        FIOMSG_PAYLOAD(p_tx_frame)->frame_info[0]++;
-        
+  /* Get access to system info */
+	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_tx_frame->fioman_context;
+  FIOMSG_PAYLOAD(p_tx_frame)->frame_info[0] = p_sys_fiod->input_transition_block;
 }
 
 /*****************************************************************************/
@@ -2927,6 +2929,7 @@ fioman_rx_frame_182
                         }
                 }
         }
+  p_sys_fiod->input_transition_block++;
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 
 /* TEG DEL */

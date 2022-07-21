@@ -118,7 +118,8 @@ struct fioman_sys_fiod
 	u8	input_filters_leading[ FIO_INPUT_POINTS_BYTES * 8 ];
 	u8	input_filters_trailing[ FIO_INPUT_POINTS_BYTES * 8 ];
 	u8	input_transition_map[ FIO_INPUT_POINTS_BYTES ];		/* Inputs enabled for transition reporting */
-
+  u8  input_transition_block;
+  
 	u8	channels_reserved[ FIO_CHANNEL_BYTES ];
 									/* Channel mapping of Outputs for FIOD */
 	u8	channel_map_red[ FIO_CHANNELS ];

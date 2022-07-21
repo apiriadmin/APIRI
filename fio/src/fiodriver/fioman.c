@@ -1306,10 +1306,12 @@ fioman_reg_fiod
 		p_sys_fiod->watchdog_output = -1;
 		p_sys_fiod->watchdog_state = false;
 #ifdef NEW_WATCHDOG
-                p_sys_fiod->watchdog_rate = FIO_HZ_0;
+    p_sys_fiod->watchdog_rate = FIO_HZ_0;
 #else
 		p_sys_fiod->watchdog_trigger_condition = false;
 #endif
+    p_sys_fiod->input_transition_block = 0;
+
 		for (i=0; i<128; i++) {
 			/* Indicate invalid frame by default */
 			p_sys_fiod->frame_frequency_table[i] = -1;
