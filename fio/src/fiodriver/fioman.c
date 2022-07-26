@@ -87,6 +87,37 @@ FIOMAN_PRIV_DATA        *hm_timeout_priv = NULL;
 
 /*****************************************************************************/
 /*
+Function to find a frame (in the tx frame list); return NULL if none
+*/
+/*****************************************************************************/
+
+FIOMSG_TX_FRAME *fioman_get_tx_frame(FIOMAN_SYS_FIOD *p_sys_fiod,
+  int frame_no)
+{
+	struct list_head	*p_elem;	/* Ptr to queue element being examined */
+	struct list_head	*p_next;	/* Temp Ptr to next for loop */
+	FIOMSG_TX_FRAME		*p_tx_elem;	/* Ptr to tx frame being examined */
+	FIOMSG_PORT		*p_port;	/* Port of Request Queue */
+
+  /* Search for frame in tx queue */
+  /* Get port to work on */
+  p_port = FIOMSG_P_PORT(p_sys_fiod->fiod.port);
+  /* For each element in the queue */
+  list_for_each_safe(p_elem, p_next, &p_port->tx_queue) {
+    /* Get the request frame for this queue element */
+    p_tx_elem = list_entry(p_elem, FIOMSG_TX_FRAME, elem);
+    /* See if current element matches fiod */
+    if (p_tx_elem->fiod.fiod == p_sys_fiod->fiod.fiod) {
+      /* Does the frame number match one requested? */
+      if (FIOMSG_PAYLOAD(p_tx_elem)->frame_no == frame_no) {
+        return p_tx_elem;
+      }
+    }
+  }
+  return NULL;
+}
+/*****************************************************************************/
+/*
 Function to find if a frame is scheduled for a fio device (in the tx frame list)
 */
 /*****************************************************************************/
@@ -98,27 +129,7 @@ fioman_frame_is_scheduled
 	int frame_no
 )
 {
-	struct list_head	*p_elem;	/* Ptr to queue element being examined */
-	struct list_head	*p_next;	/* Temp Ptr to next for loop */
-	FIOMSG_TX_FRAME		*p_tx_elem;	/* Ptr to tx frame being examined */
-	FIOMSG_PORT		*p_port;	/* Port of Request Queue */
-
-        /* Search for frame in tx queue */
-        /* Get port to work on */
-        p_port = FIOMSG_P_PORT( p_sys_fiod->fiod.port );
-	/* For each element in the queue */
-	list_for_each_safe( p_elem, p_next, &p_port->tx_queue ) {
-		/* Get the request frame for this queue element */
-		p_tx_elem = list_entry( p_elem, FIOMSG_TX_FRAME, elem );
-		/* See if current element matches fiod */
-		if ( p_tx_elem->fiod.fiod == p_sys_fiod->fiod.fiod ) {
-			/* Does the frame number match one requested? */
-			if (FIOMSG_PAYLOAD( p_tx_elem )->frame_no == frame_no) {
-                                return true;
-			}
-		}
-	}
-        return false;
+  return (fioman_get_tx_frame(p_sys_fiod, frame_no) != NULL);  
 }
 
 /*****************************************************************************/
@@ -580,13 +591,13 @@ fioman_add_frame
                 return PTR_ERR(txframe);
 
         if ((rxframe == NULL) || !IS_ERR(rxframe)) {
-                /* Add to TX queue */
-                txframe->cur_freq = p_sys_fiod->frame_frequency_table[frame_no];
-		fiomsg_tx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), txframe);
-                if (rxframe != NULL)
-                        /* Add to RX queue */
-                        fiomsg_rx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), rxframe);
-                return 0;
+          /* Add to TX queue */
+          txframe->cur_freq = p_sys_fiod->frame_frequency_table[frame_no];
+          fiomsg_tx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), txframe);
+          if (rxframe != NULL)
+            /* Add to RX queue */
+            fiomsg_rx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), rxframe);
+            return 0;
         }
         
         return PTR_ERR(rxframe);
@@ -3786,11 +3797,14 @@ int fioman_inputs_filter_set
 
         /* If any sys_fiod filter values have changed, we must schedule frame #51 */
         if (update_fiod) {
-                /* Ready frame 51 for this device */
-                if (!fioman_frame_is_scheduled(p_sys_fiod, FIOMAN_FRAME_NO_51))
-                        return fioman_add_frame(FIOMAN_FRAME_NO_51, p_sys_fiod);
+          p_sys_fiod->inputs_configured = false;
+          /* Ready frame 51 for this device */
+          if (!fioman_frame_is_scheduled(p_sys_fiod, FIOMAN_FRAME_NO_51)) {
+            p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_51] = FIO_HZ_10;
+            return fioman_add_frame(FIOMAN_FRAME_NO_51, p_sys_fiod);
+          }
         }
-
+	
         return 0;
 }
 
@@ -3895,12 +3909,15 @@ int fioman_inputs_trans_set
 	}
 	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
 
-	/* If any sys_fiod input config values have changed, we must schedule frame #51 */
-	if (update_fiod) {
-		/* Ready frame 51 for this device */
-                if (!fioman_frame_is_scheduled(p_sys_fiod, FIOMAN_FRAME_NO_51)) 
-                        return fioman_add_frame(FIOMAN_FRAME_NO_51, p_sys_fiod);
-	}
+  /* If any sys_fiod input config values have changed, we must schedule frame #51 */
+  if (update_fiod) {
+    p_sys_fiod->inputs_configured = false;
+    /* Ready frame 51 for this device */
+    if (!fioman_frame_is_scheduled(p_sys_fiod, FIOMAN_FRAME_NO_51)) {
+      p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_51] = FIO_HZ_10;
+      return fioman_add_frame(FIOMAN_FRAME_NO_51, p_sys_fiod);
+    }
+  }
 	
 	return 0;
 }

@@ -49,6 +49,7 @@ extern int fiomsg_get_hertz(FIO_HZ freq);
 extern FIOMSG_TIME fiomsg_tx_frame_when(FIO_HZ freq, bool align);
 extern int local_time_offset;
 extern FIOMSG_PORT	fio_port_table[ FIO_PORTS_MAX ];
+extern FIOMSG_TX_FRAME *fioman_get_tx_frame(FIOMAN_SYS_FIOD *, int);
 
 /*  Global section.
 -----------------------------------------------------------------------------*/
@@ -67,7 +68,7 @@ static FIOMSG_TX_FRAME frame_49_init =
 static FIOMSG_TX_FRAME frame_51_init =
 {
 	.def_freq	= FIO_HZ_ONCE,
-	.cur_freq	= FIO_HZ_ONCE,
+	.cur_freq	= FIO_HZ_10,
 	.tx_func	= fioman_tx_frame_51,
 	.resp		= true
 };
@@ -2747,9 +2748,10 @@ pr_debug("fioman_rx_frame_177: status=%x\n", p_sys_fiod->status);
 	if (p_sys_fiod->status & 0xc1) {/* P, E or W bits */
 		p_sys_fiod->status_reset = p_sys_fiod->status & 0xc1;
 		/* schedule frame 51 to reconfigure input point filters */
-                /* and reconfigure input transition monitoring */
-		fiomsg_tx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), fioman_ready_frame_51(p_sys_fiod));
-                fiomsg_rx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), fioman_ready_frame_179(p_sys_fiod));
+    /* and reconfigure input transition monitoring */
+    p_sys_fiod->inputs_configured = false;
+    fiomsg_tx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), fioman_ready_frame_51(p_sys_fiod));
+    fiomsg_rx_add_frame(FIOMSG_P_PORT(p_sys_fiod->fiod.port), fioman_ready_frame_179(p_sys_fiod));
 	} else
 		p_sys_fiod->status_reset = 0;
 
@@ -2769,17 +2771,29 @@ fioman_rx_frame_179
 	FIOMSG_RX_FRAME		*p_rx_frame		/* Frame received */
 )
 {
-	/*FIOMAN_SYS_FIOD		*p_sys_fiod;*/	/* For access to System info */
-	unsigned char		status;
+	FIOMAN_SYS_FIOD *p_sys_fiod;	/* For access to System info */
+	unsigned char status;
+	unsigned long flags;
+	FIOMSG_TX_FRAME *p_tx_frame;	/* Ptr to tx frame being examined */
 
 	/* Get access to system info */
-	/*p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;*/
+	p_sys_fiod = (FIOMAN_SYS_FIOD *)p_rx_frame->fioman_context;
 
 /* TEG DEL */
 /*printk( KERN_ALERT "UPDATING Frame 179\n" );*/
 /* TEG DEL */
 	status = FIOMSG_PAYLOAD(p_rx_frame)->frame_info[0]; /* status bits */
 	/* If status indicates error, maybe reset all filters to default? */
+  if (status == 0) {
+    spin_lock_irqsave(&p_sys_fiod->lock, flags);
+    p_sys_fiod->inputs_configured = true;
+    /* Remove frame 51 from schedule */
+    if ((p_tx_frame = fioman_get_tx_frame(p_sys_fiod, FIOMAN_FRAME_NO_51)) != NULL) {
+      p_tx_frame->cur_freq = FIO_HZ_0;
+    }
+    spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
+  }
+    
 	pr_debug("fioman_rx_frame_179: status=%x\n", status);
 
 }
