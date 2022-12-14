@@ -605,6 +605,44 @@ fioman_add_frame
 
 /*****************************************************************************/
 /*
+This function is used to remove a specific request frame and response, if any
+*/
+/*****************************************************************************/
+int
+fioman_remove_frame
+(
+	FIOMAN_SYS_FIOD	*p_sys_fiod,		/* FIOD of destined frame */
+	int frame_no
+)
+{
+  struct list_head	*p_elem;	/* Ptr to queue element being examined */
+	struct list_head	*p_next;	/* Temp Ptr to next for loop */
+	FIOMSG_TX_FRAME		*p_tx_elem;	/* Ptr to tx frame being examined */
+	FIOMSG_PORT		*p_port;	/* Port of Request Queue */
+
+  /* Search for frame in tx queue */
+  /* Get port to work on */
+  p_port = FIOMSG_P_PORT(p_sys_fiod->fiod.port);
+  /* For each element in the queue */
+  list_for_each_safe(p_elem, p_next, &p_port->tx_queue) {
+    /* Get the request frame for this queue element */
+    p_tx_elem = list_entry(p_elem, FIOMSG_TX_FRAME, elem);
+    /* See if current element matches fiod */
+    if (p_tx_elem->fiod.fiod == p_sys_fiod->fiod.fiod) {
+      /* Does the frame number match one requested? */
+      if (FIOMSG_PAYLOAD(p_tx_elem)->frame_no == frame_no) {
+        list_del_init(p_elem);
+        kfree(p_tx_elem);
+        return 0;
+      }
+    }
+  }
+  return(-EINVAL);
+
+}
+
+/*****************************************************************************/
+/*
 This function adds the default frames for a port (given the indicated FIOD)
 to the request frame list for this port, for the first time the port is
 accessed.
@@ -3863,63 +3901,62 @@ int fioman_inputs_trans_set
 	FIO_IOC_INPUTS_TRANS_SET	*p_arg
 )
 {
-	FIOMAN_PRIV_DATA	*p_priv = filp->private_data;	/* Access Apps data */
-	FIOMAN_APP_FIOD		*p_app_fiod;	/* Ptr to app fiod structure */
-	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* Ptr to FIOMAN fiod structure */
-	unsigned char		input_trans_map[FIO_INPUT_POINTS_BYTES];
-	int i, count;
-	unsigned long flags;
-	bool update_fiod = false;
+  FIOMAN_PRIV_DATA *p_priv = filp->private_data; /* Access Apps data */
+  FIOMAN_APP_FIOD *p_app_fiod; /* Ptr to app fiod structure */
+  FIOMAN_SYS_FIOD *p_sys_fiod; /* Ptr to FIOMAN fiod structure */
+  FIOMAN_APP_FIOD *p_cmp_fiod; /* Ptr to compare app fiod */
+  struct list_head *p_app_elem; /* Ptr to app element being examined */
+  unsigned char input_trans_map[FIO_INPUT_POINTS_BYTES];
+  int i, count;
+  unsigned long flags;
 
-	/* Find this APP registration */
-	p_app_fiod = fioman_find_dev( p_priv, p_arg->dev_handle );
-	/* See if we found the dev_handle */
-	if ( NULL == p_app_fiod )
-		/* No, return error */
-		return -EINVAL;
-	
-        count = p_arg->count;
-	if (count <= 0) {
-		return ( -EFAULT );
-	}
+  /* Find this APP registration */
+  p_app_fiod = fioman_find_dev( p_priv, p_arg->dev_handle );
+  /* See if we found the dev_handle */
+  if ( NULL == p_app_fiod )
+    /* No, return error */
+    return -EINVAL;
 
-	if (count > FIO_INPUT_POINTS_BYTES)
-                count = FIO_INPUT_POINTS_BYTES;
+  count = p_arg->count;
+  if (count <= 0) {
+    return ( -EFAULT );
+  }
 
-	p_sys_fiod = p_app_fiod->p_sys_fiod;
-	if (copy_from_user(input_trans_map, p_arg->data, count)) {
-		return -EFAULT;
-	}
+  if (count > FIO_INPUT_POINTS_BYTES)
+    count = FIO_INPUT_POINTS_BYTES;
 
-	spin_lock_irqsave(&p_sys_fiod->lock, flags);
-	for (i=0; i<(FIO_INPUT_POINTS_BYTES*8); i++) {
-		/* Save app-based values */
-		if (FIO_BIT_TEST(input_trans_map,i)) {
-			FIO_BIT_SET(p_app_fiod->input_transition_map, i);
-			if (!FIO_BIT_TEST(p_sys_fiod->input_transition_map,i)) {
-				FIO_BIT_SET(p_sys_fiod->input_transition_map, i);
-				update_fiod = true;
-			}
-		} else {
-			FIO_BIT_CLEAR(p_app_fiod->input_transition_map, i);
-			if (FIO_BIT_TEST(p_sys_fiod->input_transition_map, i)) {
-				/* TBD: Check all apps before turning off */
-			}
-		}
-	}
-	spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
+  p_sys_fiod = p_app_fiod->p_sys_fiod;
+  if (copy_from_user(input_trans_map, p_arg->data, count)) {
+    return -EFAULT;
+  }
 
-  /* If any sys_fiod input config values have changed, we must schedule frame #51 */
-  if (update_fiod) {
-    p_sys_fiod->inputs_configured = false;
-    /* Ready frame 51 for this device */
-    if (!fioman_frame_is_scheduled(p_sys_fiod, FIOMAN_FRAME_NO_51)) {
-      p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_51] = FIO_HZ_10;
-      return fioman_add_frame(FIOMAN_FRAME_NO_51, p_sys_fiod);
+  /* Save app-based values */
+  memcpy(p_app_fiod->input_transition_map, input_trans_map, count);
+  
+  spin_lock_irqsave(&p_sys_fiod->lock, flags);
+  for (i=0; i<FIO_INPUT_POINTS_BYTES; i++) {
+    /* Check all apps settings before turning off */
+    list_for_each( p_app_elem, &p_sys_fiod->app_fiod_list ) {
+      /* Get a ptr to this list entry */
+      p_cmp_fiod = list_entry( p_app_elem, FIOMAN_APP_FIOD, sys_elem );
+      input_trans_map[i] |= p_cmp_fiod->input_transition_map[i];
     }
   }
-	
-	return 0;
+  memcpy(p_sys_fiod->input_transition_map, input_trans_map, count);
+  spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
+  /*pr_debug("fioman_inputs_trans_set: %02X %02X %02X %02X %02X %02X %02X %02X\n",
+    input_trans_map[0], input_trans_map[1], input_trans_map[2], input_trans_map[3],
+    input_trans_map[4], input_trans_map[5], input_trans_map[6], input_trans_map[7]);*/
+
+  /* If any sys_fiod input config values have changed, we must schedule frame #51 */
+  p_sys_fiod->inputs_configured = false;
+  /* Ready frame 51 for this device */
+  if (!fioman_frame_is_scheduled(p_sys_fiod, FIOMAN_FRAME_NO_51)) {
+    p_sys_fiod->frame_frequency_table[FIOMAN_FRAME_NO_51] = FIO_HZ_10;
+    return fioman_add_frame(FIOMAN_FRAME_NO_51, p_sys_fiod);
+  }
+
+  return 0;
 }
 
 int fioman_inputs_trans_get
