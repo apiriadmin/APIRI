@@ -50,6 +50,7 @@ extern FIOMSG_TIME fiomsg_tx_frame_when(FIO_HZ freq, bool align);
 extern int local_time_offset;
 extern FIOMSG_PORT	fio_port_table[ FIO_PORTS_MAX ];
 extern FIOMSG_TX_FRAME *fioman_get_tx_frame(FIOMAN_SYS_FIOD *, int);
+extern FIOMSG_TX_FRAME *fioman_remove_frame(FIOMAN_SYS_FIOD *, int);
 
 /*  Global section.
 -----------------------------------------------------------------------------*/
@@ -1200,7 +1201,6 @@ fioman_tx_frame_67
 	struct list_head	*p_sys_elem;	/* Element from FIOMAN FIOD list */
 	struct list_head	*p_next;		/* Temp for loop */
 	FIOMAN_SYS_FIOD		*p_sys_fiod;	/* FIOD of destined frame */
-	FIO_DEVICE_TYPE		fiod;
 	int ii, output;
 	unsigned long flags;
 /* TEG DEL */
@@ -1212,8 +1212,8 @@ fioman_tx_frame_67
 	{
 		/* Get a ptr to this list entry */
 		p_sys_fiod = list_entry( p_sys_elem, FIOMAN_SYS_FIOD, elem );
-		for (fiod=FIOOUT6SIU1;fiod<=FIOOUT14SIU2;fiod++) {
-			if (p_sys_fiod->fiod.fiod == fiod) {
+		if (IS_OUTSIU(p_sys_fiod->fiod.fiod)
+			|| (p_sys_fiod->fiod.fiod == FIO332)) {
 /*				pr_debug( "Frame 0: out+: %x %x %x\n",	p_sys_fiod->outputs_plus[0],
 					p_sys_fiod->outputs_plus[1], p_sys_fiod->outputs_plus[2] );
 				pr_debug( "Frame 0: out-: %x %x %x\n",	p_sys_fiod->outputs_minus[0],
@@ -1262,7 +1262,6 @@ fioman_tx_frame_67
 					}
 				}
 				spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
-			}
 		}
 	}
 	/* Add Dark Channel Map Selection */
@@ -2788,9 +2787,7 @@ fioman_rx_frame_179
     spin_lock_irqsave(&p_sys_fiod->lock, flags);
     p_sys_fiod->inputs_configured = true;
     /* Remove frame 51 from schedule */
-    if ((p_tx_frame = fioman_get_tx_frame(p_sys_fiod, FIOMAN_FRAME_NO_51)) != NULL) {
-      p_tx_frame->cur_freq = FIO_HZ_0;
-    }
+    fioman_remove_frame(p_sys_fiod, FIOMAN_FRAME_NO_51);
     spin_unlock_irqrestore(&p_sys_fiod->lock, flags);
   }
     

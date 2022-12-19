@@ -262,7 +262,7 @@ static	FIOMSG_TX_DEAD_TIME_CALC	dead_time[] =
 	{  500/*was 500*/, 1000,  500 },	/*  48 */
 	{  4000/*was 500*/, 183,  105 },	/*  49 - ATC */
 	{  4000/*was 500*/, 105,  144 },	/*  50 - ATC */
-	{  4000/*was 500*/, 105,  4753 },	/*  51 - ATC */
+	{  5000/*was 500*/, 105,  4753 },	/*  51 - ATC */
 	{  4000/*was 500*/, 339,  92 },	/*  52 - ATC */
 	{  4000/*was 500*/, 339,  92 },	/*  53 - ATC */
 	{  4000/*was 500*/, 10143, 105 },	/*  54 - ATC */
@@ -1025,7 +1025,7 @@ fiomsg_port_open
 {
 	int channel;
 	void *context;
-	atc_spxs_config_t config = {ATC_SDLC, ATC_B614400, ATC_CLK_INTERNAL, ATC_GATED};
+	atc_spxs_config_t config = {ATC_SDLC, ATC_B614400, ATC_CLK_INTERNAL, ATC_CONTINUOUS};
 /* TEG */
 	/* Initialize */
 	/* Open SDLC driver for indicated port */
