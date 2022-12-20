@@ -229,6 +229,7 @@ int main(int argc, char **argv)
 	// Enable this FIO module
 	fio_fiod_enable(fio_handle, dev_handle);
 	// Perform "walking 1" bit pattern test
+  printf("walking 1 bit test...\n");
 	for (int iter = 0; iter<number_of_input_bytes; iter++) {
 		memset(outputs_plus, 0, sizeof outputs_plus);
 		for(int j=0; j<8; j++) {
@@ -240,6 +241,7 @@ int main(int argc, char **argv)
 		}
 	}
 	// Perform muliple bit pattern test
+  printf("random multiple bits test...\n");
 	for (int iter=0; iter<100; iter++) {
 		// Obtain a random bit pattern for outputs of length (8*FIO_OUTPUT_POINTS_BYTES)
 		//getrandom(outputs_plus, sizeof outputs_plus, 0);
